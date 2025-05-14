@@ -19,7 +19,7 @@ logs
 .idea
 .cursor
 # .gitignore
-./generated/prisma
+/generated/prisma
 
 # Local env files
 .env
