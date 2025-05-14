@@ -40,7 +40,7 @@
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
     "postcss": "^8.5.3",
-    "prisma": "6.7.x",
+    "prisma": "^6.6.0",
     "tsx": "^4.19.4",
     "zenstack": "^2.14.2"
   },

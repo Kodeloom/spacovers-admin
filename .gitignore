@@ -18,6 +18,8 @@ logs
 .fleet
 .idea
 .cursor
+# .gitignore
+./generated/prisma
 
 # Local env files
 .env
