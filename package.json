@@ -7,8 +7,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "zenstag:postgenerate": "tsc -p tsconfig.zenstack.json",
     "zenstack:generate": "npx zenstack generate && ./prisma-post-script.sh",
-    "postinstall": "npm run zenstack:generate && nuxt prepare",
+    "postinstall": "npm run zenstack:generate && npm run zenstack:postgenerate && nuxt prepare",
     "start": "node .output/server/index.mjs",
     "db:seed": "prisma db seed"
   },
@@ -19,6 +20,7 @@
     "@nuxt/icon": "1.12.0",
     "@nuxt/image": "1.10.0",
     "@nuxt/test-utils": "3.17.2",
+    "@nuxthub/core": "^0.8.27",
     "@prisma/client": "^6.6.0",
     "@tanstack/vue-query": "^5.75.7",
     "@zenstackhq/runtime": "^2.14.2",
@@ -42,6 +44,7 @@
     "postcss": "^8.5.3",
     "prisma": "^6.6.0",
     "tsx": "^4.19.4",
+    "wrangler": "^4.14.4",
     "zenstack": "^2.14.2"
   },
   "prisma": {

@@ -5,7 +5,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { Prisma, User } from "../../generated/prisma";
+import type { Prisma, User } from "../../shared/generated/prisma";
 import type { UseMutationOptions, UseQueryOptions, UseInfiniteQueryOptions, InfiniteData } from '@tanstack/vue-query';
 import { getHooksContext } from '@zenstackhq/tanstack-query/runtime-v5/vue';
 import type { MaybeRefOrGetter, ComputedRef, UnwrapRef } from 'vue';
@@ -239,7 +239,7 @@ export function useCountUser<TArgs extends Prisma.UserCountArgs, TQueryFnData = 
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<TQueryFnData, TData, TError>('User', `${endpoint}/user/count`, args, options, fetch);
 }
-import type { UserStatus } from '../../generated/prisma';
+import type { UserStatus } from '../../shared/generated/prisma';
 
 export function useCheckUser<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; name?: string; email?: string; contactNumber?: string; passwordHash?: string; image?: string; status?: UserStatus; organizationId?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();

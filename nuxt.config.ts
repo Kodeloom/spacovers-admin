@@ -8,12 +8,18 @@ export default defineNuxtConfig({
     externals: {
       inline: ['@prisma/client'],
     },
+    preset: "cloudflare_pages",
+      cloudflare: {
+        deployConfig: true,
+        nodeCompat:true
+      }
   },
   modules: [
     '@nuxt/eslint',
     '@nuxt/icon',
     '@nuxt/image',
     '@nuxt/test-utils',
-    '@nuxtjs/tailwindcss'
+    '@nuxtjs/tailwindcss',
+    '@nuxthub/core'
   ]
 })

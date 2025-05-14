@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { customSession } from "better-auth/plugins";
 // Using relative path for Prisma Client import for compatibility with external CLIs
-import { PrismaClient } from "~/generated/prisma"; 
+import { PrismaClient } from "#shared/generated/prisma/client";
 
 const prisma = new PrismaClient();
 

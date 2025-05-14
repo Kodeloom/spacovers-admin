@@ -1,4 +1,4 @@
-import { PrismaClient } from '~/generated/prisma'; // Use Nuxt alias for server routes
+import { PrismaClient } from '#shared/generated/prisma/client'; // Use Nuxt alias for server routes
 import { auth } from '~/server/lib/auth';
 import { defineEventHandler, readBody, createError } from 'h3';
 
