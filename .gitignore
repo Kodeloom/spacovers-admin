@@ -19,7 +19,7 @@ logs
 .idea
 .cursor
 # .gitignore
-/generated/prisma
+/generated/prisma/libquery_engine-darwin-arm64.dylib.node
 
 # Local env files
 .env
