@@ -9,11 +9,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// binaryTargets = ["native", "debian-openssl-3.0.x"]
+// FOR NETLIFY:  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+// moduleFormat = "esm"
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
-  moduleFormat = "esm"
 }
 
 
