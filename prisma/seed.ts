@@ -1,4 +1,4 @@
-import { PrismaClient, UserStatus } from '~/generated/prisma'; // Adjusted import path
+import { PrismaClient, UserStatus } from '#shared/generated/prisma'; // Adjusted import path
 
 const prisma = new PrismaClient();
 const PLACEHOLDER_HASH = 'SEED_PLACEHOLDER_NEEDS_RESET_VIA_BETTER_AUTH_FLOW';
