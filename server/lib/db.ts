@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from "~/generated/prisma";
 import { enhance } from "@zenstackhq/runtime";
 import { auth } from "./auth";
 import { type H3Event, getRequestHeaders } from "h3";
+import { Headers } from "undici";
 
 const prisma = new PrismaClient();
 
