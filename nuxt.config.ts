@@ -5,17 +5,17 @@ export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV === 'development' },
   nitro: {
   //   preset: 'node-server',
-    externals: {
-      inline: ['@prisma/client', '@zenstackhq/runtime'],
-    },
+    // externals: {
+    //   inline: ['@prisma/client', '@zenstackhq/runtime'],
+    // },
     preset: "cloudflare_pages",
       cloudflare: {
         deployConfig: true,
         nodeCompat: true
       },
-      experimental: {
-      wasm: true
-    }
+    //   experimental: {
+    //   wasm: true
+    // }
   },
   modules: [
     '@nuxt/eslint',
