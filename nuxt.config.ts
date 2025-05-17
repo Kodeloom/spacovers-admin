@@ -10,12 +10,6 @@ export default defineNuxtConfig({
       inline: ['@prisma/client'],
       trace: false,
     },
-    rollupConfig: {
-      onwarn(warning, warn) {
-        if (warning.message.includes('/root/.nix-profile')) return
-        warn(warning)
-      },
-    },
   },
   modules: [
     '@nuxt/eslint',

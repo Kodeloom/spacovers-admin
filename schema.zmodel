@@ -12,7 +12,6 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
   output   = "../shared/generated/prisma"
-  previewFeatures = ["driverAdapters"]
   binaryTargets = ["native", "debian-openssl-3.0.x"]
   moduleFormat = "esm"
 }
