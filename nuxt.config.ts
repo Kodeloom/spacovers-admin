@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   //   preset: 'node-server',
   preset: 'node-server',
     externals: {
-      inline: ['@prisma/client', '@zenstackhq/runtime', '@zenstackhq/tanstack-query'],
+      inline: ['@prisma/client'],
     },
   },
   modules: [

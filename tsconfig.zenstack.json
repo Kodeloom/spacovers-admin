@@ -1,15 +1,16 @@
-{
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "outDir": ".zenstack-compiled",
-    "rootDir": ".zenstack",
-    "esModuleInterop": true,
-    "allowJs": true,
-    "declaration": false,
-    "skipLibCheck": true,
-    "isolatedModules": true
-  },
-  "include": [".zenstack/**/*"]
-}
+// {
+//   "compilerOptions": {
+//     "target": "ESNext",
+//     "module": "ESNext",
+//     "moduleResolution": "Node",
+//     "outDir": ".zenstack-compiled",
+//     "rootDir": ".zenstack",
+//     "esModuleInterop": true,
+//     "allowJs": true,
+//     "declaration": false,
+//     "skipLibCheck": true,
+//     "isolatedModules": true
+//   },
+//   "include": [".zenstack/**/*"]
+// }
+{}
