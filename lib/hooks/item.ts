@@ -5,7 +5,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { Prisma, Item } from "../../shared/generated/prisma";
+import type { Prisma, Item } from "@prisma-app/client";
 import type { UseMutationOptions, UseQueryOptions, UseInfiniteQueryOptions, InfiniteData } from '@tanstack/vue-query';
 import { getHooksContext } from '@zenstackhq/tanstack-query/runtime-v5/vue';
 import type { MaybeRefOrGetter, ComputedRef, UnwrapRef } from 'vue';
@@ -239,7 +239,7 @@ export function useCountItem<TArgs extends Prisma.ItemCountArgs, TQueryFnData = 
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<TQueryFnData, TData, TError>('Item', `${endpoint}/item/count`, args, options, fetch);
 }
-import type { ItemStatus } from '../../shared/generated/prisma';
+import type { ItemStatus } from '@prisma-app/client';
 
 export function useCheckItem<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; quickbooksItemId?: string; name?: string; imageUrl?: string; category?: string; description?: string; status?: ItemStatus }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();

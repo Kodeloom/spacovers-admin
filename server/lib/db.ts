@@ -1,5 +1,4 @@
-import { PrismaClient } from "#shared/generated/prisma/client";
-import { Prisma } from "#shared/generated/prisma";
+import { PrismaClient, Prisma } from "@prisma-app/client";
 import { enhance } from "@zenstackhq/runtime";
 import { auth } from "./auth";
 import { type H3Event, getRequestHeaders } from "h3";

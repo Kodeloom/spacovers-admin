@@ -5,7 +5,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { Prisma, Order } from "../../shared/generated/prisma";
+import type { Prisma, Order } from "@prisma-app/client";
 import type { UseMutationOptions, UseQueryOptions, UseInfiniteQueryOptions, InfiniteData } from '@tanstack/vue-query';
 import { getHooksContext } from '@zenstackhq/tanstack-query/runtime-v5/vue';
 import type { MaybeRefOrGetter, ComputedRef, UnwrapRef } from 'vue';
@@ -239,7 +239,7 @@ export function useCountOrder<TArgs extends Prisma.OrderCountArgs, TQueryFnData 
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<TQueryFnData, TData, TError>('Order', `${endpoint}/order/count`, args, options, fetch);
 }
-import type { OrderSystemStatus } from '../../shared/generated/prisma';
+import type { OrderSystemStatus } from '@prisma-app/client';
 
 export function useCheckOrder<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; quickbooksOrderId?: string; customerId?: string; salesOrderNumber?: string; purchaseOrderNumber?: string; contactEmail?: string; contactPhoneNumber?: string; billingAddressLine1?: string; billingAddressLine2?: string; billingCity?: string; billingState?: string; billingZipCode?: string; billingCountry?: string; shippingAddressLine1?: string; shippingAddressLine2?: string; shippingCity?: string; shippingState?: string; shippingZipCode?: string; shippingCountry?: string; orderStatus?: OrderSystemStatus; barcode?: string; notes?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();
