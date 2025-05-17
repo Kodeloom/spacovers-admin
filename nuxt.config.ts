@@ -5,11 +5,14 @@ export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV === 'development' },
   nitro: {
   //   preset: 'node-server',
-  preset: 'node-server',
-    externals: {
-      inline: ['@prisma/client'],
-      trace: false,
-    },
+  // preset: 'node-server',
+    // externals: {
+      // inline: ['@prisma/client'],
+      // trace: false,
+    // },
+    // experimental: {
+      // wasm: true,
+    // },
   },
   modules: [
     '@nuxt/eslint',
