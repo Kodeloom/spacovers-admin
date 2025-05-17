@@ -6,10 +6,10 @@ export default defineNuxtConfig({
   nitro: {
   //   preset: 'node-server',
   // preset: 'node-server',
-    // externals: {
+    externals: {
       // inline: ['@prisma/client'],
-      // trace: false,
-    // },
+      trace: false,
+    },
     // experimental: {
       // wasm: true,
     // },
