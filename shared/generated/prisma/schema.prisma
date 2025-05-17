@@ -12,7 +12,6 @@ generator client {
   provider      = "prisma-client-js"
   output        = "../shared/generated/prisma"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
-  moduleFormat  = "esm"
 }
 
 enum UserStatus {
