@@ -7,7 +7,14 @@ export default defineNuxtConfig({
   //   preset: 'node-server',
   preset: 'node-server',
     externals: {
-      inline: ['@prisma/client', '.shared/generated/prisma/client'],
+      inline: ['@prisma/client'],
+      trace: false,
+    },
+    rollupConfig: {
+      onwarn(warning, warn) {
+        if (warning.message.includes('/root/.nix-profile')) return
+        warn(warning)
+      },
     },
   },
   modules: [

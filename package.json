@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "zenstack:generate": "npx zenstack generate && ./prisma-post-script.sh",
-    "postinstall": "npm run zenstack:generate && nuxt prepare",
+    "postinstall": "patch-package && npm run zenstack:generate && nuxt prepare",
     "start": "node .output/server/index.mjs",
     "db:seed": "prisma db seed"
   },
@@ -39,7 +39,9 @@
     "@types/bcryptjs": "^3.0.0",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
+    "patch-package": "^8.0.0",
     "postcss": "^8.5.3",
+    "postinstall-postinstall": "^2.1.0",
     "prisma": "6.6.0",
     "tsx": "^4.19.4",
     "zenstack": "^2.14.2"
