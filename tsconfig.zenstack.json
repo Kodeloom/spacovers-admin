@@ -13,15 +13,15 @@
 //   },
 //   "include": [".zenstack/**/*"]
 // }
-{
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Node",
-    "esModuleInterop": true,
-    "allowJs": true,
-    "declaration": false,
-    "skipLibCheck": true,
-    "isolatedModules": true
-  }
-}
+// {
+//   "compilerOptions": {
+//     "target": "ESNext",
+//     "module": "ESNext",
+//     "moduleResolution": "Node",
+//     "esModuleInterop": true,
+//     "allowJs": true,
+//     "declaration": false,
+//     "skipLibCheck": true,
+//     "isolatedModules": true
+//   }
+// }
