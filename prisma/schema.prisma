@@ -59,12 +59,15 @@ model User {
   name               String
   email              String              @unique()
   contactNumber      String?
-  passwordHash       String
-  emailVerified      DateTime?
+  passwordHash       String?
+  emailVerified      Boolean?
   image              String?
   status             UserStatus          @default(ACTIVE)
   hourlyRate         Decimal?            @db.Decimal(10, 2)
   organizationId     String?
+  banned             Boolean?
+  banReason          String?
+  banExpires         DateTime?
   roles              UserRole[]
   itemProcessingLogs ItemProcessingLog[]
   auditLogs          AuditLog[]
@@ -72,6 +75,7 @@ model User {
   accounts           Account[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
+  role               String?
 
   @@map("user")
 }
@@ -264,15 +268,16 @@ model AuditLog {
 }
 
 model Session {
-  id        String   @id() @default(cuid())
-  expiresAt DateTime
-  token     String   @unique()
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt()
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id() @default(cuid())
+  expiresAt     DateTime
+  token         String   @unique()
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt()
+  ipAddress     String?
+  userAgent     String?
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersontedBy String?
 
   @@map("session")
 }

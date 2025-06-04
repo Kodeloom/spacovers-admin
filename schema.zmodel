@@ -16,9 +16,9 @@ generator client {
 
 
 plugin hooks {
-    provider = '@zenstackhq/tanstack-query'
-    target = 'vue'
-    output = 'lib/hooks' // This is a common output path, adjust if needed
+  provider = '@zenstackhq/tanstack-query'
+  target = 'vue'
+  output = 'lib/hooks' // This is a common output path, adjust if needed
 }
 
 // Enums
@@ -67,85 +67,109 @@ enum OrderItemProcessingStatus { // Renamed for clarity
 // Models
 
 model User {
-  id            String     @id @default(cuid())
-  name          String
-  email         String     @unique
-  contactNumber String?
-  passwordHash  String // Managed by Better-Auth
-  emailVerified DateTime?  // Managed by Better-Auth
-  image         String?    // Added by Better-Auth
-  status        UserStatus @default(ACTIVE)
-  hourlyRate    Decimal?   @db.Decimal(10, 2)
+  id                 String              @id @default(cuid())
+  name               String
+  email              String              @unique
+  contactNumber      String?
+  passwordHash       String? // Managed by Better-Auth, now optional
+  emailVerified      Boolean?  // Managed by Better-Auth
+  image              String?    // Added by Better-Auth
+  status             UserStatus          @default(ACTIVE)
+  hourlyRate         Decimal?            @db.Decimal(10, 2)
 
-  organizationId String? // For Better-Auth multi-tenancy if used
+  organizationId     String? // For Better-Auth multi-tenancy if used
 
-  roles           UserRole[]
+  // Fields for Better Auth Admin Plugin
+  banned             Boolean?  // New
+  banReason          String?   // New
+  banExpires         DateTime? // New
+
+  roles              UserRole[]
   itemProcessingLogs ItemProcessingLog[]
-  auditLogs       AuditLog[]
-  sessions        Session[]  // Added by Better-Auth
-  accounts        Account[]  // Added by Better-Auth
+  auditLogs          AuditLog[]
+  sessions           Session[]  // Added by Better-Auth
+  accounts           Account[]  // Added by Better-Auth
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  role               String?
 
   // Access Control Policies
-  // Deny all operations by default if not logged in (applied to all models implicitly by ZenStack if no general allow rule exists)
-  // @@deny('all', auth() == null) // This can be a global rule or per-model
 
-  // Admins can manage any user
-  @@allow('all', auth() != null && auth().roles?[role.name == "Admin"]) // Assuming 'Admin' role name
-  // Users can read their own profile
-  @@allow('read', auth() != null && auth().id == id)
-  // Users can update specific fields of their own profile (e.g., name, contactNumber, image, potentially password via a special flow)
-  // More granular field-level controls can be added later if needed for self-service updates.
-  @@allow('update', auth() != null && auth().id == id) // For now, general update for self
+  // GENERAL CRUD for Super Admins (delete is handled more specifically below)
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name == "Super Admin"]) 
+
+  // USER SELF-SERVICE - Read own profile
+  @@allow('read', auth() != null && id == auth().id)
+  // USER SELF-SERVICE - Update own profile (specific fields should be controlled by API logic if not all fields are updatable by user)
+  @@allow('update', auth() != null && id == auth().id) 
+
+  // --- DELETE POLICIES --- 
+  // Priority 1: Deny self-deletion for everyone
+  @@deny('delete', auth() != null && id == auth().id)
+
+  // Priority 2: Allow rules for delete (these will be checked only if the deny rule above doesn't apply)
+  // Super Admins can delete any user (that isn't themselves due to the deny rule)
+  @@allow('delete', auth() != null && auth().roles?[role.name == "Super Admin"])
+  
+  // Admins can delete users who are NOT Super Admins (and not themselves, due to the deny rule)
+  @@deny('delete', auth() != null && auth().roles?[role.name == "Admin"] && roles?[role.name == "Super Admin"])
+
+
+  @@allow('delete', auth() != null && auth().roles?[role.name == "Admin"])
+
+  // Note: ZenStack applies a default deny if no allow rule matches for an operation.
 
   @@map("user")
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String           @id @default(cuid())
+  name        String           @unique
   description String?
   users       UserRole[]
   permissions RolePermission[]
   stations    RoleStation[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   // Access Control Policies
   // Only Admins can manage roles
-  @@allow('all', auth() != null && auth().roles?[role.name == "Admin"])
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
 model Permission {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   action      String   // e.g., "create", "read", "update", "delete"
   subject     String   // e.g., "User", "Order", "CustomerItem"
   description String?
   roles       RolePermission[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@unique([action, subject])
 
   // Access Control Policies
   // Only Admins can manage permissions
-  @@allow('all', auth() != null && auth().roles?[role.name == "Admin"])
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
 model UserRole {
-  userId String
-  roleId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId     String
+  roleId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   assignedAt DateTime @default(now())
   assignedBy String? // Potentially a user ID or name
 
   @@id([userId, roleId])
+
+  @@allow('create,delete,update', auth() != null && auth().roles?[role.name == "Super Admin"])
+  @@allow('read', auth() != null)
 }
 
 model RolePermission {
@@ -154,19 +178,20 @@ model RolePermission {
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  assignedAt DateTime @default(now())
+  assignedAt   DateTime   @default(now())
 
   @@id([roleId, permissionId])
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
 model Customer {
-  id                   String          @id @default(cuid())
-  quickbooksCustomerId String?         @unique // For QBO sync
+  id                   String         @id @default(cuid())
+  quickbooksCustomerId String?        @unique // For QBO sync
   name                 String
   contactNumber        String?
   email                String?
   type                 CustomerType
-  status               CustomerStatus  @default(ACTIVE)
+  status               CustomerStatus @default(ACTIVE)
   shippingAddressLine1 String?
   shippingAddressLine2 String?
   shippingCity         String?
@@ -180,48 +205,48 @@ model Customer {
   billingZipCode       String?
   billingCountry       String?
 
-  orders Order[]
+  orders               Order[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 }
 
 model Item {
-  id               String     @id @default(cuid())
-  quickbooksItemId String?    @unique // For QBO sync
+  id               String      @id @default(cuid())
+  quickbooksItemId String?     @unique // For QBO sync
   name             String
   imageUrl         String?
   category         String?
-  wholesalePrice   Decimal?   @db.Decimal(10, 2)
-  retailPrice      Decimal?   @db.Decimal(10, 2)
-  cost             Decimal?   @db.Decimal(10, 2)
+  wholesalePrice   Decimal?    @db.Decimal(10, 2)
+  retailPrice      Decimal?    @db.Decimal(10, 2)
+  cost             Decimal?    @db.Decimal(10, 2)
   description      String?
-  status           ItemStatus @default(ACTIVE)
+  status           ItemStatus  @default(ACTIVE)
 
-  orderItems OrderItem[]
+  orderItems       OrderItem[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model Station {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g., "Cutting", "Sewing", "Wrapping"
-  barcode     String?  @unique // For scanning the station itself
-  description String?
+  id                 String              @id @default(cuid())
+  name               String              @unique // e.g., "Cutting", "Sewing", "Wrapping"
+  barcode            String?             @unique // For scanning the station itself
+  description        String?
 
-  roles             RoleStation[]
+  roles              RoleStation[]
   itemProcessingLogs ItemProcessingLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model RoleStation {
-  roleId    String
-  stationId String
-  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  roleId     String
+  stationId  String
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  station    Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
   assignedAt DateTime @default(now())
 
@@ -229,72 +254,72 @@ model RoleStation {
 }
 
 model Order {
-  id                    String            @id @default(cuid())
-  quickbooksOrderId     String?           @unique // For QBO sync
-  customerId            String
-  customer              Customer          @relation(fields: [customerId], references: [id])
-  salesOrderNumber      String?           // Ideally unique from QBO
-  purchaseOrderNumber   String?
-  contactEmail          String            // Can be from customer, but modifiable
-  contactPhoneNumber    String?           // Can be from customer, but modifiable
-  billingAddressLine1   String?
-  billingAddressLine2   String?
-  billingCity           String?
-  billingState          String?
-  billingZipCode        String?
-  billingCountry        String?
-  shippingAddressLine1  String?
-  shippingAddressLine2  String?
-  shippingCity          String?
-  shippingState         String?
-  shippingZipCode       String?
-  shippingCountry       String?
-  orderStatus           OrderSystemStatus @default(PENDING)
-  barcode               String?           @unique // Generated for warehouse tracking
-  approvedAt            DateTime?
-  readyToShipAt         DateTime?
-  shippedAt             DateTime?
-  notes                 String?           @db.Text
+  id                   String            @id @default(cuid())
+  quickbooksOrderId    String?           @unique // For QBO sync
+  customerId           String
+  customer             Customer          @relation(fields: [customerId], references: [id])
+  salesOrderNumber     String?           // Ideally unique from QBO
+  purchaseOrderNumber  String?
+  contactEmail         String            // Can be from customer, but modifiable
+  contactPhoneNumber   String?           // Can be from customer, but modifiable
+  billingAddressLine1  String?
+  billingAddressLine2  String?
+  billingCity          String?
+  billingState         String?
+  billingZipCode       String?
+  billingCountry       String?
+  shippingAddressLine1 String?
+  shippingAddressLine2 String?
+  shippingCity         String?
+  shippingState        String?
+  shippingZipCode      String?
+  shippingCountry      String?
+  orderStatus          OrderSystemStatus @default(PENDING)
+  barcode              String?           @unique // Generated for warehouse tracking
+  approvedAt           DateTime?
+  readyToShipAt        DateTime?
+  shippedAt            DateTime?
+  notes                String?           @db.Text
 
-  orderItems OrderItem[]
+  orderItems           OrderItem[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 }
 
 model OrderItem {
-  id                      String                    @id @default(cuid())
-  orderId                 String
-  order                   Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  itemId                  String
-  item                    Item                      @relation(fields: [itemId], references: [id])
-  quickbooksOrderLineId   String?                   @unique // If QBO provides line item IDs
-  quantity                Int
-  pricePerItem            Decimal                   @db.Decimal(10, 2) // Price at the time of order
-  itemStatus              OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
-  notes                   String?                   @db.Text
+  id                    String                    @id @default(cuid())
+  orderId               String
+  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId                String
+  item                  Item                      @relation(fields: [itemId], references: [id])
+  quickbooksOrderLineId String?                   @unique // If QBO provides line item IDs
+  quantity              Int
+  pricePerItem          Decimal                   @db.Decimal(10, 2) // Price at the time of order
+  itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
+  notes                 String?                   @db.Text
 
-  itemProcessingLogs ItemProcessingLog[]
+  itemProcessingLogs    ItemProcessingLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
 }
 
 model ItemProcessingLog {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   orderItemId       String
   orderItem         OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
   stationId         String
-  station           Station  @relation(fields: [stationId], references: [id])
+  station           Station   @relation(fields: [stationId], references: [id])
   userId            String
-  user              User     @relation(fields: [userId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
   startTime         DateTime
   endTime           DateTime? // NULL means currently in progress
   durationInSeconds Int?      // Calculated when endTime is set
-  notes             String?  @db.Text
+  notes             String?   @db.Text
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model AuditLog {
@@ -315,15 +340,17 @@ model AuditLog {
 }
 // Better Auth Models
 model Session {
-  id        String   @id @default(cuid()) // Assuming cuid for consistency, though BA might use something else
-  expiresAt DateTime
-  token     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid()) // Assuming cuid for consistency, though BA might use something else
+  expiresAt     DateTime
+  token         String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  ipAddress     String?
+  userAgent     String?
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersontedBy String?
 
   @@map("session")
 }
@@ -349,12 +376,12 @@ model Account {
 }
 
 model Verification {
-  id         String    @id @default(cuid()) // Assuming cuid for consistency
+  id         String   @id @default(cuid()) // Assuming cuid for consistency
   identifier String    // e.g., email address or user ID
-  value      String    @unique // Verification token should be unique
+  value      String   @unique // Verification token should be unique
   expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@map("verification")
 }
