@@ -66,7 +66,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { authClient } from '~/lib/auth-client';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 interface AuthError {
   data?: {
@@ -81,7 +81,8 @@ interface AuthError {
 }
 
 definePageMeta({
-  middleware: ['auth-guest-only']
+  middleware: ['auth-guest-only'],
+  layout: false
 });
 
 const email = ref('admin@example.com');
@@ -89,6 +90,7 @@ const password = ref('');
 const errorMessage = ref('');
 const loading = ref(false);
 const router = useRouter();
+const route = useRoute();
 
 const handleLogin = async () => {
   errorMessage.value = '';
@@ -105,7 +107,14 @@ const handleLogin = async () => {
     // A session cookie should have been set by Better Auth.
     // Redirect to the main dashboard or intended post-login page (e.g., '/').
     // The middleware on the target route will handle further authorization checks.
-    router.push('/'); 
+    
+    // Check for a redirect query parameter
+    const redirectPath = route.query.redirect as string | undefined;
+    if (redirectPath) {
+      router.push(redirectPath);
+    } else {
+      router.push('/'); 
+    }
 
   } catch (e: unknown) {
     const error = e as AuthError; // Type assertion
