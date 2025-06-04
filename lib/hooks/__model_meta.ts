@@ -27,9 +27,10 @@ const metadata = {
                 }, passwordHash: {
                     name: "passwordHash",
                     type: "String",
+                    isOptional: true,
                 }, emailVerified: {
                     name: "emailVerified",
-                    type: "DateTime",
+                    type: "Boolean",
                     isOptional: true,
                 }, image: {
                     name: "image",
@@ -46,6 +47,18 @@ const metadata = {
                 }, organizationId: {
                     name: "organizationId",
                     type: "String",
+                    isOptional: true,
+                }, banned: {
+                    name: "banned",
+                    type: "Boolean",
+                    isOptional: true,
+                }, banReason: {
+                    name: "banReason",
+                    type: "String",
+                    isOptional: true,
+                }, banExpires: {
+                    name: "banExpires",
+                    type: "DateTime",
                     isOptional: true,
                 }, roles: {
                     name: "roles",
@@ -85,6 +98,10 @@ const metadata = {
                     name: "updatedAt",
                     type: "DateTime",
                     attributes: [{ "name": "@updatedAt", "args": [] }],
+                }, role: {
+                    name: "role",
+                    type: "String",
+                    isOptional: true,
                 },
             }, uniqueConstraints: {
                 id: {
@@ -209,6 +226,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'roles',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "userId" },
                 }, role: {
                     name: "role",
@@ -216,6 +234,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'users',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "roleId" },
                 }, assignedAt: {
                     name: "assignedAt",
@@ -253,6 +272,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'permissions',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "roleId" },
                 }, permission: {
                     name: "permission",
@@ -260,6 +280,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'roles',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "permissionId" },
                 }, assignedAt: {
                     name: "assignedAt",
@@ -514,6 +535,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'stations',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "roleId" },
                 }, station: {
                     name: "station",
@@ -521,6 +543,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'roles',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "stationId" },
                 }, assignedAt: {
                     name: "assignedAt",
@@ -690,6 +713,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'orderItems',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "orderId" },
                 }, itemId: {
                     name: "itemId",
@@ -764,6 +788,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'itemProcessingLogs',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "orderItemId" },
                 }, stationId: {
                     name: "stationId",
@@ -840,6 +865,7 @@ const metadata = {
                     isOptional: true,
                     backLink: 'auditLogs',
                     isRelationOwner: true,
+                    onDeleteAction: 'SetNull',
                     foreignKeyMapping: { "id": "userId" },
                 }, action: {
                     name: "action",
@@ -916,7 +942,12 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'sessions',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "userId" },
+                }, impersontedBy: {
+                    name: "impersontedBy",
+                    type: "String",
+                    isOptional: true,
                 },
             }, uniqueConstraints: {
                 id: {
@@ -952,6 +983,7 @@ const metadata = {
                     isDataModel: true,
                     backLink: 'accounts',
                     isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "userId" },
                 }, accessToken: {
                     name: "accessToken",

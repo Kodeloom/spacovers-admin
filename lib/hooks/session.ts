@@ -240,7 +240,7 @@ export function useCountSession<TArgs extends Prisma.SessionCountArgs, TQueryFnD
     return useModelQuery<TQueryFnData, TData, TError>('Session', `${endpoint}/session/count`, args, options, fetch);
 }
 
-export function useCheckSession<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; token?: string; ipAddress?: string; userAgent?: string; userId?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
+export function useCheckSession<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; token?: string; ipAddress?: string; userAgent?: string; userId?: string; impersontedBy?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<boolean, boolean, TError>('Session', `${endpoint}/session/check`, args, options, fetch);
 }

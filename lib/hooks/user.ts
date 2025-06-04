@@ -241,7 +241,7 @@ export function useCountUser<TArgs extends Prisma.UserCountArgs, TQueryFnData = 
 }
 import type { UserStatus } from '@prisma-app/client';
 
-export function useCheckUser<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; name?: string; email?: string; contactNumber?: string; passwordHash?: string; image?: string; status?: UserStatus; organizationId?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
+export function useCheckUser<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; name?: string; email?: string; contactNumber?: string; passwordHash?: string; emailVerified?: boolean; image?: string; status?: UserStatus; organizationId?: string; banned?: boolean; banReason?: string; role?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<boolean, boolean, TError>('User', `${endpoint}/user/check`, args, options, fetch);
 }
