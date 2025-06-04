@@ -13,26 +13,41 @@
       <h2 class="text-lg font-medium">User Information:</h2>
       <p><strong>Name:</strong> {{ session.data.user.name }}</p>
       <p><strong>Email:</strong> {{ session.data.user.email }}</p>
-      <p v-if="session.data.user.roles && session.data.user.roles.length > 0">
+      <p v-if="userRolesDisplay">
         <strong>Roles:</strong> 
-        {{ session.data.user.roles.map(userRole => userRole.role.name).join(', ') }}
+        {{ userRolesDisplay }}
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Import authClient to get session information
+import { computed } from 'vue';
 import { authClient } from '~/lib/auth-client';
 
-// authClient.useSession() returns a reactive object, likely with a .data property holding the session.
-const session = authClient.useSession(); 
-// The type of `session` will be something like Ref<{ data: { user: ..., session: ... } | null; isPending: boolean; ... }>
-// So in the template, we use session.data.user etc.
+// Define a minimal type for what we expect in user.roles for display
+interface UserRoleForDisplay {
+  role: {
+    name: string;
+  };
+}
+
+const session = authClient.useSession();
+
+const userRolesDisplay = computed(() => {
+  const user = session.value?.data?.user;
+  if (user && user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+    // Explicitly type userRole here
+    return (user.roles as UserRoleForDisplay[])
+      .map((userRole: UserRoleForDisplay) => userRole.role.name)
+      .join(', ');
+  }
+  return '';
+});
 
 definePageMeta({
   layout: 'default', // Will use layouts/default.vue
-  middleware: ['auth-admin-only'] // Protect this page, only admins can see it.
+  middleware: ['auth-required'] // Changed from auth-admin-only to auth-required
 });
 </script>
 
