@@ -24,7 +24,7 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
     // Ensure user.roles is checked for existence and is an array before calling .some()
     if (user.roles && Array.isArray(user.roles)) {
       userIsAdmin = user.roles.some((userRole: { role?: { name?: string } }) => 
-        userRole.role && userRole.role.name === 'Admin'
+        userRole.role && (userRole.role.name === 'Super Admin' || userRole.role.name === 'Admin')
       );
     } else {
       console.warn('[AuthAdminOnly Middleware] User object in session does not have a correctly structured roles array:', user.roles);
@@ -37,9 +37,9 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
   }
 
   if (!userIsAdmin) {
-    console.warn('[AuthAdminOnly Middleware] User is authenticated but not an Admin. Redirecting to /login.');
-    // Always redirect non-admins to /login to prevent loops and ensure they can't access admin areas.
-    return navigateTo('/login'); 
+    console.warn('[AuthAdminOnly Middleware] User is authenticated but not an Admin. Redirecting to / (homepage).');
+    // Redirect non-admins to the homepage or a dedicated "access denied" page, not back to /login.
+    return navigateTo('/'); 
   }
 
   console.log('[AuthAdminOnly Middleware] User is Admin. Allowing access to:', to.fullPath);
