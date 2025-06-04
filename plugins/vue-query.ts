@@ -1,10 +1,18 @@
-import { VueQueryPlugin, QueryClient, type VueQueryPluginOptions } from '@tanstack/vue-query';
+import { VueQueryPlugin, type VueQueryPluginOptions } from '@tanstack/vue-query';
+import { defineNuxtPlugin } from '#app';
 
-export default defineNuxtPlugin((nuxt) => {
-    const queryClient = new QueryClient();
-    const vueQueryPluginOptions: VueQueryPluginOptions = {
-        queryClient,
-    };
+export default defineNuxtPlugin((nuxtApp) => {
+  // Modify your Vue Query global settings here
+  const vueQueryOptions: VueQueryPluginOptions = {
+    queryClientConfig: {
+      defaultOptions: {
+        queries: {
+          // staleTime: 1000 * 60, // 1 minute, for example
+          // refetchOnWindowFocus: false,
+        },
+      },
+    },
+  };
 
-    nuxt.vueApp.use(VueQueryPlugin, vueQueryPluginOptions);
+  nuxtApp.vueApp.use(VueQueryPlugin, vueQueryOptions);
 }); 
