@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "zenstack:generate": "npx zenstack generate",
-    "postinstall": "npm run zenstack:generate && npx prisma db push && nuxt prepare",
+    "postinstall": "npm run zenstack:generate && nuxt prepare && npx prisma db push",
     "start": "node .output/server/index.mjs",
     "db:seed": "prisma db seed"
   },
