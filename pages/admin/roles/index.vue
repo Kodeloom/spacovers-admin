@@ -79,12 +79,16 @@
 </template>
 
 <script setup lang="ts">
-// import AppModal from '~/components/AppModal.vue'; // Let Nuxt auto-import
-import { useFindManyRole, useDeleteRole } from '~/lib/hooks';
 import { ref, computed } from 'vue';
-import { useToast } from 'vue-toastification'; // Import useToast
+// import { useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
+import { useFindManyRole, useDeleteRole } from '~/lib/hooks';
+// import type { Role } from '@prisma-app/client';
+import AppModal from '~/components/AppModal.vue';
 
-const toast = useToast(); // Initialize toast
+// const router = useRouter();
+
+const toast = useToast();
 
 const { data: roles, isLoading: isLoadingRoles, error: rolesError, refetch: refreshRoles } = useFindManyRole();
 

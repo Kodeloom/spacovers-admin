@@ -73,7 +73,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCreatePermission } from '~/lib/hooks';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'vue-toastification'; // Import default
 import type { Prisma } from '@prisma-app/client'; // Import Prisma namespace
 
 definePageMeta({

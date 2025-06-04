@@ -121,7 +121,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useFindManyUser, useDeleteUser } from '~/lib/hooks'; // Removed useFindUniqueUser
-import { useToast } from 'vue-toastification';
+import { useToast } from 'vue-toastification'; // Changed import
 import type { User } from '@prisma-app/client'; // Removed UserStatus
 import { useRouter } from 'vue-router';
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
@@ -156,7 +156,7 @@ definePageMeta({
   middleware: ['auth-admin-only']
 });
 
-const toast = useToast();
+const toast = useToast(); // Changed usage: directly call useToast
 const router = useRouter();
 
 // Get session state using authClient

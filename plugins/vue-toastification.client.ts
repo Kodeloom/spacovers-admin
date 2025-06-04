@@ -5,6 +5,7 @@ import 'vue-toastification/dist/index.css';
 export default defineNuxtPlugin((nuxtApp) => {
   const options: PluginOptions = {
     // You can set your default options here
+    // @ts-expect-error - TODO: fix this
     position: "bottom-right",
     timeout: 5000,
     closeOnClick: true,

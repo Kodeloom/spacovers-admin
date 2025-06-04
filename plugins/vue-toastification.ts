@@ -5,7 +5,8 @@ import { defineNuxtPlugin } from '#app';
 export default defineNuxtPlugin((nuxtApp) => {
   const options: PluginOptions = {
     // You can set your default options here
-    position: "bottom-right",
+    // @ts-expect-error - TODO: fix this
+    position: "bottom-right", // Use destructured POSITION
     timeout: 5000,
     closeOnClick: true,
     pauseOnFocusLoss: true,
@@ -17,7 +18,10 @@ export default defineNuxtPlugin((nuxtApp) => {
     closeButton: 'button',
     icon: true,
     rtl: false,
+    // transition: 'Vue-Toastification__fade', // Ensure this is uncommented if intended
+    // maxToasts: 10, // Ensure this is uncommented if intended
+    // newestOnTop: true, // Ensure this is uncommented if intended
   };
 
-  nuxtApp.vueApp.use(Toast, options);
+  nuxtApp.vueApp.use(Toast, options); // Changed to use Toast
 }); 

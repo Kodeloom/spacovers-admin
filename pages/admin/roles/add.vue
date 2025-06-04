@@ -97,9 +97,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useFindManyPermission } from '~/lib/hooks';
 import { useToast } from 'vue-toastification';
-import type { Permission } from '@prisma-app/client'; // Assuming GridCellPermission can be simplified or based on this
+import { useFindManyPermission } from '~/lib/hooks';
+// import type { Permission } from '@prisma-app/client'; // Assuming GridCellPermission can be simplified or based on this. Commented out as unused.
 
 definePageMeta({
   layout: 'default',

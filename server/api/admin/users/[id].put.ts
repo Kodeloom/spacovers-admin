@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3';
-import { Prisma, PrismaClient } from '@prisma-app/client';
+import { Prisma } from '@prisma-app/client';
 import { getEnhancedPrismaClient } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
 
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const updatedUser = await enhancedPrisma.$transaction(async (prismaTx: PrismaClient) => {
+    const updatedUser = await enhancedPrisma.$transaction(async (prismaTx: Prisma.TransactionClient) => {
       // 1. Check if user exists (using transaction client)
       const existingUser = await prismaTx.user.findUnique({
         where: { id: userId },
