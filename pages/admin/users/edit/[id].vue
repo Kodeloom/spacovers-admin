@@ -131,7 +131,6 @@
 <script setup lang="ts">
 import { reactive, watch, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useToast } from 'vue-toastification';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOptions, ListboxOption } from '@headlessui/vue';
 import { useFindUniqueUser, useFindManyRole } from '~/lib/hooks';
 import type { User, UserStatus } from '@prisma-app/client';
@@ -228,10 +227,10 @@ const selectedRolesDisplay = computed(() => {
 
 // Watch for errors during user or role fetching
 watch(userError, (newError: Error | null) => {
-  if (newError) toast.error(`Error fetching user: ${newError.message}`);
+  if (newError) toast.error({ title: 'Error', message: `Error fetching user: ${newError.message}` });
 });
 watch(rolesError, (newError: Error | null) => {
-  if (newError) toast.error(`Error fetching roles: ${newError.message}`);
+  if (newError) toast.error({ title: 'Error', message: `Error fetching roles: ${newError.message}` });
 });
 
 const isUpdatingUser = ref(false);
@@ -239,11 +238,11 @@ const isUpdatingUser = ref(false);
 async function submitUpdateUser() {
   if (changePassword.value) {
     if (editableUser.password.length < 8) {
-      toast.error('New password must be at least 8 characters long.');
+      toast.error({ title: 'Validation Error', message: 'New password must be at least 8 characters long.'});
       return;
     }
     if (editableUser.password !== editableUser.confirmPassword) {
-      toast.error('New passwords do not match.');
+      toast.error({ title: 'Validation Error', message: 'New passwords do not match.'});
       return;
     }
   }
@@ -271,13 +270,13 @@ async function submitUpdateUser() {
       method: 'PUT',
       body: payload
     });
-    toast.success('User updated successfully!');
+    toast.success({ title: 'Success', message: 'User updated successfully!' });
     router.push('/admin/users');
   } catch (err) {
     const fetchError = err as { data?: { message?: string }, message?: string };
     console.error('Error updating user:', fetchError);
     const errorMessage = fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
-    toast.error(`Error updating user: ${errorMessage}`);
+    toast.error({ title: 'Error Updating User', message: `Error updating user: ${errorMessage}`});
   } finally {
     isUpdatingUser.value = false;
   }

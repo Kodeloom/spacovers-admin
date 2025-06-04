@@ -73,7 +73,6 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCreatePermission } from '~/lib/hooks';
-import { useToast } from 'vue-toastification'; // Import default
 import type { Prisma } from '@prisma-app/client'; // Import Prisma namespace
 
 definePageMeta({
@@ -152,11 +151,11 @@ const handleSubmit = async () => {
         const err = createErrorData.value as { data?: { message?: string }, message?: string }; 
         const message = err.data?.message || err.message || 'An unknown error occurred during permission creation.';
         apiError.value = message;
-        toast.error(message);
+        toast.error({ title: 'Error Creating Permission', message: message });
         return; 
     }
 
-    toast.success('Permission created successfully!');
+    toast.success({ title: 'Success', message: 'Permission created successfully!' });
     router.push('/admin/permissions');
   } catch (err: unknown) { 
     console.error("Error creating permission:", err);
@@ -172,7 +171,7 @@ const handleSubmit = async () => {
       }
     }
     apiError.value = message;
-    toast.error(message);
+    toast.error({ title: 'Error Creating Permission', message: message });
   }
 };
 </script> 

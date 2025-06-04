@@ -111,7 +111,6 @@
 import { ref, reactive, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFindUniqueRole, useFindManyPermission } from '~/lib/hooks';
-import { useToast } from 'vue-toastification';
 // Import the actual types directly, avoid re-aliasing if it confuses the linter
 import type { Role, Permission, RolePermission as PrismaRolePermissionModel } from '@prisma-app/client'; 
 
@@ -222,7 +221,7 @@ const togglePermission = (permissionId: string | undefined) => {
 
 onMounted(async () => {
   if (!roleId) {
-    toast.error("Role ID is missing.");
+    toast.error({ title: 'Error', message: "Role ID is missing." });
     router.push("/admin/roles");
     return;
   }
@@ -240,14 +239,14 @@ onMounted(async () => {
         selectedPermissionIds.value = currentRole.permissions.map((rp: PopulatedRolePermission) => rp.permissionId); 
       }
     } else if (!isRoleLoading.value && !roleError.value) {
-        toast.error('Role not found.');
+        toast.error({ title: 'Error', message: 'Role not found.' });
         router.push('/admin/roles');
     }
   } catch (e: unknown) { // Catch as unknown
     console.error("Error during initial data fetch for edit role page:", e);
     // Handle or display error to user if necessary, e.g. via a toast
     if (e instanceof Error) {
-      toast.error(`Failed to load role data: ${e.message}`);
+      toast.error({ title: 'Error', message: `Failed to load role data: ${e.message}` });
     }
   }
 });
@@ -292,7 +291,7 @@ const handleSubmit = async () => {
       body: payload,
     });
 
-    toast.success('Role updated successfully!');
+    toast.success({ title: 'Success', message: 'Role updated successfully!' });
     
     router.push('/admin/roles');
 
@@ -310,7 +309,7 @@ const handleSubmit = async () => {
       }
     }
     apiError.value = message;
-    toast.error(message);
+    toast.error({ title: 'Error Updating Role', message: message });
   } finally {
     isUpdating.value = false;
   }

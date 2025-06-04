@@ -101,7 +101,6 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFindManyPermission, useDeletePermission } from '~/lib/hooks'; 
 import type { Permission } from '@prisma-app/client';
-import { useToast } from 'vue-toastification';
 
 definePageMeta({
   layout: 'default',
@@ -183,12 +182,12 @@ const handleRequestDeletePermission = (permission: Permission) => {
 // Actual Delete Logic (renamed from handleDeletePermission)
 const executeDeletePermission = async () => {
   if (!permissionToModify.value || !permissionToModify.value.id || isDeleting.value) {
-    toast.error('No permission selected for deletion or deletion already in progress.');
+    toast.error({ title: 'Error', message: 'No permission selected for deletion or deletion already in progress.'});
     return;
   }
   try {
     await deletePermissionMutate({ where: { id: permissionToModify.value.id } });
-    toast.success(`Permission '${permissionToModify.value.action} - ${permissionToModify.value.subject}' deleted successfully.`);
+    toast.success({ title: 'Success', message: `Permission '${permissionToModify.value.action} - ${permissionToModify.value.subject}' deleted successfully.`});
     await refreshPermissions();
   } catch (err: unknown) {
     console.error("Error deleting permission:", err);
@@ -197,7 +196,7 @@ const executeDeletePermission = async () => {
       const errorObj = err as { data?: { message?: string }, message?: string };
       message = errorObj.data?.message || errorObj.message || message;
     }
-    toast.error(message);
+    toast.error({ title: 'Error Deleting Permission', message: message});
   } finally {
     closeDeleteModal();
   }

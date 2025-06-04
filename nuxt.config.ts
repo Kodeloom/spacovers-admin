@@ -14,11 +14,17 @@ export default defineNuxtConfig({
       // wasm: true,
     // },
   },
+  runtimeConfig: {
+    public: {
+      appUrl: process.env.APP_URL || 'http://localhost:3000',
+    },
+  },
   modules: [
     '@nuxt/eslint',
     '@nuxt/icon',
     '@nuxt/image',
     '@nuxt/test-utils',
     '@nuxtjs/tailwindcss',
+    'nuxt-toast'
   ]
 })

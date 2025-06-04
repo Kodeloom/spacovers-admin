@@ -135,7 +135,7 @@ onMounted(async () => {
   } catch (e: unknown) {
     console.error("Error during initial permission fetch for add role page:", e);
     if (e instanceof Error) {
-      toast.error(`Failed to load permissions: ${e.message}`);
+      toast.error({ title: 'Error', message: `Failed to load permissions: ${e.message}` });
     }
     // Set an error state that the template can show, if permissionsError isn't already covering it
     if (!permissionsError.value && e instanceof Error) {
@@ -229,7 +229,7 @@ const handleSubmit = async () => {
       method: 'POST',
       body: payload,
     });
-    toast.success('Role created successfully!');
+    toast.success({ title: 'Success', message: 'Role created successfully!' });
     router.push('/admin/roles');
   } catch (err: unknown) {
     console.error("Error creating role:", err);
@@ -247,7 +247,7 @@ const handleSubmit = async () => {
       }
     }
     apiError.value = message;
-    toast.error(message);
+    toast.error({ title: 'Error Creating Role', message: message });
   } finally {
     isSubmitting.value = false;
   }

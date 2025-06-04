@@ -81,7 +81,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 // import { useRouter } from 'vue-router';
-import { useToast } from 'vue-toastification';
 import { useFindManyRole, useDeleteRole } from '~/lib/hooks';
 // import type { Role } from '@prisma-app/client';
 import AppModal from '~/components/AppModal.vue';
@@ -123,7 +122,7 @@ async function confirmDeleteRole() {
 
   try {
     await deleteRoleMutation.mutateAsync({ where: { id: roleIdToDelete.value } });
-    toast.success('Role deleted successfully!'); // Success toast
+    toast.success({ title: 'Success', message: 'Role deleted successfully!' });
     await refreshRoles();
     closeDeleteModal();
   } catch (error: unknown) {
@@ -133,7 +132,7 @@ async function confirmDeleteRole() {
       const err = error as { info?: { message?: string }, message?: string };
       message = err.info?.message || err.message || message;
     }
-    toast.error(`Error deleting role: ${message}`); // Error toast
+    toast.error({ title: 'Error Deleting Role', message: `Error deleting role: ${message}` });
   }
 }
 

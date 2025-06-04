@@ -81,7 +81,6 @@
 import { ref, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFindUniquePermission, useUpdatePermission } from '~/lib/hooks';
-import { useToast } from 'vue-toastification';
 import type { Prisma, Permission } from '@prisma-app/client';
 
 definePageMeta({
@@ -143,7 +142,7 @@ onMounted(async () => {
       // fetchError ref should capture this
     }
   } else {
-    toast.error("Permission ID is missing.");
+    toast.error({ title: 'Error', message: "Permission ID is missing."});
     router.push("/admin/permissions");
   }
 });
@@ -203,7 +202,7 @@ const handleSubmit = async () => {
     }
 
     if (Object.keys(payload).length === 0) {
-      toast.info("No changes detected.");
+      toast.info({ title: 'Info', message: "No changes detected." });
       router.push('/admin/permissions');
       return;
     }
@@ -217,11 +216,11 @@ const handleSubmit = async () => {
       const err = updateErrorData.value as { data?: { message?: string }, message?: string };
       const message = err.data?.message || err.message || 'An unknown error occurred during permission update.';
       apiError.value = message;
-      toast.error(message);
+      toast.error({ title: 'Error Updating Permission', message: message });
       return;
     }
 
-    toast.success('Permission updated successfully!');
+    toast.success({ title: 'Success', message: 'Permission updated successfully!' });
     router.push('/admin/permissions');
   } catch (err: unknown) {
     console.error("Error updating permission:", err);
@@ -237,7 +236,7 @@ const handleSubmit = async () => {
       }
     }
     apiError.value = message;
-    toast.error(message);
+    toast.error({ title: 'Error Updating Permission', message: message });
   }
 };
 </script> 

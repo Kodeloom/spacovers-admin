@@ -108,7 +108,6 @@
 <script setup lang="ts">
 import { reactive, watch, computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useToast } from 'vue-toastification';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOptions, ListboxOption } from '@headlessui/vue';
 import { useFindManyRole } from '~/lib/hooks';
 import type { UserStatus } from '@prisma-app/client';
@@ -162,7 +161,7 @@ const selectedRolesDisplay = computed(() => {
 
 watch(rolesError, (newError: Error | null) => {
   if (newError) {
-    toast.error(`Error fetching roles: ${newError?.message}`);
+    toast.error({ title: 'Error', message: `Error fetching roles: ${newError?.message}` });
   }
 });
 
@@ -170,7 +169,7 @@ const isCreatingUser = ref(false);
 
 async function submitAddUser() {
   if (newUser.password.length < 8) {
-    toast.error('Password must be at least 8 characters long.');
+    toast.error({ title: 'Validation Error', message: 'Password must be at least 8 characters long.' });
     return;
   }
   isCreatingUser.value = true;
@@ -185,13 +184,13 @@ async function submitAddUser() {
         roleIds: newUser.roleIds
       }
     });
-    toast.success('User created successfully!');
+    toast.success({ title: 'Success', message: 'User created successfully!' });
     router.push('/admin/users');
   } catch (err) {
     const fetchError = err as { data?: { message?: string }, message?: string };
     console.error('Error creating user:', fetchError);
     const errorMessage = fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
-    toast.error(`Error creating user: ${errorMessage}`);
+    toast.error({ title: 'Error Creating User', message: `Error creating user: ${errorMessage}` });
   } finally {
     isCreatingUser.value = false;
   }

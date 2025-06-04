@@ -121,7 +121,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useFindManyUser, useDeleteUser } from '~/lib/hooks'; // Removed useFindUniqueUser
-import { useToast } from 'vue-toastification'; // Changed import
 import type { User } from '@prisma-app/client'; // Removed UserStatus
 import { useRouter } from 'vue-router';
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
@@ -156,7 +155,6 @@ definePageMeta({
   middleware: ['auth-admin-only']
 });
 
-const toast = useToast(); // Changed usage: directly call useToast
 const router = useRouter();
 
 // Get session state using authClient
@@ -177,9 +175,11 @@ const { data: users, isLoading: usersLoading, error: usersError, refetch: refetc
   include: { roles: { select: { role: { select: { name: true } } } } }
 });
 
+const toast = useToast(); // This should now use nuxt-toast's auto-imported composable
+
 watch(usersError, (newError: Error | null) => {
   if (newError) {
-    toast.error(`Error fetching users: ${newError.message}`);
+    toast.error({ title: 'Error', message: `Error fetching users: ${newError.message}` });
   }
 });
 
@@ -198,7 +198,7 @@ const { mutateAsync: deleteUser, isPending: isDeletingUser, error: deleteUserErr
 
 watch(deleteUserError, (newError: Error | null) => {
   if (newError) {
-    toast.error(`Error deleting user: ${newError.message}`);
+    toast.error({ title: 'Error', message: `Error deleting user: ${newError.message}` });
   }
 });
 
@@ -212,7 +212,7 @@ async function confirmDeleteUser() {
 
   try {
     await deleteUser({ where: { id: selectedUserForDelete.value.id } });
-    toast.success(`User '${selectedUserForDelete.value.name}' deleted successfully.`);
+    toast.success({ title: 'Success', message: `User '${selectedUserForDelete.value.name}' deleted successfully.` });
     isDeleteUserModalOpen.value = false;
     selectedUserForDelete.value = null;
     await refetchUsers();
