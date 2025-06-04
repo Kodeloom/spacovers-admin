@@ -1,10 +1,11 @@
 import { createAuthClient } from "better-auth/vue"; // For Nuxt 3 (Vue 3)
-import { customSessionClient } from "better-auth/client/plugins"; // Using the documented client plugin path
+import { customSessionClient, adminClient } from "better-auth/client/plugins"; // Using the documented client plugin path
 import type { auth as ServerAuthType } from "~/server/lib/auth"; // Import type of server auth
 
 const client = createAuthClient({
   plugins: [
-    customSessionClient<typeof ServerAuthType>() // Use the client plugin with server auth type
+    customSessionClient<typeof ServerAuthType>(), // Use the client plugin with server auth type
+    adminClient() // Use the admin plugin with server auth type
   ]
 });
 
