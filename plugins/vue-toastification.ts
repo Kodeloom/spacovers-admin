@@ -5,7 +5,7 @@ import { defineNuxtPlugin } from '#app';
 export default defineNuxtPlugin((nuxtApp) => {
   const options: PluginOptions = {
     // You can set your default options here
-    position: Toast.POSITION.TOP_RIGHT,
+    position: "bottom-right",
     timeout: 5000,
     closeOnClick: true,
     pauseOnFocusLoss: true,
