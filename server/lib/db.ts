@@ -32,6 +32,7 @@ export async function getEnhancedPrismaClient(event: H3Event) {
 
   const userContext = sessionData?.user || undefined;
 
+  // TEMPORARY DEBUGGING: Log the userContext to see its structure
   // Explicitly pass prismaModule, casting options to any to bypass TS error for this test
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return enhance(prisma, { user: userContext, prismaModule: Prisma } as any);
