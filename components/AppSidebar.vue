@@ -4,45 +4,20 @@
       <div class="mb-8 text-center">
         <NuxtLink to="/" class="text-2xl font-bold hover:text-indigo-400 transition-colors duration-200">Spacovers Admin</NuxtLink>
       </div>
-      <nav>
-        <ul>
-          <li>
-            <NuxtLink to="/" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:home-solid" class="mr-3 h-5 w-5" />
-              Dashboard
-            </NuxtLink>
-          </li>
-          <li v-if="isAdmin" class="mt-2">
-            <NuxtLink to="/admin/orders" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:shopping-bag-solid" class="mr-3 h-5 w-5" />
-              Orders
-            </NuxtLink>
-          </li>
-          <li v-if="isAdmin" class="mt-2">
-            <NuxtLink to="/admin/items" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:cube-solid" class="mr-3 h-5 w-5" />
-              Items
-            </NuxtLink>
-          </li>
-          <li v-if="isAdmin" class="mt-2">
-            <NuxtLink to="/admin/users" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:users-solid" class="mr-3 h-5 w-5" />
-              Users
-            </NuxtLink>
-          </li>
-          <li v-if="isAdmin" class="mt-2">
-            <NuxtLink to="/admin/roles" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:shield-check-solid" class="mr-3 h-5 w-5" />
-              Roles
-            </NuxtLink>
-          </li>
-          <li v-if="isAdmin" class="mt-2">
-            <NuxtLink to="/admin/permissions" class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" active-class="bg-indigo-600 text-white font-semibold">
-              <Icon name="heroicons:key-solid" class="mr-3 h-5 w-5" />
-              Permissions
-            </NuxtLink>
-          </li>
-          <!-- Add more items as needed -->
+      <nav class="mt-4">
+        <ul class="space-y-2">
+          <template v-for="item in navigation" :key="item.name">
+            <li v-if="!item.adminOnly || isAdmin">
+              <NuxtLink 
+                :to="item.href" 
+                class="flex items-center py-2.5 px-4 rounded-md hover:bg-gray-700 transition-colors duration-200" 
+                active-class="bg-indigo-600 text-white font-semibold"
+              >
+                <Icon :name="item.icon" class="mr-3 h-5 w-5" />
+                {{ item.name }}
+              </NuxtLink>
+            </li>
+          </template>
         </ul>
       </nav>
     </div>
@@ -59,6 +34,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRouter } from '#imports';
 import { authClient } from '~/lib/auth-client';
 
 // Define minimal types for session data structure
@@ -70,14 +47,13 @@ interface UserRoleInSession {
 
 interface UserInSession {
   roles?: UserRoleInSession[];
-  // other user properties if needed
 }
 
 interface SessionData {
   user: UserInSession | null;
 }
 
-const session = authClient.useSession() as { value: { data: SessionData | null } }; // Adjusted type for session value
+const session = authClient.useSession() as { value: { data: SessionData | null } };
 const router = useRouter();
 
 const isAdmin = computed(() => {
@@ -94,10 +70,18 @@ const handleLogout = async () => {
     router.push('/login');
   } catch (error) {
     console.error("Logout failed:", error);
-    // Optionally, show an error message to the user
   }
 };
 
+const navigation = [
+  { name: 'Dashboard', href: '/admin', icon: 'heroicons:home-solid', adminOnly: false },
+  { name: 'Orders', href: '/admin/orders', icon: 'heroicons:shopping-bag-solid', adminOnly: true },
+  { name: 'Items', href: '/admin/items', icon: 'heroicons:cube-solid', adminOnly: true },
+  { name: 'Users', href: '/admin/users', icon: 'heroicons:users-solid', adminOnly: true },
+  { name: 'Roles', href: '/admin/roles', icon: 'heroicons:shield-check-solid', adminOnly: true },
+  { name: 'Permissions', href: '/admin/permissions', icon: 'heroicons:key-solid', adminOnly: true },
+  { name: 'Audit Logs', href: '/admin/audit-logs', icon: 'heroicons:queue-list', adminOnly: true },
+];
 </script>
 
 <style scoped>
