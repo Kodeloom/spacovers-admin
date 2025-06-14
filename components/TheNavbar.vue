@@ -21,9 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { authClient } from '~/lib/auth-client';
-import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
