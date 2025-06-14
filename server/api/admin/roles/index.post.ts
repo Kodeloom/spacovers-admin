@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { getEnhancedPrismaClient } from '~/server/lib/db';
 import { Prisma } from '@prisma-app/client';
+import { recordAuditLog } from '~/server/utils/auditLog';
+import { auth } from '~/server/lib/auth';
 
 // Zod schema for input validation
 const CreateRoleInputSchema = z.object({
@@ -22,6 +24,9 @@ export default defineEventHandler(async (event) => {
 
   const { name, description, permissionIds } = result.data;
   const prisma = await getEnhancedPrismaClient(event);
+
+  const sessionData = await auth.api.getSession({ headers: event.headers });
+  const actorId = sessionData?.user?.id || null;
 
   try {
     const newRole = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -51,6 +56,14 @@ export default defineEventHandler(async (event) => {
         },
       });
     });
+
+    await recordAuditLog(event, {
+      action: 'ROLE_CREATE',
+      entityName: 'Role',
+      entityId: newRole.id,
+      oldValue: null,
+      newValue: newRole,
+    }, actorId);
 
     return newRole;
 
