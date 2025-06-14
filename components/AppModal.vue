@@ -27,7 +27,8 @@
             leave-to="opacity-0 scale-95"
           >
             <DialogPanel
-              class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
+              class="max-w-5xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all"
+              :class="width ? `w-[${width}]` : 'w-full'"
             >
               <DialogTitle
                 v-if="$slots.title"
@@ -59,13 +60,14 @@ import {
   Dialog,
   DialogPanel,
   DialogTitle,
-} from '@headlessui/vue';
+} from '@headlessui/vue'
 
 interface Props {
   show: boolean;
+  width?: string;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const emit = defineEmits(['close']);
 
