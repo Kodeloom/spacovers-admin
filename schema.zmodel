@@ -337,6 +337,8 @@ model AuditLog {
   @@index([entityName, entityId])
   @@index([userId])
   @@index([action])
+
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 // Better Auth Models
 model Session {
