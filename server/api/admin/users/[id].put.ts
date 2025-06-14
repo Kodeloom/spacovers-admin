@@ -1,10 +1,23 @@
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3';
 import { Prisma } from '@prisma-app/client';
-import { getEnhancedPrismaClient } from '~/server/lib/db';
+import { getEnhancedPrismaClient, unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
+import { z } from 'zod';
+import { recordAuditLog } from '~/server/utils/auditLog';
+
+// Zod schema for input validation
+const UpdateUserInputSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']),
+  roleIds: z.array(z.string()).optional(),
+});
 
 export default defineEventHandler(async (event) => {
-  const enhancedPrisma = await getEnhancedPrismaClient(event);
+  const prisma = await getEnhancedPrismaClient(event);
+  const sessionData = await auth.api.getSession({ headers: event.headers });
+  const actorId = sessionData?.user?.id || null;
 
   const userId = getRouterParam(event, 'id');
   if (!userId) {
@@ -29,9 +42,16 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const updatedUser = await enhancedPrisma.$transaction(async (prismaTx: Prisma.TransactionClient) => {
+    const oldValue = await unenhancedPrisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: { include: { role: true } },
+      },
+    });
+
+    const updatedUser = await prisma.$transaction(async (tx) => {
       // 1. Check if user exists (using transaction client)
-      const existingUser = await prismaTx.user.findUnique({
+      const existingUser = await tx.user.findUnique({
         where: { id: userId },
       });
       if (!existingUser) {
@@ -40,7 +60,7 @@ export default defineEventHandler(async (event) => {
 
       // 2. Check if email is being changed to one that already exists for another user
       if (email && email !== existingUser.email) {
-        const otherUserWithEmail = await prismaTx.user.findUnique({
+        const otherUserWithEmail = await tx.user.findUnique({
           where: { email },
         });
         if (otherUserWithEmail) {
@@ -65,7 +85,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // 4. Update scalar fields of the user
-      await prismaTx.user.update({
+      await tx.user.update({
         where: { id: userId },
         data: userUpdateData,
       });
@@ -73,34 +93,55 @@ export default defineEventHandler(async (event) => {
       // 5. Manage roles: Delete existing and create new ones
       if (roleIds) { // Only proceed if roleIds are provided (even if empty array)
         // Delete all existing UserRole entries for this user
-        await prismaTx.userRole.deleteMany({
+        await tx.userRole.deleteMany({
           where: { userId: userId },
         });
 
         // Create new UserRole entries if roleIds is not empty
         if (roleIds.length > 0) {
-          await prismaTx.userRole.createMany({
+          await tx.userRole.createMany({
             data: roleIds.map((roleId: string) => ({ userId, roleId })),
           });
         }
       } // If roleIds is undefined, roles are not being changed, so do nothing.
 
       // 6. Fetch the updated user with roles for the response
-      return prismaTx.user.findUnique({
+      const userWithRoles = await tx.user.findUnique({
         where: { id: userId },
         select: {
           id: true, name: true, email: true, status: true,
           roles: { select: { role: { select: { name: true } } } }
         }
       });
+      return userWithRoles;
     });
 
     if (!updatedUser) {
-        // This should not happen if the transaction succeeded and user was found
-        throw createError({ statusCode: 500, statusMessage: 'Failed to retrieve updated user after transaction.' });
+      throw createError({ statusCode: 404, statusMessage: 'User not found or failed to update.' });
     }
 
-    return { success: true, user: updatedUser };
+    const newValue = await unenhancedPrisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roles: { include: { role: true } },
+      },
+    });
+
+    await recordAuditLog(event, {
+        action: 'USER_UPDATE',
+        entityName: 'User',
+        entityId: userId,
+        oldValue,
+        newValue,
+    }, actorId);
+
+    return {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      status: updatedUser.status,
+      roles: updatedUser.roles.map(role => role.role.name),
+    };
 
   } catch (error) {
     const apiError = error as { data?: { message?: string }, message?: string, statusCode?: number, code?: string };
