@@ -107,7 +107,25 @@ const validationErrors = reactive({
 
 const apiError = ref<string | null>(null);
 
-const { mutate: createPermission, isPending: isCreating, error: createErrorData } = useCreatePermission();
+// A non-reactive flag to prevent re-entrant calls
+let isCreateInProgress = false;
+
+const { mutate: createPermission, isPending: isCreating } = useCreatePermission({
+  onSuccess: () => {
+    toast.success({ title: 'Success', message: 'Permission created successfully!' });
+    router.push('/admin/permissions');
+  },
+  onError: (err: { data?: { message?: string }, message?: string }) => {
+    console.error("Error creating permission:", err);
+    const message = err.data?.message || err.message || 'Failed to create permission. Please try again.';
+    apiError.value = message;
+    toast.error({ title: 'Error Creating Permission', message: message });
+  },
+  onSettled: () => {
+    // Ensure our guard flag is always reset
+    isCreateInProgress = false;
+  }
+});
 
 const validateForm = (): boolean => {
   validationErrors.action = '';
@@ -132,46 +150,26 @@ const validateForm = (): boolean => {
   return isValid;
 };
 
-const handleSubmit = async () => {
+const handleSubmit = () => {
+  // Use the non-reactive guard to prevent multiple executions
+  if (isCreateInProgress) {
+    return;
+  }
+
   apiError.value = null;
   if (!validateForm()) {
     return;
   }
 
-  try {
-    const permissionInputData: Prisma.PermissionCreateInput = {
-      action: permissionData.action!,
-      subject: permissionData.subject!,
-      description: permissionData.description || null,
-    };
+  // Set the flag immediately
+  isCreateInProgress = true;
 
-    await createPermission({ data: permissionInputData });
-    
-    if (createErrorData.value) {
-        const err = createErrorData.value as { data?: { message?: string }, message?: string }; 
-        const message = err.data?.message || err.message || 'An unknown error occurred during permission creation.';
-        apiError.value = message;
-        toast.error({ title: 'Error Creating Permission', message: message });
-        return; 
-    }
+  const permissionInputData: Prisma.PermissionCreateInput = {
+    action: permissionData.action!,
+    subject: permissionData.subject!,
+    description: permissionData.description || null,
+  };
 
-    toast.success({ title: 'Success', message: 'Permission created successfully!' });
-    router.push('/admin/permissions');
-  } catch (err: unknown) { 
-    console.error("Error creating permission:", err);
-    let message = 'Failed to create permission. Please try again.';
-    if (err && typeof err === 'object') {
-      const errorObj = err as { data?: { message?: string }, message?: string, error?: { message?: string}, toString?: () => string };
-      if (errorObj.data?.message) message = errorObj.data.message;
-      else if (errorObj.message) message = errorObj.message;
-      else if (errorObj.error?.message) message = errorObj.error.message;
-      else if (errorObj.toString && typeof errorObj.toString === 'function') {
-        const errStr = errorObj.toString();
-        if (errStr !== '[object Object]') message = errStr;
-      }
-    }
-    apiError.value = message;
-    toast.error({ title: 'Error Creating Permission', message: message });
-  }
+  createPermission({ data: permissionInputData });
 };
 </script> 
