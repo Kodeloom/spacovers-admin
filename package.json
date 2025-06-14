@@ -22,7 +22,7 @@
     "@prisma/client": "6.6.0",
     "@tanstack/vue-query": "^5.77.2",
     "@zenstackhq/runtime": "^2.14.2",
-    "@zenstackhq/server": "^2.14.2",
+    "@zenstackhq/server": "^2.15.1",
     "@zenstackhq/tanstack-query": "^2.14.2",
     "better-auth": "^1.2.7",
     "eslint": "^9.25.1",
@@ -37,6 +37,7 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.2",
     "@nuxtjs/tailwindcss": "6.14.0",
+    "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^3.0.0",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
