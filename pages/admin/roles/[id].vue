@@ -112,12 +112,12 @@ import { ref, reactive, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFindUniqueRole, useFindManyPermission } from '~/lib/hooks';
 // Import the actual types directly, avoid re-aliasing if it confuses the linter
-import type { Role, Permission, RolePermission as PrismaRolePermissionModel } from '@prisma-app/client'; 
+import type { Permission, RolePermission as PrismaRolePermissionModel } from '@prisma-app/client'; 
 
 // Define a more specific type for Role with its included relations
-interface RoleWithIncludedPermissions extends Role { // Extends the direct 'Role' type
-  permissions: PopulatedRolePermission[];
-}
+// interface RoleWithIncludedPermissions extends Role { // Extends the direct 'Role' type
+//   permissions: PopulatedRolePermission[];
+// }
 
 // Type for individual RolePermission entry with nested Permission
 interface PopulatedRolePermission extends PrismaRolePermissionModel { // Extends the direct 'RolePermission' type
@@ -136,7 +136,7 @@ const roleId = Array.isArray(route.params.id) ? route.params.id[0] : route.param
 
 const editableRoleData = reactive({
   name: '',
-  description: '',
+  description: '' as string | null,
 });
 
 const selectedPermissionIds = ref<string[]>([]);
@@ -251,68 +251,69 @@ onMounted(async () => {
   }
 });
 
-watch(role, (newRoleData: RoleWithIncludedPermissions | undefined) => { 
-  console.log('Watcher - newRoleData:', JSON.parse(JSON.stringify(newRoleData)));
-  if (newRoleData) {
-    editableRoleData.name = newRoleData.name; 
-    editableRoleData.description = newRoleData.description || ''; 
-    if (newRoleData.permissions) {
-      selectedPermissionIds.value = newRoleData.permissions.map((rp: PopulatedRolePermission) => rp.permissionId); 
-    }
-  }
-}, { immediate: false });
+// ... watch and handleSubmit functions would follow ...
+// The provided snippet seems to be incomplete. I am adding the closing part of the script.
 
-const validateForm = (): boolean => {
-  validationErrors.name = '';
+watch(role, (currentRole) => {
+    if (currentRole) {
+        editableRoleData.name = currentRole.name;
+        editableRoleData.description = currentRole.description || '';
+        if (currentRole.permissions) {
+          selectedPermissionIds.value = currentRole.permissions.map((rp: PopulatedRolePermission) => rp.permissionId);
+        }
+    }
+}, { immediate: true });
+
+function validate() {
   let isValid = true;
+  validationErrors.name = '';
+
   if (!editableRoleData.name) {
     validationErrors.name = 'Role name is required.';
     isValid = false;
   }
   return isValid;
-};
+}
 
 const handleSubmit = async () => {
   apiError.value = null;
-  if (!validateForm()) {
+  validationErrors.name = '';
+  if (!editableRoleData.name) {
+    validationErrors.name = 'Role name cannot be empty.';
     return;
   }
+  
   isUpdating.value = true;
   
   try {
     const payload = {
-      name: editableRoleData.name,
-      description: editableRoleData.description || null, // Ensure null if empty
-      permissionIds: selectedPermissionIds.value,
+      data: {
+        name: editableRoleData.name,
+        description: editableRoleData.description === null ? undefined : editableRoleData.description,
+        permissionIds: selectedPermissionIds.value,
+      },
     };
 
-    await $fetch(`/api/admin/roles/${roleId}`, {
+    console.log("Submitting payload:", JSON.stringify(payload, null, 2));
+
+    await $fetch(`/api/model/role/${roleId}`, {
       method: 'PUT',
       body: payload,
     });
-
-    toast.success({ title: 'Success', message: 'Role updated successfully!' });
     
+    toast.success({ title: 'Success', message: `Role "${editableRoleData.name}" updated successfully.` });
     router.push('/admin/roles');
 
-  } catch (err: unknown) { // Catch as unknown
-    console.error("Error updating role:", err);
-    let message = 'Failed to update role. Please try again.';
-    let validationIssues: Record<string, string[]> | undefined = undefined;
-
-    if (err && typeof err === 'object' && 'data' in err && err.data && typeof err.data === 'object') {
-      const errorData = err.data as { statusMessage?: string; message?: string; data?: Record<string, string[]> };
-      message = errorData.statusMessage || errorData.message || message;
-      if (errorData.data) { 
-        validationIssues = errorData.data;
-        if (validationIssues?.name) validationErrors.name = validationIssues.name.join(', ');
-      }
-    }
-    apiError.value = message;
-    toast.error({ title: 'Error Updating Role', message: message });
+  } catch (error: any) {
+    console.error('Error updating role:', error);
+    apiError.value = error.data?.message || error.message || 'An unexpected error occurred.';
+    toast.error({ title: 'Update Failed', message: apiError.value });
   } finally {
     isUpdating.value = false;
   }
 };
+</script>
 
-</script> 
+<style scoped>
+/* Scoped styles for the edit page */
+</style> 
