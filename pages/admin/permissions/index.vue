@@ -64,7 +64,7 @@
     />
 
     <!-- Delete Confirmation Modal (original) -->
-    <AppModal :show="isDeleteModalOpen" @close="closeDeleteModal">
+    <AppModal :show="isDeleteModalOpen" width="300px" @close="closeDeleteModal">
       <template #title>Confirm Delete Permission</template>
       <template #default>
         <p v-if="permissionToModify">
@@ -101,6 +101,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useFindManyPermission, useDeletePermission } from '~/lib/hooks'; 
 import type { Permission } from '@prisma-app/client';
+import { useQueryClient } from '@tanstack/vue-query';
 
 definePageMeta({
   layout: 'default',
@@ -109,13 +110,13 @@ definePageMeta({
 
 const router = useRouter();
 const toast = useToast();
+const queryClient = useQueryClient();
 
 const { 
   data: permissions, 
   suspense, 
   isLoading, 
-  error, 
-  refetch: refreshPermissions
+  error
 } = useFindManyPermission({
   orderBy: [{ subject: 'asc' }, { action: 'asc' }],
 });
@@ -136,7 +137,25 @@ const pendingAction = ref<(() => void) | null>(null); // Stores the action to ex
 const isDeleteModalOpen = ref(false);
 const permissionToModify = ref<Permission | null>(null); // Used for both edit and delete context for the modals
 
-const { mutate: deletePermissionMutate, isPending: isDeleting } = useDeletePermission();
+// A non-reactive flag to prevent re-entrant calls
+let isDeleteActionInProgress = false;
+
+const { mutate: deletePermissionMutate, isPending: isDeleting } = useDeletePermission({
+  onSuccess: () => {
+    // Invalidate the permissions query to trigger a refetch
+    queryClient.invalidateQueries({ queryKey: ['Permission', 'findMany'] });
+    toast.success({ title: 'Success', message: `Permission deleted successfully.`});
+  },
+  onError: (err: { data?: { message?: string }, message?: string }) => {
+    console.error("Error deleting permission:", err);
+    const message = err.data?.message || err.message || 'Failed to delete permission.';
+    toast.error({ title: 'Error Deleting Permission', message: message});
+  },
+  onSettled: () => {
+    // Ensure our guard flag is always reset
+    isDeleteActionInProgress = false;
+  }
+});
 
 const openWarningModal = (action: () => void) => {
   pendingAction.value = action;
@@ -180,26 +199,22 @@ const handleRequestDeletePermission = (permission: Permission) => {
 };
 
 // Actual Delete Logic (renamed from handleDeletePermission)
-const executeDeletePermission = async () => {
-  if (!permissionToModify.value || !permissionToModify.value.id || isDeleting.value) {
-    toast.error({ title: 'Error', message: 'No permission selected for deletion or deletion already in progress.'});
+const executeDeletePermission = () => {
+  // Use the non-reactive guard to prevent multiple executions
+  if (isDeleteActionInProgress) {
     return;
   }
-  try {
-    await deletePermissionMutate({ where: { id: permissionToModify.value.id } });
-    toast.success({ title: 'Success', message: `Permission '${permissionToModify.value.action} - ${permissionToModify.value.subject}' deleted successfully.`});
-    await refreshPermissions();
-  } catch (err: unknown) {
-    console.error("Error deleting permission:", err);
-    let message = 'Failed to delete permission.';
-    if (err && typeof err === 'object') {
-      const errorObj = err as { data?: { message?: string }, message?: string };
-      message = errorObj.data?.message || errorObj.message || message;
-    }
-    toast.error({ title: 'Error Deleting Permission', message: message});
-  } finally {
-    closeDeleteModal();
+  
+  if (!permissionToModify.value || !permissionToModify.value.id) {
+    toast.error({ title: 'Error', message: 'No permission selected for deletion.'});
+    return;
   }
+
+  // Set the flag immediately
+  isDeleteActionInProgress = true;
+  deletePermissionMutate({ where: { id: permissionToModify.value.id } });
+  
+  closeDeleteModal();
 };
 
 const closeDeleteModal = () => {
