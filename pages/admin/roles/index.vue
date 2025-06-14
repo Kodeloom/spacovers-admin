@@ -1,9 +1,9 @@
 <template>
   <div class="p-4">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-semibold">Roles Management</h1>
-      <NuxtLink to="/admin/roles/new" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-        Create New Role
+      <h1 class="text-3xl font-bold">Manage Roles</h1>
+      <NuxtLink to="/admin/roles/add" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+        Add Role
       </NuxtLink>
     </div>
 
@@ -48,7 +48,7 @@
       <p class="text-gray-500">No roles found. Create your first role to get started.</p>
     </div>
 
-    <AppModal :show="isDeleteModalVisible" @close="closeDeleteModal">
+    <AppModal :show="isDeleteModalVisible" width="300px" @close="closeDeleteModal">
       <template #title>
         Confirm Deletion
       </template>
