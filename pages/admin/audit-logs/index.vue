@@ -1,117 +1,100 @@
 <template>
-    <div class="p-4">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">Audit Logs</h1>
-        </div>
-
-        <!-- Loading State -->
-        <div v-if="isLoading" class="text-center py-4">
-            <p>Loading audit logs...</p>
-            <Icon name="svg-spinners:180-ring-with-bg" class="mt-4 h-8 w-8 text-indigo-500 mx-auto" />
-        </div>
-
-        <!-- Error State -->
-        <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-            <p class="text-red-700">Error loading audit logs: {{ error.message }}</p>
-        </div>
-
-        <!-- Audit Logs Table -->
-        <div v-else-if="auditLogs && auditLogs.length > 0" class="bg-white shadow-sm rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Record ID</th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Changes</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ new Date(log.timestamp).toLocaleString() }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ log.user?.email || 'System' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ log.action }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ log.entityName }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ log.entityId }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button 
-                                class="text-indigo-600 hover:text-indigo-900"
-                                @click="openDetailsModal(log)"
-                            >
-                                View Changes
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Empty State -->
-        <div v-else class="text-center py-8 bg-white rounded-lg shadow-sm">
-            <p class="text-gray-500">No audit logs found.</p>
-        </div>
-
-        <!-- Details Modal -->
-        <AppModal :show="isDetailsModalVisible" @close="closeDetailsModal">
-            <template #title>
-                Change Details
-            </template>
-            <template #default>
-                <div v-if="selectedLog" class="space-y-4">
-                    <div v-if="selectedLog.oldValue" class="mb-4">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">Previous Value</h3>
-                        <pre class="bg-gray-50 p-3 rounded-md text-sm overflow-x-auto">{{ JSON.stringify(selectedLog.oldValue, null, 2) }}</pre>
-                    </div>
-                    <div v-if="selectedLog.newValue">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">New Value</h3>
-                        <pre class="bg-gray-50 p-3 rounded-md text-sm overflow-x-auto">{{ JSON.stringify(selectedLog.newValue, null, 2) }}</pre>
-                    </div>
-                </div>
-            </template>
-        </AppModal>
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">Audit Logs</h1>
     </div>
+
+    <AppTable 
+      title="All Log Entries"
+      :columns="columns"
+      :items="auditLogs || []"
+      :actions="['view']"
+      :is-loading="isLogsLoading || isCountLoading"
+      :total-items="totalLogs || 0"
+      :items-per-page="itemsPerPage"
+      v-model:currentPage="currentPage"
+      @view="viewLogDetails"
+    >
+      <template #cell-user="{ value }">
+        <span v-if="value">{{ value.name }} ({{ value.email }})</span>
+        <span v-else class="text-gray-500">System</span>
+      </template>
+    </AppTable>
+    
+    <AppModal 
+      :show="isDetailModalOpen" 
+      width="700px"
+      @close="isDetailModalOpen = false"
+    >
+      <template #title>Audit Log Details</template>
+      <div v-if="selectedLog" class="space-y-4">
+        <div><strong>Action:</strong> {{ selectedLog.action }}</div>
+        <div><strong>Entity:</strong> {{ selectedLog.entityName }} #{{ selectedLog.entityId }}</div>
+        <div><strong>User:</strong> {{ selectedLog.user?.name || 'System' }}</div>
+        <div><strong>Timestamp:</strong> {{ new Date(selectedLog.timestamp).toLocaleString() }}</div>
+        <div class="grid grid-cols-2 gap-4 mt-4">
+          <div>
+            <h4 class="font-semibold mb-2">Old Value</h4>
+            <pre class="bg-gray-100 p-2 rounded text-xs overflow-auto">{{ JSON.stringify(selectedLog.oldValue, null, 2) }}</pre>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-2">New Value</h4>
+            <pre class="bg-gray-100 p-2 rounded text-xs overflow-auto">{{ JSON.stringify(selectedLog.newValue, null, 2) }}</pre>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button @click="isDetailModalOpen = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300">Close</button>
+      </template>
+    </AppModal>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useFindManyAuditLog } from '~/lib/hooks';
-import type { AuditLog } from '@prisma-app/client';
+import { ref, computed } from 'vue';
+import { useFindManyAuditLog, useCountAuditLog } from '~/lib/hooks';
+import type { AuditLog, User } from '@prisma-app/client';
+
+type AuditLogWithUser = AuditLog & { user: User | null };
 
 definePageMeta({
-    layout: 'default',
-    middleware: ['auth-admin-only']
+  layout: 'default',
+  middleware: ['auth-admin-only'],
 });
 
-const { data: auditLogs, isLoading, error } = useFindManyAuditLog({
-    include: { user: true },
-    orderBy: { timestamp: 'desc' }
+const currentPage = ref(1);
+const itemsPerPage = ref(15);
+
+const paginatedQueryOptions = computed(() => ({
+  skip: (currentPage.value - 1) * itemsPerPage.value,
+  take: itemsPerPage.value,
+  orderBy: { timestamp: 'desc' },
+  include: { user: true },
+}));
+
+const { data: auditLogs, isLoading: isLogsLoading } = useFindManyAuditLog(paginatedQueryOptions, {
+  queryOptions: {
+    keepPreviousData: true,
+  }
 });
 
-// Modal state
-const isDetailsModalVisible = ref(false);
-const selectedLog = ref<AuditLog | null>(null);
+const { data: totalLogs, isLoading: isCountLoading } = useCountAuditLog();
 
-function openDetailsModal(log: AuditLog) {
-    selectedLog.value = log;
-    isDetailsModalVisible.value = true;
-}
+const columns = [
+  { key: 'action', label: 'Action' },
+  { key: 'entityName', label: 'Entity' },
+  { key: 'entityId', label: 'Entity ID' },
+  { key: 'user', label: 'User' },
+  { key: 'timestamp', label: 'Timestamp', format: 'datetime' as const },
+];
 
-function closeDetailsModal() {
-    isDetailsModalVisible.value = false;
-    selectedLog.value = null;
-}
+const isDetailModalOpen = ref(false);
+const selectedLog = ref<AuditLogWithUser | null>(null);
+
+const viewLogDetails = (log: AuditLogWithUser) => {
+  selectedLog.value = log;
+  isDetailModalOpen.value = true;
+};
 </script>
 
 <style scoped>
