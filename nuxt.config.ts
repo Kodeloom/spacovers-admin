@@ -15,7 +15,11 @@ export default defineNuxtConfig({
     // },
   },
   runtimeConfig: {
+    qboClientId: process.env.QBO_CLIENT_ID,
+    qboClientSecret: process.env.QBO_CLIENT_SECRET,
+    qboEnvironment: process.env.QBO_ENVIRONMENT || 'sandbox',
     public: {
+      authOrigin: process.env.AUTH_ORIGIN || 'http://localhost:3000',
       appUrl: process.env.APP_URL || 'http://localhost:3000',
     },
   },
