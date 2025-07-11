@@ -6,8 +6,8 @@
     </div>
     <div v-else-if="roleError || permissionsError" class="text-center py-10 bg-red-50 border border-red-200 rounded-md p-4 max-w-2xl mx-auto">
       <p class="text-red-600 font-semibold">Error loading data:</p>
-      <p v-if="roleError" class="text-red-500 mt-1">Role: {{ roleError.message || 'Unknown error' }}</p>
-      <p v-if="permissionsError" class="text-red-500 mt-1">Permissions: {{ permissionsError.message || 'Unknown error' }}</p>
+      <p v-if="roleError" class="text-red-500 mt-1">Role: {{ (roleError as Error)?.message || 'Unknown error' }}</p>
+      <p v-if="permissionsError" class="text-red-500 mt-1">Permissions: {{ (permissionsError as Error)?.message || 'Unknown error' }}</p>
     </div>
     <div v-else-if="!role" class="text-center py-10">
       <p class="text-gray-500">Role not found.</p>
@@ -111,6 +111,7 @@
 import { ref, reactive, watch, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFindUniqueRole, useFindManyPermission } from '~/lib/hooks';
+import { useMutation, useQueryClient } from '@tanstack/vue-query';
 // Import the actual types directly, avoid re-aliasing if it confuses the linter
 import type { Permission, RolePermission as PrismaRolePermissionModel } from '@prisma-app/client'; 
 
@@ -132,6 +133,7 @@ definePageMeta({
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const queryClient = useQueryClient();
 const roleId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
 
 const editableRoleData = reactive({
@@ -142,7 +144,33 @@ const editableRoleData = reactive({
 const selectedPermissionIds = ref<string[]>([]);
 const validationErrors = reactive({ name: '' });
 const apiError = ref<string | null>(null);
-const isUpdating = ref(false);
+
+const { mutate: updateRole, isPending: isUpdating } = useMutation({
+  mutationFn: (payload: { name: string; description: string | null; permissionIds: string[] }) => {
+    return $fetch(`/api/admin/roles/${roleId}`, {
+      method: 'PUT',
+      body: {
+        name: payload.name,
+        description: payload.description,
+        permissionIds: payload.permissionIds,
+      }
+    });
+  },
+  onSuccess: async () => {
+    toast.success({ title: 'Success', message: 'Role updated successfully!' });
+    await queryClient.invalidateQueries();
+    router.push('/admin/roles');
+  },
+  onError: (err) => {
+    const fetchError = err as { data?: { statusMessage?: string; message?: string; data?: Record<string, string[]> }, message?: string };
+    const message = fetchError.data?.statusMessage || fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
+    const validationIssues = fetchError.data?.data;
+    if (validationIssues?.name) validationErrors.name = validationIssues.name.join(', ');
+    
+    apiError.value = message;
+    toast.error({ title: 'Error Updating Role', message: message });
+  },
+});
 
 const { 
   data: role, // Type will be Ref<RoleWithIncludedPermissions | undefined>
@@ -264,54 +292,23 @@ watch(role, (currentRole) => {
     }
 }, { immediate: true });
 
-function validate() {
-  let isValid = true;
-  validationErrors.name = '';
-
-  if (!editableRoleData.name) {
-    validationErrors.name = 'Role name is required.';
-    isValid = false;
-  }
-  return isValid;
-}
-
-const handleSubmit = async () => {
+const handleSubmit = () => {
   apiError.value = null;
   validationErrors.name = '';
-  if (!editableRoleData.name) {
-    validationErrors.name = 'Role name cannot be empty.';
+  if (!editableRoleData.name.trim()) {
+    validationErrors.name = 'Role name is required.';
     return;
   }
   
-  isUpdating.value = true;
-  
-  try {
-    const payload = {
-      data: {
-        name: editableRoleData.name,
-        description: editableRoleData.description === null ? undefined : editableRoleData.description,
-        permissionIds: selectedPermissionIds.value,
-      },
-    };
+  const payload = {
+    name: editableRoleData.name,
+    description: editableRoleData.description,
+    permissionIds: selectedPermissionIds.value,
+  };
 
-    console.log("Submitting payload:", JSON.stringify(payload, null, 2));
-
-    await $fetch(`/api/model/role/${roleId}`, {
-      method: 'PUT',
-      body: payload,
-    });
-    
-    toast.success({ title: 'Success', message: `Role "${editableRoleData.name}" updated successfully.` });
-    router.push('/admin/roles');
-
-  } catch (error: any) {
-    console.error('Error updating role:', error);
-    apiError.value = error.data?.message || error.message || 'An unexpected error occurred.';
-    toast.error({ title: 'Update Failed', message: apiError.value });
-  } finally {
-    isUpdating.value = false;
-  }
+  updateRole(payload);
 };
+
 </script>
 
 <style scoped>
