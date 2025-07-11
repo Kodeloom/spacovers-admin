@@ -241,7 +241,7 @@ export function useCountOrderItem<TArgs extends Prisma.OrderItemCountArgs, TQuer
 }
 import type { OrderItemProcessingStatus } from '@prisma-app/client';
 
-export function useCheckOrderItem<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; orderId?: string; itemId?: string; quickbooksOrderLineId?: string; quantity?: number; itemStatus?: OrderItemProcessingStatus; notes?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
+export function useCheckOrderItem<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; orderId?: string; itemId?: string; quickbooksOrderLineId?: string; lineDescription?: string; taxCode?: string; quantity?: number; itemStatus?: OrderItemProcessingStatus; notes?: string }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<boolean, boolean, TError>('OrderItem', `${endpoint}/orderItem/check`, args, options, fetch);
 }

@@ -90,6 +90,12 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'user',
+                }, quickbooksToken: {
+                    name: "quickbooksToken",
+                    type: "QuickbooksToken",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'user',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -377,6 +383,12 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'customer',
+                }, estimates: {
+                    name: "estimates",
+                    type: "Estimate",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'customer',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -441,6 +453,12 @@ const metadata = {
                 }, orderItems: {
                     name: "orderItems",
                     type: "OrderItem",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'item',
+                }, estimateItems: {
+                    name: "estimateItems",
+                    type: "EstimateItem",
                     isDataModel: true,
                     isArray: true,
                     backLink: 'item',
@@ -573,19 +591,54 @@ const metadata = {
                     type: "String",
                     isForeignKey: true,
                     relationField: 'customer',
-                }, customer: {
-                    name: "customer",
-                    type: "Customer",
-                    isDataModel: true,
-                    backLink: 'orders',
-                    isRelationOwner: true,
-                    foreignKeyMapping: { "id": "customerId" },
                 }, salesOrderNumber: {
                     name: "salesOrderNumber",
                     type: "String",
                     isOptional: true,
                 }, purchaseOrderNumber: {
                     name: "purchaseOrderNumber",
+                    type: "String",
+                    isOptional: true,
+                }, estimateId: {
+                    name: "estimateId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'estimate',
+                }, transactionDate: {
+                    name: "transactionDate",
+                    type: "DateTime",
+                    isOptional: true,
+                }, dueDate: {
+                    name: "dueDate",
+                    type: "DateTime",
+                    isOptional: true,
+                }, shipDate: {
+                    name: "shipDate",
+                    type: "DateTime",
+                    isOptional: true,
+                }, trackingNumber: {
+                    name: "trackingNumber",
+                    type: "String",
+                    isOptional: true,
+                }, totalAmount: {
+                    name: "totalAmount",
+                    type: "Decimal",
+                    isOptional: true,
+                }, balance: {
+                    name: "balance",
+                    type: "Decimal",
+                    isOptional: true,
+                }, totalTax: {
+                    name: "totalTax",
+                    type: "Decimal",
+                    isOptional: true,
+                }, emailStatus: {
+                    name: "emailStatus",
+                    type: "String",
+                    isOptional: true,
+                }, customerMemo: {
+                    name: "customerMemo",
                     type: "String",
                     isOptional: true,
                 }, contactEmail: {
@@ -667,12 +720,29 @@ const metadata = {
                     name: "notes",
                     type: "String",
                     isOptional: true,
-                }, orderItems: {
-                    name: "orderItems",
+                }, customer: {
+                    name: "customer",
+                    type: "Customer",
+                    isDataModel: true,
+                    backLink: 'orders',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "customerId" },
+                }, items: {
+                    name: "items",
                     type: "OrderItem",
                     isDataModel: true,
                     isArray: true,
                     backLink: 'order',
+                }, estimate: {
+                    name: "estimate",
+                    type: "Estimate",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'linkedOrder',
+                    isRelationOwner: true,
+                    onDeleteAction: 'NoAction',
+                    onUpdateAction: 'NoAction',
+                    foreignKeyMapping: { "id": "estimateId" },
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -689,6 +759,9 @@ const metadata = {
                 }, quickbooksOrderId: {
                     name: "quickbooksOrderId",
                     fields: ["quickbooksOrderId"]
+                }, estimateId: {
+                    name: "estimateId",
+                    fields: ["estimateId"]
                 }, barcode: {
                     name: "barcode",
                     fields: ["barcode"]
@@ -707,28 +780,25 @@ const metadata = {
                     type: "String",
                     isForeignKey: true,
                     relationField: 'order',
-                }, order: {
-                    name: "order",
-                    type: "Order",
-                    isDataModel: true,
-                    backLink: 'orderItems',
-                    isRelationOwner: true,
-                    onDeleteAction: 'Cascade',
-                    foreignKeyMapping: { "id": "orderId" },
                 }, itemId: {
                     name: "itemId",
                     type: "String",
                     isForeignKey: true,
                     relationField: 'item',
-                }, item: {
-                    name: "item",
-                    type: "Item",
-                    isDataModel: true,
-                    backLink: 'orderItems',
-                    isRelationOwner: true,
-                    foreignKeyMapping: { "id": "itemId" },
                 }, quickbooksOrderLineId: {
                     name: "quickbooksOrderLineId",
+                    type: "String",
+                    isOptional: true,
+                }, lineDescription: {
+                    name: "lineDescription",
+                    type: "String",
+                    isOptional: true,
+                }, lineAmount: {
+                    name: "lineAmount",
+                    type: "Decimal",
+                    isOptional: true,
+                }, taxCode: {
+                    name: "taxCode",
                     type: "String",
                     isOptional: true,
                 }, quantity: {
@@ -745,8 +815,23 @@ const metadata = {
                     name: "notes",
                     type: "String",
                     isOptional: true,
-                }, itemProcessingLogs: {
-                    name: "itemProcessingLogs",
+                }, order: {
+                    name: "order",
+                    type: "Order",
+                    isDataModel: true,
+                    backLink: 'items',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderId" },
+                }, item: {
+                    name: "item",
+                    type: "Item",
+                    isDataModel: true,
+                    backLink: 'orderItems',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "itemId" },
+                }, processingLogs: {
+                    name: "processingLogs",
                     type: "ItemProcessingLog",
                     isDataModel: true,
                     isArray: true,
@@ -786,7 +871,7 @@ const metadata = {
                     name: "orderItem",
                     type: "OrderItem",
                     isDataModel: true,
-                    backLink: 'itemProcessingLogs',
+                    backLink: 'processingLogs',
                     isRelationOwner: true,
                     onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "orderItemId" },
@@ -1067,6 +1152,195 @@ const metadata = {
                 },
             },
         },
+        quickbooksToken: {
+            name: 'QuickbooksToken', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, realmId: {
+                    name: "realmId",
+                    type: "String",
+                }, accessToken: {
+                    name: "accessToken",
+                    type: "String",
+                }, refreshToken: {
+                    name: "refreshToken",
+                    type: "String",
+                }, tokenType: {
+                    name: "tokenType",
+                    type: "String",
+                }, expiresIn: {
+                    name: "expiresIn",
+                    type: "Int",
+                }, xRefreshTokenExpiresIn: {
+                    name: "xRefreshTokenExpiresIn",
+                    type: "Int",
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                }, user: {
+                    name: "user",
+                    type: "User",
+                    isDataModel: true,
+                    backLink: 'quickbooksToken',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "userId" },
+                }, userId: {
+                    name: "userId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'user',
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, userId: {
+                    name: "userId",
+                    fields: ["userId"]
+                },
+            },
+        },
+        estimate: {
+            name: 'Estimate', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, quickbooksEstimateId: {
+                    name: "quickbooksEstimateId",
+                    type: "String",
+                }, customerId: {
+                    name: "customerId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'customer',
+                }, estimateNumber: {
+                    name: "estimateNumber",
+                    type: "String",
+                    isOptional: true,
+                }, transactionDate: {
+                    name: "transactionDate",
+                    type: "DateTime",
+                    isOptional: true,
+                }, expirationDate: {
+                    name: "expirationDate",
+                    type: "DateTime",
+                    isOptional: true,
+                }, totalAmount: {
+                    name: "totalAmount",
+                    type: "Decimal",
+                }, customer: {
+                    name: "customer",
+                    type: "Customer",
+                    isDataModel: true,
+                    backLink: 'estimates',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "customerId" },
+                }, items: {
+                    name: "items",
+                    type: "EstimateItem",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'estimate',
+                }, linkedOrder: {
+                    name: "linkedOrder",
+                    type: "Order",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'estimate',
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, quickbooksEstimateId: {
+                    name: "quickbooksEstimateId",
+                    fields: ["quickbooksEstimateId"]
+                },
+            },
+        },
+        estimateItem: {
+            name: 'EstimateItem', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, estimateId: {
+                    name: "estimateId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'estimate',
+                }, itemId: {
+                    name: "itemId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'item',
+                }, quickbooksEstimateLineId: {
+                    name: "quickbooksEstimateLineId",
+                    type: "String",
+                    isOptional: true,
+                }, lineDescription: {
+                    name: "lineDescription",
+                    type: "String",
+                    isOptional: true,
+                }, quantity: {
+                    name: "quantity",
+                    type: "Int",
+                }, pricePerItem: {
+                    name: "pricePerItem",
+                    type: "Decimal",
+                }, estimate: {
+                    name: "estimate",
+                    type: "Estimate",
+                    isDataModel: true,
+                    backLink: 'items',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "estimateId" },
+                }, item: {
+                    name: "item",
+                    type: "Item",
+                    isDataModel: true,
+                    backLink: 'estimateItems',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "itemId" },
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, quickbooksEstimateLineId: {
+                    name: "quickbooksEstimateLineId",
+                    fields: ["quickbooksEstimateLineId"]
+                },
+            },
+        },
 
     },
     deleteCascade: {
@@ -1076,6 +1350,7 @@ const metadata = {
         station: ['RoleStation'],
         order: ['OrderItem'],
         orderItem: ['ItemProcessingLog'],
+        estimate: ['EstimateItem'],
 
     },
     authModel: 'User'
