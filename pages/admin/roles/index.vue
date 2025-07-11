@@ -1,146 +1,154 @@
-<template>
-  <div class="p-4">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">Manage Roles</h1>
-      <NuxtLink to="/admin/roles/add" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-        Add Role
-      </NuxtLink>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isLoadingRoles" class="text-center py-4">
-      <p>Loading roles...</p>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="rolesError" class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-      <p class="text-red-700">Error loading roles: {{ rolesError.message }}</p>
-      <pre v-if="detailedRolesErrorInfo" class="mt-2 text-sm text-red-600">{{ detailedRolesErrorInfo }}</pre>
-    </div>
-
-    <!-- Roles List -->
-    <div v-else-if="roles && roles.length > 0" class="bg-white shadow-sm rounded-lg overflow-hidden">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="role in roles" :key="role.id">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ role.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ role.description || '-' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <div class="flex space-x-2">
-                <NuxtLink :to="`/admin/roles/${role.id}`" class="text-indigo-600 hover:text-indigo-900">Edit</NuxtLink>
-                <button class="text-red-600 hover:text-red-900" @click="openDeleteModal(role.id)">Delete</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else class="text-center py-8 bg-white rounded-lg shadow-sm">
-      <p class="text-gray-500">No roles found. Create your first role to get started.</p>
-    </div>
-
-    <AppModal :show="isDeleteModalVisible" width="300px" @close="closeDeleteModal">
-      <template #title>
-        Confirm Deletion
-      </template>
-      <template #default>
-        <p class="text-sm text-gray-500">
-          Are you sure you want to delete this role? This action cannot be undone.
-        </p>
-      </template>
-      <template #footer>
-        <button
-          type="button"
-          class="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
-          @click="closeDeleteModal"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-          :disabled="deleteRoleMutation.isPending.value"
-          @click="confirmDeleteRole"
-        >
-          {{ deleteRoleMutation.isPending.value ? 'Deleting...' : 'Delete' }}
-        </button>
-      </template>
-    </AppModal>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-// import { useRouter } from 'vue-router';
-import { useFindManyRole, useDeleteRole } from '~/lib/hooks';
-// import type { Role } from '@prisma-app/client';
-import AppModal from '~/components/AppModal.vue';
-
-// const router = useRouter();
-
-const toast = useToast();
-
-const { data: roles, isLoading: isLoadingRoles, error: rolesError, refetch: refreshRoles } = useFindManyRole();
-
-const detailedRolesErrorInfo = computed(() => {
-  const cause = rolesError.value?.cause as { info?: unknown } | undefined;
-  if (cause && typeof cause.info === 'object' && cause.info !== null) {
-    return JSON.stringify(cause.info, null, 2);
-  } else if (cause && cause.info) {
-    return String(cause.info); // Convert to string if not an object
-  }
-  return null;
-});
-
-const deleteRoleMutation = useDeleteRole();
-
-// Modal state
-const isDeleteModalVisible = ref(false);
-const roleIdToDelete = ref<string | null>(null);
-
-function openDeleteModal(id: string) {
-  roleIdToDelete.value = id;
-  isDeleteModalVisible.value = true;
-}
-
-function closeDeleteModal() {
-  isDeleteModalVisible.value = false;
-  roleIdToDelete.value = null;
-}
-
-async function confirmDeleteRole() {
-  if (!roleIdToDelete.value) return;
-
-  try {
-    await deleteRoleMutation.mutateAsync({ where: { id: roleIdToDelete.value } });
-    toast.success({ title: 'Success', message: 'Role deleted successfully!' });
-    await refreshRoles();
-    closeDeleteModal();
-  } catch (error: unknown) {
-    console.error('Error deleting role:', error);
-    let message = 'An unexpected error occurred while deleting the role.';
-    if (typeof error === 'object' && error !== null) {
-      const err = error as { info?: { message?: string }, message?: string };
-      message = err.info?.message || err.message || message;
-    }
-    toast.error({ title: 'Error Deleting Role', message: `Error deleting role: ${message}` });
-  }
-}
+import { computed, ref } from 'vue';
+import { useFindManyRole, useCountRole, useDeleteRole } from '~/lib/hooks';
 
 definePageMeta({
-  layout: 'default',
-  middleware: ['auth-admin-only']
+    layout: 'default',
+    middleware: ['auth-admin-only'],
 });
+
+const columns = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'description', label: 'Description', sortable: false },
+    { key: 'createdAt', label: 'Created At', sortable: true },
+    { key: 'actions', label: 'Actions', sortable: false },
+];
+
+const toast = useToast();
+const isDeleting = ref(false);
+const roleToDelete = ref<{ id: string, name: string } | null>(null);
+
+const page = ref(1);
+const limit = ref(15);
+const sort = ref({ column: 'name', direction: 'asc' as 'asc' | 'desc' });
+
+const query = computed(() => ({
+    skip: (page.value - 1) * limit.value,
+    take: limit.value,
+    orderBy: { [sort.value.column]: sort.value.direction },
+}));
+
+const { data: rolesData, isLoading: pending, refetch: refreshRoles } = useFindManyRole(query);
+const { data: totalCount, refetch: refreshCount } = useCountRole();
+
+const totalPages = computed(() => {
+    const count = totalCount.value ?? 0;
+    if (count === 0) return 1;
+    return Math.ceil(count / limit.value);
+});
+
+const deleteMutation = useDeleteRole({
+    onSuccess: () => {
+        toast.add({ title: 'Success', description: 'Role deleted successfully.', color: 'green' });
+        refreshRoles();
+        refreshCount();
+    },
+    onError: (error: any) => {
+        const errorMessage = error.data?.data?.message || 'Failed to delete role.';
+        toast.add({ title: 'Error', description: errorMessage, color: 'red' });
+    },
+    onSettled: () => {
+        isDeleting.value = false;
+        roleToDelete.value = null;
+    },
+});
+
+function confirmDelete(role: { id: string, name: string }) {
+    roleToDelete.value = role;
+}
+
+function handleDelete() {
+    if (roleToDelete.value) {
+        isDeleting.value = true;
+        deleteMutation.mutate({ where: { id: roleToDelete.value.id } });
+    }
+}
 </script>
+
+<template>
+    <div class="p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-semibold">
+                Roles
+            </h1>
+            <NuxtLink
+                to="/admin/roles/add"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            >
+                <Icon name="heroicons:plus-solid" class="mr-2 h-5 w-5" />
+                Add Role
+            </NuxtLink>
+        </div>
+        <div class="bg-white shadow rounded-lg">
+            <AppTable
+                v-model:sort="sort"
+                :rows="rolesData ?? []"
+                :columns="columns"
+                :pending="pending"
+            >
+                <template #createdAt-data="{ row }">
+                    {{ new Date(row.createdAt).toLocaleDateString() }}
+                </template>
+                <template #actions-data="{ row }">
+                    <div class="flex space-x-2">
+                        <NuxtLink :to="`/admin/roles/edit/${row.id}`" class="text-indigo-600 hover:text-indigo-900">
+                            <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
+                        </NuxtLink>
+                        <button class="text-red-600 hover:text-red-900" @click="confirmDelete(row)">
+                            <Icon name="heroicons:trash-20-solid" class="h-5 w-5" />
+                        </button>
+                    </div>
+                </template>
+            </AppTable>
+            <div
+                v-if="totalCount && totalCount > 0"
+                class="px-6 py-4 border-t border-gray-200 flex items-center justify-between"
+            >
+                 <p class="text-sm text-gray-700">
+                    Showing
+                    <span class="font-medium">{{ (page - 1) * limit + 1 }}</span>
+                    to
+                    <span class="font-medium">{{ Math.min(page * limit, totalCount) }}</span>
+                    of
+                    <span class="font-medium">{{ totalCount }}</span>
+                    results
+                </p>
+                <div class="flex-1 flex justify-end">
+                    <button
+                        :disabled="page === 1"
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                        @click="page--"
+                    >
+                        Previous
+                    </button>
+                    <button
+                        :disabled="page === totalPages"
+                        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                        @click="page++"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+        <AppModal :is-open="!!roleToDelete" title="Confirm Deletion" @close="roleToDelete = null">
+            <p>Are you sure you want to delete the role '<strong>{{ roleToDelete?.name }}</strong>'? This action cannot be undone.</p>
+            <div class="flex justify-end space-x-2 mt-4">
+                <button class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100" @click="roleToDelete = null">
+                    Cancel
+                </button>
+                <button
+                    class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                    :disabled="isDeleting"
+                    @click="handleDelete"
+                >
+                    <Icon v-if="isDeleting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
+                    Delete
+                </button>
+            </div>
+        </AppModal>
+    </div>
+</template>
 
 <style scoped>
 /* Add any page-specific styles here if needed */

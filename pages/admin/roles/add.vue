@@ -96,6 +96,7 @@
 
 <script setup lang="ts">
 import { useFindManyPermission } from '~/lib/hooks/index';
+import { useMutation, useQueryClient } from '@tanstack/vue-query';
 // import type { Permission } from '@prisma-app/client'; // Assuming GridCellPermission can be simplified or based on this. Commented out as unused.
 
 definePageMeta({
@@ -105,6 +106,7 @@ definePageMeta({
 
 const router = useRouter();
 const toast = useToast();
+const queryClient = useQueryClient();
 
 const roleData = reactive({
   name: '',
@@ -114,7 +116,6 @@ const roleData = reactive({
 const selectedPermissionIds = ref<string[]>([]);
 const validationErrors = reactive({ name: '' });
 const apiError = ref<string | null>(null);
-const isSubmitting = ref(false);
 
 const { 
   data: allPermissions, 
@@ -207,12 +208,34 @@ const validateForm = (): boolean => {
   return isValid;
 };
 
-const handleSubmit = async () => {
+const { mutate: createRole, isPending: isSubmitting } = useMutation({
+  mutationFn: (payload: { name: string; description: string | null; permissionIds: string[] }) => {
+    return $fetch('/api/admin/roles', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+  onSuccess: async () => {
+    toast.success({ title: 'Success', message: 'Role created successfully!' });
+    await queryClient.invalidateQueries();
+    router.push('/admin/roles');
+  },
+  onError: (err) => {
+    const fetchError = err as { data?: { statusMessage?: string; message?: string; data?: Record<string, string[]> }, message?: string };
+    const message = fetchError.data?.statusMessage || fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
+    const validationIssues = fetchError.data?.data;
+    if (validationIssues?.name) validationErrors.name = validationIssues.name.join(', ');
+    
+    apiError.value = message;
+    toast.error({ title: 'Error Creating Role', message: message });
+  },
+});
+
+const handleSubmit = () => {
   apiError.value = null;
   if (!validateForm()) {
     return;
   }
-  isSubmitting.value = true;
   
   const payload = {
     name: roleData.name,
@@ -220,33 +243,6 @@ const handleSubmit = async () => {
     permissionIds: selectedPermissionIds.value,
   };
 
-  console.log('Submitting new role payload:', payload);
-  try {
-    await $fetch('/api/admin/roles', {
-      method: 'POST',
-      body: payload,
-    });
-    toast.success({ title: 'Success', message: 'Role created successfully!' });
-    router.push('/admin/roles');
-  } catch (err: unknown) {
-    console.error("Error creating role:", err);
-    let message = 'Failed to create role. Please try again.';
-    let validationIssues: Record<string, string[]> | undefined = undefined;
-
-    if (err && typeof err === 'object' && 'data' in err && err.data && typeof err.data === 'object') {
-      const errorData = err.data as { statusMessage?: string; message?: string; data?: Record<string, string[]> };
-      message = errorData.statusMessage || errorData.message || message;
-      if (errorData.data) { 
-        validationIssues = errorData.data;
-        // Display Zod field errors
-        if (validationIssues?.name) validationErrors.name = validationIssues.name.join(', ');
-        // Potentially map other field errors if your Zod schema and API return them
-      }
-    }
-    apiError.value = message;
-    toast.error({ title: 'Error Creating Role', message: message });
-  } finally {
-    isSubmitting.value = false;
-  }
+  createRole(payload);
 };
 </script> 
