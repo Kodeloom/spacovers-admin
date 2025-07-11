@@ -21,7 +21,9 @@ enum UserStatus {
 
 enum CustomerType {
   RETAILER
+  CA_RETAIL
   WHOLESALER
+  CA_WHOLESALE
 }
 
 enum CustomerStatus {
@@ -73,6 +75,7 @@ model User {
   auditLogs          AuditLog[]
   sessions           Session[]
   accounts           Account[]
+  quickbooksToken    QuickbooksToken?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
   role               String?
@@ -145,24 +148,26 @@ model Customer {
   billingZipCode       String?
   billingCountry       String?
   orders               Order[]
+  estimates            Estimate[]
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt()
 }
 
 model Item {
-  id               String      @id() @default(cuid())
-  quickbooksItemId String?     @unique()
+  id               String         @id() @default(cuid())
+  quickbooksItemId String?        @unique()
   name             String
   imageUrl         String?
   category         String?
-  wholesalePrice   Decimal?    @db.Decimal(10, 2)
-  retailPrice      Decimal?    @db.Decimal(10, 2)
-  cost             Decimal?    @db.Decimal(10, 2)
+  wholesalePrice   Decimal?       @db.Decimal(10, 2)
+  retailPrice      Decimal?       @db.Decimal(10, 2)
+  cost             Decimal?       @db.Decimal(10, 2)
   description      String?
-  status           ItemStatus  @default(ACTIVE)
+  status           ItemStatus     @default(ACTIVE)
   orderItems       OrderItem[]
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt()
+  estimateItems    EstimateItem[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt()
 }
 
 model Station {
@@ -190,9 +195,18 @@ model Order {
   id                   String            @id() @default(cuid())
   quickbooksOrderId    String?           @unique()
   customerId           String
-  customer             Customer          @relation(fields: [customerId], references: [id])
   salesOrderNumber     String?
   purchaseOrderNumber  String?
+  estimateId           String?           @unique()
+  transactionDate      DateTime?
+  dueDate              DateTime?
+  shipDate             DateTime?
+  trackingNumber       String?
+  totalAmount          Decimal?          @db.Decimal(10, 2)
+  balance              Decimal?          @db.Decimal(10, 2)
+  totalTax             Decimal?          @db.Decimal(10, 2)
+  emailStatus          String?
+  customerMemo         String?           @db.Text()
   contactEmail         String
   contactPhoneNumber   String?
   billingAddressLine1  String?
@@ -212,8 +226,10 @@ model Order {
   approvedAt           DateTime?
   readyToShipAt        DateTime?
   shippedAt            DateTime?
-  notes                String?           @db.Text()
-  orderItems           OrderItem[]
+  notes                String?
+  customer             Customer          @relation(fields: [customerId], references: [id])
+  items                OrderItem[]
+  estimate             Estimate?         @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt()
 }
@@ -221,15 +237,18 @@ model Order {
 model OrderItem {
   id                    String                    @id() @default(cuid())
   orderId               String
-  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   itemId                String
-  item                  Item                      @relation(fields: [itemId], references: [id])
   quickbooksOrderLineId String?                   @unique()
+  lineDescription       String?                   @db.Text()
+  lineAmount            Decimal?                  @db.Decimal(10, 2)
+  taxCode               String?
   quantity              Int
   pricePerItem          Decimal                   @db.Decimal(10, 2)
   itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
-  notes                 String?                   @db.Text()
-  itemProcessingLogs    ItemProcessingLog[]
+  notes                 String?
+  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item                  Item                      @relation(fields: [itemId], references: [id])
+  processingLogs        ItemProcessingLog[]
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt()
 }
@@ -311,4 +330,47 @@ model Verification {
   updatedAt  DateTime @updatedAt()
 
   @@map("verification")
+}
+
+model QuickbooksToken {
+  id                     String   @id() @default(cuid())
+  realmId                String
+  accessToken            String   @db.Text()
+  refreshToken           String   @db.Text()
+  tokenType              String
+  expiresIn              Int
+  xRefreshTokenExpiresIn Int
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt()
+  user                   User     @relation(fields: [userId], references: [id])
+  userId                 String   @unique()
+}
+
+model Estimate {
+  id                   String         @id() @default(cuid())
+  quickbooksEstimateId String         @unique()
+  customerId           String
+  estimateNumber       String?
+  transactionDate      DateTime?
+  expirationDate       DateTime?
+  totalAmount          Decimal        @db.Decimal(10, 2)
+  customer             Customer       @relation(fields: [customerId], references: [id])
+  items                EstimateItem[]
+  linkedOrder          Order?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt()
+}
+
+model EstimateItem {
+  id                       String   @id() @default(cuid())
+  estimateId               String
+  itemId                   String
+  quickbooksEstimateLineId String?  @unique()
+  lineDescription          String?  @db.Text()
+  quantity                 Int
+  pricePerItem             Decimal  @db.Decimal(10, 2)
+  estimate                 Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  item                     Item     @relation(fields: [itemId], references: [id])
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt()
 }
