@@ -1,0 +1,190 @@
+import { getQboClient } from '~/server/lib/qbo-client';
+import { getEnhancedPrismaClient } from '~/server/lib/db';
+
+interface QboLine {
+    Id: string;
+    Amount: number;
+    Description?: string;
+    DetailType: string;
+    SalesItemLineDetail?: {
+        ItemRef: { value: string; name: string; };
+        Qty: number;
+        UnitPrice: number;
+        TaxCodeRef?: { value: string; };
+    };
+}
+
+interface QboAddress {
+    Line1?: string;
+    Line2?: string;
+    City?: string;
+    CountrySubDivisionCode?: string;
+    PostalCode?: string;
+    Country?: string;
+}
+
+interface QboInvoice {
+    Id: string;
+    DocNumber?: string;
+    TxnDate?: string;
+    DueDate?: string;
+    CustomerRef: { value: string; name: string; };
+    CustomerMemo?: { value: string };
+    BillEmail?: { Address: string; };
+    POEx?: { PONumber: string; };
+    BillAddr?: QboAddress;
+    ShipAddr?: QboAddress;
+    DeliveryInfo?: { ShipDate?: string; };
+    TrackingNum?: string;
+    TotalAmt?: number;
+    Balance?: number;
+    TxnTaxDetail?: { TotalTax?: number };
+    EmailStatus?: string;
+    Line: QboLine[];
+}
+
+export default defineEventHandler(async (event) => {
+    const { oauthClient, token } = await getQboClient(event);
+    const prisma = await getEnhancedPrismaClient(event);
+    
+    const companyId = token.realmId;
+    if (!companyId) {
+        throw createError({ statusCode: 400, statusMessage: 'QuickBooks Realm ID not found.' });
+    }
+    const companyInfoUrl = oauthClient.environment === 'sandbox' 
+        ? 'https://sandbox-quickbooks.api.intuit.com' 
+        : 'https://quickbooks.api.intuit.com';
+        
+    try {
+        const query = "SELECT * FROM Invoice";
+        const url = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`;
+        
+        const response: { QueryResponse?: { Invoice: QboInvoice[] } } = await $fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token.access_token}` },
+        });
+
+        console.log('--- Raw QBO Invoice Response ---:', JSON.stringify(response, null, 2));
+
+        const qboInvoices = response?.QueryResponse?.Invoice || [];
+        if (qboInvoices.length === 0) {
+            console.log('QBO returned no invoices to sync.');
+            return { created: 0, updated: 0, message: 'No invoices found in QuickBooks to sync.' };
+        }
+
+        let createdCount = 0;
+        let updatedCount = 0;
+        
+        for (const qboInvoice of qboInvoices) {
+            // Find the corresponding customer in our DB
+            const customer = await prisma.customer.findUnique({
+                where: { quickbooksCustomerId: qboInvoice.CustomerRef.value },
+            });
+            
+            if (!customer) {
+                console.warn(`Skipping invoice ${qboInvoice.Id} because customer ${qboInvoice.CustomerRef.name} (${qboInvoice.CustomerRef.value}) was not found in local DB.`);
+                continue;
+            }
+
+            if (!qboInvoice.BillEmail?.Address) {
+                console.warn(`Skipping invoice ${qboInvoice.Id} because it is missing a billing email address.`);
+                continue;
+            }
+            
+            const orderData = {
+                customerId: customer.id,
+                salesOrderNumber: qboInvoice.DocNumber,
+                transactionDate: qboInvoice.TxnDate ? new Date(qboInvoice.TxnDate) : undefined,
+                dueDate: qboInvoice.DueDate ? new Date(qboInvoice.DueDate) : undefined,
+                shipDate: qboInvoice.DeliveryInfo?.ShipDate ? new Date(qboInvoice.DeliveryInfo.ShipDate) : undefined,
+                trackingNumber: qboInvoice.TrackingNum,
+                totalAmount: qboInvoice.TotalAmt,
+                balance: qboInvoice.Balance,
+                totalTax: qboInvoice.TxnTaxDetail?.TotalTax,
+                emailStatus: qboInvoice.EmailStatus,
+                customerMemo: qboInvoice.CustomerMemo?.value,
+                contactEmail: qboInvoice.BillEmail.Address,
+                purchaseOrderNumber: qboInvoice.POEx?.PONumber,
+                billingAddressLine1: qboInvoice.BillAddr?.Line1,
+                billingAddressLine2: qboInvoice.BillAddr?.Line2,
+                billingCity: qboInvoice.BillAddr?.City,
+                billingState: qboInvoice.BillAddr?.CountrySubDivisionCode,
+                billingZipCode: qboInvoice.BillAddr?.PostalCode,
+                billingCountry: qboInvoice.BillAddr?.Country,
+                shippingAddressLine1: qboInvoice.ShipAddr?.Line1,
+                shippingAddressLine2: qboInvoice.ShipAddr?.Line2,
+                shippingCity: qboInvoice.ShipAddr?.City,
+                shippingState: qboInvoice.ShipAddr?.CountrySubDivisionCode,
+                shippingZipCode: qboInvoice.ShipAddr?.PostalCode,
+                shippingCountry: qboInvoice.ShipAddr?.Country,
+                // Note: We'll set a default status, but this could be mapped from QBO if needed
+            };
+            
+            const order = await prisma.order.upsert({
+                where: { quickbooksOrderId: qboInvoice.Id },
+                update: orderData,
+                create: {
+                    ...orderData,
+                    quickbooksOrderId: qboInvoice.Id,
+                },
+                include: { items: true }
+            });
+            
+            if (order.createdAt.getTime() === order.updatedAt.getTime()) {
+                createdCount++;
+            } else {
+                updatedCount++;
+            }
+            
+            // Process line items
+            for (const line of qboInvoice.Line) {
+                if (line.SalesItemLineDetail?.ItemRef) {
+                    const item = await prisma.item.findUnique({
+                        where: { quickbooksItemId: line.SalesItemLineDetail.ItemRef.value },
+                    });
+                    
+                    if (!item) {
+                        console.warn(`Skipping line item ${line.SalesItemLineDetail.ItemRef.name} for invoice ${qboInvoice.Id} as it was not found in local DB.`);
+                        continue;
+                    }
+
+                    await prisma.orderItem.upsert({
+                        where: { quickbooksOrderLineId: line.Id },
+                        update: {
+                            quantity: line.SalesItemLineDetail.Qty,
+                            pricePerItem: line.SalesItemLineDetail.UnitPrice,
+                            lineDescription: line.Description,
+                            lineAmount: line.Amount,
+                            taxCode: line.SalesItemLineDetail.TaxCodeRef?.value,
+                        },
+                        create: {
+                            orderId: order.id,
+                            itemId: item.id,
+                            quickbooksOrderLineId: line.Id,
+                            quantity: line.SalesItemLineDetail.Qty,
+                            pricePerItem: line.SalesItemLineDetail.UnitPrice,
+                            lineDescription: line.Description,
+                            lineAmount: line.Amount,
+                            taxCode: line.SalesItemLineDetail.TaxCodeRef?.value,
+                        }
+                    });
+                }
+            }
+        }
+        
+        return { created: createdCount, updated: updatedCount };
+        
+    } catch (error: unknown) {
+        const e = error as { data?: { Fault?: { Error: { Detail?: string; Message?: string; }[] } }; message?: string; };
+        console.error('--- QuickBooks API Error Details ---', JSON.stringify(e?.data || e, null, 2));
+
+        const qboError = e.data?.Fault?.Error?.[0];
+        const errorMessage = qboError?.Detail || qboError?.Message || e.message || 'An unknown error occurred while syncing invoices.';
+        
+        throw createError({
+            statusCode: 500,
+            statusMessage: 'Failed to sync invoices from QuickBooks.',
+            data: { message: errorMessage },
+        });
+    }
+}); 
