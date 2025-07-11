@@ -1,270 +1,182 @@
 <template>
   <div class="p-4">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-semibold">User Management</h1>
-      <button class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" @click="navigateToAddUserPage">
-        Add New User
-      </button>
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-semibold">
+        Users
+      </h1>
+      <NuxtLink
+        to="/admin/users/add"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+      >
+        <Icon name="heroicons:plus-solid" class="mr-2 h-5 w-5" />
+        Add User
+      </NuxtLink>
     </div>
-
-    <!-- User Table will go here -->
-    <div class="bg-white shadow-md rounded-lg overflow-x-auto">
-      <div v-if="usersLoading" class="p-4 text-center text-gray-500">Loading users...</div>
-      <div v-else-if="usersError" class="p-4 text-center text-red-500">Error loading users. Check console or notification.</div>
-      <div v-else-if="users && users.length === 0" class="p-4 text-center text-gray-500">No users found.</div>
-      <table v-else class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="user in users" :key="user.id">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ user.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.email }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ user.roles?.map(r => r.role.name).join(', ') || 'N/A' }}
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span
-:class="[
-                'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                user.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 
-                user.status === 'INACTIVE' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800' // ARCHIVED or other
-              ]">
-                {{ user.status }}
-              </span>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <button class="text-indigo-600 hover:text-indigo-900 mr-3" @click="navigateToEditUserPage(user)">Edit</button>
-              <button 
-                v-if="canDeleteUser(user)" 
-                class="text-red-600 hover:text-red-900" 
-                @click="openDeleteUserModal(user)"
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Add/Edit User Modal will go here -->
-    <!-- Delete Confirmation Modal -->
-    <TransitionRoot appear :show="isDeleteUserModalOpen" as="template">
-      <Dialog as="div" class="relative z-10" @close="cancelDeleteUser">
-        <TransitionChild
-          as="template"
-          enter="duration-300 ease-out"
-          enter-from="opacity-0"
-          enter-to="opacity-100"
-          leave="duration-200 ease-in"
-          leave-from="opacity-100"
-          leave-to="opacity-0"
-        >
-          <div class="fixed inset-0 bg-black bg-opacity-25" />
-        </TransitionChild>
-
-        <div class="fixed inset-0 overflow-y-auto">
-          <div class="flex min-h-full items-center justify-center p-4 text-center">
-            <TransitionChild
-              as="template"
-              enter="duration-300 ease-out"
-              enter-from="opacity-0 scale-95"
-              enter-to="opacity-100 scale-100"
-              leave="duration-200 ease-in"
-              leave-from="opacity-100 scale-100"
-              leave-to="opacity-0 scale-95"
-            >
-              <DialogPanel class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-gray-900">
-                  Delete User
-                </DialogTitle>
-                <div class="mt-2">
-                  <p class="text-sm text-gray-500">
-                    Are you sure you want to delete the user "<strong>{{ selectedUserForDelete?.name }}</strong>"? This action cannot be undone.
-                  </p>
-                </div>
-
-                <div class="mt-4 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    class="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
-                    @click="cancelDeleteUser"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="isDeletingUser"
-                    class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50"
-                    @click="confirmDeleteUser"
-                  >
-                    {{ isDeletingUser ? 'Deleting...' : 'Delete User' }}
-                  </button>
-                </div>
-              </DialogPanel>
-            </TransitionChild>
+    <div class="bg-white shadow rounded-lg">
+      <AppTable
+        v-model:sort="sort"
+        :rows="usersData ?? []"
+        :columns="columns"
+        :pending="pending"
+      >
+        <template #status-data="{ row }">
+          <span
+            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+            :class="{
+              'bg-green-100 text-green-800': row.status === 'ACTIVE',
+              'bg-yellow-100 text-yellow-800': row.status === 'INACTIVE',
+              'bg-red-100 text-red-800': row.status === 'ARCHIVED',
+            }"
+          >
+            {{ row.status }}
+          </span>
+        </template>
+        <template #roles-data="{ row }">
+          <div v-if="row.roles && row.roles.length > 0" class="flex flex-wrap gap-1">
+            <span v-for="userRole in row.roles" :key="userRole.role.id" class="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 rounded-full">
+              {{ userRole.role.name }}
+            </span>
           </div>
+          <span v-else class="text-gray-400">-</span>
+        </template>
+        <template #actions-data="{ row }">
+          <div class="flex space-x-2">
+            <NuxtLink :to="`/admin/users/edit/${row.id}`" class="text-indigo-600 hover:text-indigo-900">
+              <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
+            </NuxtLink>
+            <button class="text-red-600 hover:text-red-900" @click="confirmDelete(row)">
+              <Icon name="heroicons:trash-20-solid" class="h-5 w-5" />
+            </button>
+          </div>
+        </template>
+      </AppTable>
+      <div
+        v-if="totalCount && totalCount > 0"
+        class="px-6 py-4 border-t border-gray-200 flex items-center justify-between"
+      >
+        <p class="text-sm text-gray-700">
+          Showing
+          <span class="font-medium">{{ (page - 1) * limit + 1 }}</span>
+          to
+          <span class="font-medium">{{ Math.min(page * limit, totalCount) }}</span>
+          of
+          <span class="font-medium">{{ totalCount }}</span>
+          results
+        </p>
+        <div class="flex-1 flex justify-end">
+          <button
+            :disabled="page === 1"
+            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            @click="page--"
+          >
+            Previous
+          </button>
+          <button
+            :disabled="page === totalPages"
+            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            @click="page++"
+          >
+            Next
+          </button>
         </div>
-      </Dialog>
-    </TransitionRoot>
+      </div>
+    </div>
+    <AppModal :is-open="!!userToDelete" title="Confirm Deletion" @close="userToDelete = null">
+      <p>Are you sure you want to delete the user '<strong>{{ userToDelete?.name }}</strong>'? This action cannot be undone.</p>
+      <div class="flex justify-end space-x-2 mt-4">
+        <button class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100" @click="userToDelete = null">
+          Cancel
+        </button>
+        <button
+          class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+          :disabled="isDeleting"
+          @click="handleDelete"
+        >
+          <Icon v-if="isDeleting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
+          Delete
+        </button>
+      </div>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import { useFindManyUser, useDeleteUser } from '~/lib/hooks'; // Removed useFindUniqueUser
-import type { User } from '@prisma-app/client'; // Removed UserStatus
-import { useRouter } from 'vue-router';
-import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
-import { authClient } from '~/lib/auth-client'; // Correct import for authClient
+import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useFindManyUser, useCountUser, useDeleteUser } from '~/lib/hooks';
 
-// Define types for clarity based on customSession plugin
-interface SessionUserRole {
-  role: {
-    name: string;
-    // permissions?: Array<{ permission: { action: string; subject: string } }>; // If needed later
-  };
-}
-
-interface UserFromSession {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  emailVerified?: boolean | null;
-  roles?: SessionUserRole[];
-  // include other fields from BetterAuth user and customSession if necessary
-}
-
-// Type for users in the list, fetched by useFindManyUser
-type UserWithRoles = User & {
-  roles: Array<{ role: { name: string } }>;
-};
-
-// Middleware to protect the page
 definePageMeta({
   layout: 'default',
-  middleware: ['auth-admin-only']
+  middleware: ['auth-admin-only'],
 });
 
-const router = useRouter();
+const columns = [
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'email', label: 'Email', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'roles', label: 'Roles', sortable: false },
+  { key: 'actions', label: 'Actions', sortable: false },
+];
 
-// Get session state using authClient
-const sessionState = authClient.useSession();
+const toast = useToast();
+const route = useRoute();
+const isDeleting = ref(false);
+const userToDelete = ref<{ id: string, name: string } | null>(null);
 
-// Computed properties for the logged-in user from the session
-const loggedInUser = computed(() => sessionState.value?.data?.user as UserFromSession | undefined);
-const loggedInUserId = computed(() => loggedInUser.value?.id);
-const loggedInUserRoleNames = computed(() => {
-  return loggedInUser.value?.roles
-    ?.map((userRole: SessionUserRole) => userRole.role.name)
-    .filter((name: string | undefined) => !!name) as string[] // Ensure name is treated as potentially undefined before filter, then cast to string[]
-    || [];
+const page = ref(1);
+const limit = ref(15);
+const sort = ref({ column: 'name', direction: 'asc' as 'asc' | 'desc' });
+
+const query = computed(() => ({
+  skip: (page.value - 1) * limit.value,
+  take: limit.value,
+  include: { roles: { include: { role: true } } },
+  orderBy: { [sort.value.column]: sort.value.direction },
+}));
+
+const { data: usersData, isLoading: pending, refetch: refreshUsers } = useFindManyUser(query);
+const { data: totalCount, refetch: refreshCount } = useCountUser();
+
+const totalPages = computed(() => {
+  const count = totalCount.value ?? 0;
+  if (count === 0) return 1;
+  return Math.ceil(count / limit.value);
 });
 
-// Fetch all users for the list
-const { data: users, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useFindManyUser({
-  include: { roles: { select: { role: { select: { name: true } } } } }
-});
-
-const toast = useToast(); // This should now use nuxt-toast's auto-imported composable
-
-watch(usersError, (newError: Error | null) => {
-  if (newError) {
-    toast.error({ title: 'Error', message: `Error fetching users: ${newError.message}` });
-  }
-});
-
-function navigateToAddUserPage() {
-  router.push('/admin/users/add');
-}
-
-function navigateToEditUserPage(user: UserWithRoles) { // Changed User to UserWithRoles
-  router.push(`/admin/users/edit/${user.id}`);
-}
-
-const selectedUserForDelete = ref<UserWithRoles | null>(null);
-const isDeleteUserModalOpen = ref(false);
-
-const { mutateAsync: deleteUser, isPending: isDeletingUser, error: deleteUserError } = useDeleteUser();
-
-watch(deleteUserError, (newError: Error | null) => {
-  if (newError) {
-    toast.error({ title: 'Error', message: `Error deleting user: ${newError.message}` });
+// When navigating back to this page, force a refresh
+watch(() => route.fullPath, (fullPath) => {
+  if (fullPath === '/admin/users') {
+    refreshUsers();
+    refreshCount();
   }
 });
 
-function openDeleteUserModal(user: UserWithRoles) {
-  selectedUserForDelete.value = user;
-  isDeleteUserModalOpen.value = true;
+const deleteMutation = useDeleteUser({
+  onSuccess: () => {
+    toast.success({ title: 'Success', message: 'User deleted successfully.' });
+    refreshUsers();
+    refreshCount();
+  },
+  onError: (error: { data?: { data?: { message?: string } } }) => {
+    const errorMessage = error.data?.data?.message || 'Failed to delete user.';
+    toast.error({ title: 'Error', message: errorMessage });
+  },
+  onSettled: () => {
+    isDeleting.value = false;
+    userToDelete.value = null;
+  },
+});
+
+function confirmDelete(user: { id: string; name: string }) {
+  userToDelete.value = { id: user.id, name: user.name };
 }
 
-async function confirmDeleteUser() {
-  if (!selectedUserForDelete.value) return;
-
-  try {
-    await deleteUser({ where: { id: selectedUserForDelete.value.id } });
-    toast.success({ title: 'Success', message: `User '${selectedUserForDelete.value.name}' deleted successfully.` });
-    isDeleteUserModalOpen.value = false;
-    selectedUserForDelete.value = null;
-    await refetchUsers();
-  } catch (err) {
-    console.error("Confirm delete user error:", err);
-    isDeleteUserModalOpen.value = false;
+function handleDelete() {
+  if (userToDelete.value) {
+    isDeleting.value = true;
+    deleteMutation.mutate({ where: { id: userToDelete.value.id } });
   }
 }
-
-function cancelDeleteUser() {
-  isDeleteUserModalOpen.value = false;
-  selectedUserForDelete.value = null;
-}
-
-// Function to determine if the logged-in user can delete a target user
-function canDeleteUser(targetUser: UserWithRoles): boolean {
-  const currentUserId = loggedInUserId.value;
-  const currentUserRoles = loggedInUserRoleNames.value;
-
-  if (!currentUserId) {
-    // This case should ideally be handled by auth middleware, but good for safety.
-    console.warn("canDeleteUser: Logged in user ID not found in session.");
-    return false;
-  }
-
-  if (targetUser.id === currentUserId) {
-    return false; // Cannot delete self
-  }
-
-  const targetIsSuperAdmin = targetUser.roles?.some((ur: { role: { name: string } }) => ur.role.name === 'Super Admin');
-  
-  const currentUserIsSuperAdmin = currentUserRoles.includes('Super Admin');
-  const currentUserIsAdmin = currentUserRoles.includes('Admin');
-
-  if (targetIsSuperAdmin) {
-    return currentUserIsSuperAdmin; // Only Super Admin can delete Super Admin
-  }
-
-  // If target is not Super Admin (and not self)
-  if (currentUserIsSuperAdmin || currentUserIsAdmin) {
-    return true; // Super Admins and Admins can delete non-Super Admins
-  }
-  
-  return false; // Default deny
-}
-
-// TODO: Fetch users using useQuery and ZenStack hooks
-// TODO: Implement Add User functionality (useMutation)
-// TODO: Implement Edit User functionality (useMutation)
-// TODO: Implement Delete User functionality (useMutation)
-// TODO: Create Delete Confirmation Modal component
-
 </script>
 
 <style scoped>

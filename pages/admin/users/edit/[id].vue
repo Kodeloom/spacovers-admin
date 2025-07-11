@@ -133,6 +133,7 @@ import { reactive, watch, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOptions, ListboxOption } from '@headlessui/vue';
 import { useFindUniqueUser, useFindManyRole } from '~/lib/hooks';
+import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import type { User, UserStatus } from '@prisma-app/client';
 
 // Define interface for status options for clarity
@@ -164,6 +165,7 @@ definePageMeta({
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const queryClient = useQueryClient();
 const userId = route.params.id as string;
 
 const changePassword = ref(false);
@@ -233,9 +235,41 @@ watch(rolesError, (newError: Error | null) => {
   if (newError) toast.error({ title: 'Error', message: `Error fetching roles: ${newError.message}` });
 });
 
-const isUpdatingUser = ref(false);
+const { mutate: updateUser, isPending: isUpdatingUser } = useMutation({
+  mutationFn: (vars: typeof editableUser) => {
+    const payload: {
+      name: string;
+      email: string;
+      status: UserStatus;
+      roleIds: string[];
+      password?: string;
+    } = {
+      name: vars.name,
+      email: vars.email,
+      status: vars.status,
+      roleIds: vars.roleIds,
+    };
+    if (changePassword.value) {
+      payload.password = vars.password;
+    }
+    return $fetch(`/api/admin/users/${userId}`, {
+      method: 'PUT',
+      body: payload,
+    });
+  },
+  onSuccess: async () => {
+    toast.success({ title: 'Success', message: 'User updated successfully!' });
+    await queryClient.invalidateQueries();
+    router.push('/admin/users');
+  },
+  onError: (err) => {
+    const fetchError = err as { data?: { message?: string }, message?: string };
+    const errorMessage = fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
+    toast.error({ title: 'Error Updating User', message: `Error: ${errorMessage}` });
+  },
+});
 
-async function submitUpdateUser() {
+function submitUpdateUser() {
   if (changePassword.value) {
     if (editableUser.password.length < 8) {
       toast.error({ title: 'Validation Error', message: 'New password must be at least 8 characters long.'});
@@ -247,38 +281,6 @@ async function submitUpdateUser() {
     }
   }
 
-  isUpdatingUser.value = true;
-  try {
-    const payload: { 
-      name: string; 
-      email: string; 
-      status: UserStatus; 
-      roleIds: string[]; 
-      password?: string 
-    } = {
-      name: editableUser.name,
-      email: editableUser.email,
-      status: editableUser.status,
-      roleIds: editableUser.roleIds,
-    };
-
-    if (changePassword.value && editableUser.password) {
-      payload.password = editableUser.password;
-    }
-
-    await $fetch(`/api/admin/users/${userId}`, {
-      method: 'PUT',
-      body: payload
-    });
-    toast.success({ title: 'Success', message: 'User updated successfully!' });
-    router.push('/admin/users');
-  } catch (err) {
-    const fetchError = err as { data?: { message?: string }, message?: string };
-    console.error('Error updating user:', fetchError);
-    const errorMessage = fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
-    toast.error({ title: 'Error Updating User', message: `Error updating user: ${errorMessage}`});
-  } finally {
-    isUpdatingUser.value = false;
-  }
+  updateUser(editableUser);
 }
 </script> 

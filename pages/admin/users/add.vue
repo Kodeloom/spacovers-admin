@@ -106,9 +106,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch, computed, ref } from 'vue';
+import { reactive, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOptions, ListboxOption } from '@headlessui/vue';
+import { useMutation, useQueryClient, type UseMutationOptions } from '@tanstack/vue-query';
 import { useFindManyRole } from '~/lib/hooks';
 import type { UserStatus } from '@prisma-app/client';
 
@@ -119,6 +120,7 @@ definePageMeta({
 
 const router = useRouter();
 const toast = useToast();
+const queryClient = useQueryClient();
 
 interface StatusOption {
   value: UserStatus;
@@ -165,34 +167,44 @@ watch(rolesError, (newError: Error | null) => {
   }
 });
 
-const isCreatingUser = ref(false);
+interface CreateUserError {
+  data?: {
+    message?: string
+  };
+  message?: string;
+}
 
-async function submitAddUser() {
+const mutationOptions: UseMutationOptions<unknown, CreateUserError, typeof newUser, unknown> = {
+  mutationFn: (vars: typeof newUser) => {
+    return $fetch('/api/admin/users', {
+      method: 'POST',
+      body: {
+        name: vars.name,
+        email: vars.email,
+        password: vars.password,
+        status: vars.status,
+        roleIds: vars.roleIds,
+      },
+    });
+  },
+  onSuccess: async () => {
+    toast.success({ title: 'Success', message: 'User created successfully!' });
+    await queryClient.invalidateQueries();
+    router.push('/admin/users');
+  },
+  onError: (err: CreateUserError) => {
+    const errorMessage = err.data?.message || err.message || 'An unexpected error occurred.';
+    toast.error({ title: 'Error Creating User', message: `Error creating user: ${errorMessage}` });
+  },
+};
+
+const { mutate: createUser, isPending: isCreatingUser } = useMutation(mutationOptions);
+
+function submitAddUser() {
   if (newUser.password.length < 8) {
     toast.error({ title: 'Validation Error', message: 'Password must be at least 8 characters long.' });
     return;
   }
-  isCreatingUser.value = true;
-  try {
-    await $fetch('/api/admin/users', {
-      method: 'POST',
-      body: {
-        name: newUser.name,
-        email: newUser.email,
-        password: newUser.password,
-        status: newUser.status,
-        roleIds: newUser.roleIds
-      }
-    });
-    toast.success({ title: 'Success', message: 'User created successfully!' });
-    router.push('/admin/users');
-  } catch (err) {
-    const fetchError = err as { data?: { message?: string }, message?: string };
-    console.error('Error creating user:', fetchError);
-    const errorMessage = fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
-    toast.error({ title: 'Error Creating User', message: `Error creating user: ${errorMessage}` });
-  } finally {
-    isCreatingUser.value = false;
-  }
+  createUser(newUser);
 }
 </script> 
