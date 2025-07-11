@@ -115,11 +115,28 @@ const { mutate: createPermission, isPending: isCreating } = useCreatePermission(
     toast.success({ title: 'Success', message: 'Permission created successfully!' });
     router.push('/admin/permissions');
   },
-  onError: (err: { data?: { message?: string }, message?: string }) => {
+  onError: (err: any) => {
     console.error("Error creating permission:", err);
-    const message = err.data?.message || err.message || 'Failed to create permission. Please try again.';
-    apiError.value = message;
-    toast.error({ title: 'Error Creating Permission', message: message });
+    console.error("Error structure:", JSON.stringify(err, null, 2));
+    
+    // Check for unique constraint violation (P2002) in multiple possible locations
+    const isPrismaUniqueError = 
+      err.data?.error?.code === 'P2002' ||  // Original structure
+      err.code === 'P2002' ||               // Direct Prisma error
+      err.data?.code === 'P2002' ||         // Alternative structure
+      err.meta?.code === 'P2002' ||         // Another possible structure
+      (err.message && err.message.includes('Unique constraint failed')) || // Message-based check
+      (err.data?.message && err.data.message.includes('Unique constraint failed'));
+    
+    if (isPrismaUniqueError) {
+      const message = 'A permission with this action and subject already exists.';
+      apiError.value = message;
+      toast.error({ title: 'Duplicate Permission', message: message });
+    } else {
+      const message = err.data?.message || err.message || 'Failed to create permission. Please try again.';
+      apiError.value = message;
+      toast.error({ title: 'Error Creating Permission', message: message });
+    }
   },
   onSettled: () => {
     // Ensure our guard flag is always reset

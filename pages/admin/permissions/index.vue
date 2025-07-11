@@ -1,225 +1,163 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">Permissions Management</h1>
-      <button 
-        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-150 ease-in-out"
-        @click="handleRequestAddPermission"
+  <div class="p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-semibold">
+        Permissions
+      </h1>
+      <NuxtLink
+        to="/admin/permissions/add"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
       >
-        <Icon name="heroicons:plus-circle" class="mr-2 h-5 w-5 inline-block align-text-bottom" />
-        Add New Permission
-      </button>
+        <Icon name="heroicons:plus-solid" class="mr-2 h-5 w-5" />
+        Add Permission
+      </NuxtLink>
     </div>
-
-    <div v-if="isLoading" class="text-center py-10">
-      <p class="text-gray-500">Loading permissions...</p>
-      <!-- You can add a spinner icon here -->
-    </div>
-    <div v-else-if="error" class="text-center py-10 bg-red-50 border border-red-200 rounded-md p-4">
-      <p class="text-red-600 font-semibold">Error loading permissions:</p>
-      <p class="text-red-500 mt-1">{{ error.message || 'An unknown error occurred.' }}</p>
-      <pre v-if="error.data" class="mt-2 text-xs text-left bg-red-50 p-2 rounded overflow-x-auto">{{ JSON.stringify(error.data, null, 2) }}</pre>
-    </div>
-    <div v-else-if="permissions && permissions.length > 0">
-      <div class="bg-white shadow-md rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th scope="col" class="relative px-6 py-3">
-                <span class="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="permission in permissions" :key="permission.id">
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ permission.action }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ permission.subject }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ permission.description || 'N/A' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button class="text-indigo-600 hover:text-indigo-900 mr-4" @click="handleRequestEditPermission(permission)">Edit</button>
-                <button class="text-red-600 hover:text-red-900" @click="handleRequestDeletePermission(permission)">Delete</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="bg-white shadow rounded-lg">
+      <AppTable
+        v-model:sort="sort"
+        :rows="permissions ?? []"
+        :columns="columns"
+        :pending="isPermissionsLoading || isCountLoading"
+      >
+        <template #actions-data="{ row }">
+          <div class="flex space-x-2">
+            <NuxtLink :to="`/admin/permissions/edit/${row.id}`" class="text-indigo-600 hover:text-indigo-900">
+              <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
+            </NuxtLink>
+            <button class="text-red-600 hover:text-red-900" @click="confirmDelete(row)">
+              <Icon name="heroicons:trash-20-solid" class="h-5 w-5" />
+            </button>
+          </div>
+        </template>
+      </AppTable>
+      <div
+        v-if="totalPermissions && totalPermissions > 0"
+        class="px-6 py-4 border-t border-gray-200 flex items-center justify-between"
+      >
+        <p class="text-sm text-gray-700">
+          Showing
+          <span class="font-medium">{{ (page - 1) * limit + 1 }}</span>
+          to
+          <span class="font-medium">{{ Math.min(page * limit, totalPermissions) }}</span>
+          of
+          <span class="font-medium">{{ totalPermissions }}</span>
+          results
+        </p>
+        <div class="flex-1 flex justify-end">
+          <button
+            :disabled="page === 1"
+            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            @click="page--"
+          >
+            Previous
+          </button>
+          <button
+            :disabled="page === totalPages"
+            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            @click="page++"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
-    <div v-else class="text-center py-10">
-      <p class="text-gray-500">No permissions found. Get started by adding a new permission.</p>
-      <Icon name="heroicons:key-20-solid" class="mt-4 h-12 w-12 text-gray-300 mx-auto" />
-    </div>
-
-    <!-- High-Risk Action Warning Modal -->
-    <AppWarningModal 
-      :is-open="isWarningModalOpen"
-      title="Critical Permissions Area"
-      message="Modifying permissions is a high-risk operation that can affect system stability and user access. Ensure you understand the consequences."
-      confirmation-phrase="PROCEED"
-      confirm-button-text="I Understand, PROCEED"
-      @confirmed="handleWarningConfirmed"
-      @closed="closeWarningModal"
-    />
-
-    <!-- Delete Confirmation Modal (original) -->
-    <AppModal :show="isDeleteModalOpen" width="300px" @close="closeDeleteModal">
-      <template #title>Confirm Delete Permission</template>
-      <template #default>
-        <p v-if="permissionToModify">
-          Are you sure you want to delete the permission 
-          '<strong>{{ permissionToModify.action }} - {{ permissionToModify.subject }}</strong>'? 
-          This action cannot be undone.
-        </p>
-        <p v-else>Confirm deletion.</p>
-      </template>
-      <template #footer>
-        <button
-          type="button"
-          class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="closeDeleteModal"
-        >
+    <AppModal :is-open="!!permissionToDelete" title="Confirm Deletion" @close="permissionToDelete = null">
+      <p>Are you sure you want to delete the permission '<strong>{{ permissionToDelete?.action }} on {{ permissionToDelete?.subject }}</strong>'? This action cannot be undone.</p>
+      <div class="flex justify-end space-x-2 mt-4">
+        <button class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100" @click="permissionToDelete = null">
           Cancel
         </button>
         <button
-          type="button"
-          class="ml-3 inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+          class="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
           :disabled="isDeleting"
-          @click="executeDeletePermission"
+          @click="handleDelete"
         >
-          <Icon v-if="isDeleting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4 inline-block" />
-          {{ isDeleting ? 'Deleting...' : 'Delete' }}
+          <Icon v-if="isDeleting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
+          Delete
         </button>
-      </template>
+      </div>
     </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useFindManyPermission, useDeletePermission } from '~/lib/hooks'; 
-import type { Permission } from '@prisma-app/client';
-import { useQueryClient } from '@tanstack/vue-query';
+import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useFindManyPermission, useCountPermission, useDeletePermission } from '~/lib/hooks';
 
 definePageMeta({
   layout: 'default',
   middleware: ['auth-admin-only'],
 });
 
-const router = useRouter();
-const toast = useToast();
-const queryClient = useQueryClient();
+const columns = [
+  { key: 'subject', label: 'Module (Subject)', sortable: true },
+  { key: 'action', label: 'Action', sortable: true },
+  { key: 'description', label: 'Description', sortable: false },
+  { key: 'createdAt', label: 'Created At', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false },
+];
 
-const { 
-  data: permissions, 
-  suspense, 
-  isLoading, 
-  error
-} = useFindManyPermission({
-  orderBy: [{ subject: 'asc' }, { action: 'asc' }],
+const toast = useToast();
+const route = useRoute();
+const isDeleting = ref(false);
+const permissionToDelete = ref<{ id: string, action: string, subject: string } | null>(null);
+
+const page = ref(1);
+const limit = ref(15);
+const sort = ref({ column: 'subject', direction: 'asc' as 'asc' | 'desc' });
+
+const query = computed(() => ({
+  skip: (page.value - 1) * limit.value,
+  take: limit.value,
+  orderBy: { [sort.value.column]: sort.value.direction },
+}));
+
+const { data: permissions, isLoading: isPermissionsLoading, refetch: refreshPermissions } = useFindManyPermission(query);
+const { data: totalPermissions, isLoading: isCountLoading, refetch: refreshCount } = useCountPermission();
+
+const totalPages = computed(() => {
+  const count = totalPermissions.value ?? 0;
+  if (count === 0) return 1;
+  return Math.ceil(count / limit.value);
 });
 
-onMounted(async () => {
-  try {
-    await suspense();
-  } catch (e) {
-    console.error("Error during initial permission fetch:", e);
+// When navigating back to this page, force a refresh
+watch(() => route.fullPath, (fullPath) => {
+  if (fullPath === '/admin/permissions') {
+    refreshPermissions();
+    refreshCount();
   }
 });
 
-// For AppWarningModal
-const isWarningModalOpen = ref(false);
-const pendingAction = ref<(() => void) | null>(null); // Stores the action to execute after warning confirmation
-
-// For AppModal (Delete Confirmation)
-const isDeleteModalOpen = ref(false);
-const permissionToModify = ref<Permission | null>(null); // Used for both edit and delete context for the modals
-
-// A non-reactive flag to prevent re-entrant calls
-let isDeleteActionInProgress = false;
-
-const { mutate: deletePermissionMutate, isPending: isDeleting } = useDeletePermission({
+const deleteMutation = useDeletePermission({
   onSuccess: () => {
-    // Invalidate the permissions query to trigger a refetch
-    queryClient.invalidateQueries({ queryKey: ['Permission', 'findMany'] });
-    toast.success({ title: 'Success', message: `Permission deleted successfully.`});
+    toast.success({ title: 'Success', message: 'Permission deleted successfully.' });
+    refreshPermissions();
+    refreshCount();
   },
-  onError: (err: { data?: { message?: string }, message?: string }) => {
-    console.error("Error deleting permission:", err);
-    const message = err.data?.message || err.message || 'Failed to delete permission.';
-    toast.error({ title: 'Error Deleting Permission', message: message});
+  onError: (error: { data?: { data?: { message?: string } } }) => {
+    const errorMessage = error.data?.data?.message || 'Failed to delete permission.';
+    toast.error({ title: 'Error', message: errorMessage });
   },
   onSettled: () => {
-    // Ensure our guard flag is always reset
-    isDeleteActionInProgress = false;
-  }
+    isDeleting.value = false;
+    permissionToDelete.value = null;
+  },
 });
 
-const openWarningModal = (action: () => void) => {
-  pendingAction.value = action;
-  isWarningModalOpen.value = true;
-};
+function confirmDelete(permission: any) {
+  permissionToDelete.value = { id: permission.id, action: permission.action, subject: permission.subject };
+}
 
-const closeWarningModal = () => {
-  isWarningModalOpen.value = false;
-  pendingAction.value = null;
-  permissionToModify.value = null; // Clear context if warning is cancelled
-};
-
-const handleWarningConfirmed = () => {
-  isWarningModalOpen.value = false;
-  if (pendingAction.value) {
-    pendingAction.value();
+function handleDelete() {
+  if (permissionToDelete.value) {
+    isDeleting.value = true;
+    deleteMutation.mutate({ where: { id: permissionToDelete.value.id } });
   }
-  pendingAction.value = null;
-  // permissionToModify is kept here as the pendingAction might need it (e.g. for opening delete modal)
-};
+}
+</script>
 
-// Request Handlers that first show the warning
-const handleRequestAddPermission = () => {
-  openWarningModal(() => {
-    router.push('/admin/permissions/add');
-  });
-};
-
-const handleRequestEditPermission = (permission: Permission) => {
-  permissionToModify.value = permission;
-  openWarningModal(() => {
-    router.push(`/admin/permissions/edit/${permission.id}`);
-  });
-};
-
-const handleRequestDeletePermission = (permission: Permission) => {
-  permissionToModify.value = permission;
-  openWarningModal(() => {
-    isDeleteModalOpen.value = true; // Now open the actual delete confirmation modal
-  });
-};
-
-// Actual Delete Logic (renamed from handleDeletePermission)
-const executeDeletePermission = () => {
-  // Use the non-reactive guard to prevent multiple executions
-  if (isDeleteActionInProgress) {
-    return;
-  }
-  
-  if (!permissionToModify.value || !permissionToModify.value.id) {
-    toast.error({ title: 'Error', message: 'No permission selected for deletion.'});
-    return;
-  }
-
-  // Set the flag immediately
-  isDeleteActionInProgress = true;
-  deletePermissionMutate({ where: { id: permissionToModify.value.id } });
-  
-  closeDeleteModal();
-};
-
-const closeDeleteModal = () => {
-  isDeleteModalOpen.value = false;
-  permissionToModify.value = null; // Clear context after delete modal is closed
-};
-
-</script> 
+<style scoped>
+/* Page specific styles */
+</style>
