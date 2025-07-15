@@ -5,14 +5,14 @@
     </div>
 
     <AppTable 
+      v-model:current-page="currentPage"
       title="All Log Entries"
       :columns="columns"
-      :items="auditLogs || []"
+      :rows="auditLogs || []"
       :actions="['view']"
-      :is-loading="isLogsLoading || isCountLoading"
+      :pending="isLogsLoading || isCountLoading"
       :total-items="totalLogs || 0"
       :items-per-page="itemsPerPage"
-      v-model:currentPage="currentPage"
       @view="viewLogDetails"
     >
       <template #cell-user="{ value }">
@@ -22,7 +22,7 @@
     </AppTable>
     
     <AppModal 
-      :show="isDetailModalOpen" 
+      :is-open="isDetailModalOpen" 
       width="700px"
       @close="isDetailModalOpen = false"
     >
@@ -44,7 +44,7 @@
         </div>
       </div>
       <template #footer>
-        <button @click="isDetailModalOpen = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300">Close</button>
+        <button class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300" @click="isDetailModalOpen = false">Close</button>
       </template>
     </AppModal>
   </div>
@@ -65,20 +65,15 @@ definePageMeta({
 const currentPage = ref(1);
 const itemsPerPage = ref(15);
 
-const paginatedQueryOptions = computed(() => ({
+const query = computed(() => ({
   skip: (currentPage.value - 1) * itemsPerPage.value,
   take: itemsPerPage.value,
-  orderBy: { timestamp: 'desc' },
+  orderBy: { timestamp: 'desc' as const },
   include: { user: true },
 }));
 
-const { data: auditLogs, isLoading: isLogsLoading } = useFindManyAuditLog(paginatedQueryOptions, {
-  queryOptions: {
-    keepPreviousData: true,
-  }
-});
-
-const { data: totalLogs, isLoading: isCountLoading } = useCountAuditLog();
+const { data: auditLogs, isLoading: isLogsLoading, refetch: _refreshLogs } = useFindManyAuditLog(query);
+const { data: totalLogs, isLoading: isCountLoading, refetch: _refreshCount } = useCountAuditLog();
 
 const columns = [
   { key: 'action', label: 'Action' },
