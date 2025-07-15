@@ -27,15 +27,18 @@
     <div class="bg-white shadow rounded-lg">
       <AppTable
         v-model:sort="sort"
-        :rows="estimatesData?.data ?? []"
+        :rows="estimates ?? []"
         :columns="columns"
-        :pending="pending"
+        :pending="isEstimatesLoading || isCountLoading"
       >
-        <template #txnDate-data="{ row }">
-          <span>{{ new Date(row.txnDate).toLocaleDateString() }}</span>
+        <template #transactionDate-data="{ row }">
+          <span>{{ row.transactionDate ? new Date(row.transactionDate).toLocaleDateString() : '-' }}</span>
         </template>
-        <template #total-data="{ row }">
-          <span>{{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.total) }}</span>
+        <template #totalAmount-data="{ row }">
+          <span>{{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.totalAmount) }}</span>
+        </template>
+        <template #customerName-data="{ row }">
+          <span>{{ row.customer?.name || '-' }}</span>
         </template>
         <template #actions-data="{ row }">
           <NuxtLink
@@ -47,16 +50,16 @@
         </template>
       </AppTable>
       <div
-        v-if="estimatesData && estimatesData.count > 0"
+        v-if="totalEstimates && totalEstimates > 0"
         class="px-6 py-4 border-t border-gray-200 flex items-center justify-between"
       >
         <p class="text-sm text-gray-700">
           Showing
           <span class="font-medium">{{ (page - 1) * limit + 1 }}</span>
           to
-          <span class="font-medium">{{ Math.min(page * limit, estimatesData.count) }}</span>
+          <span class="font-medium">{{ Math.min(page * limit, totalEstimates) }}</span>
           of
-          <span class="font-medium">{{ estimatesData.count }}</span>
+          <span class="font-medium">{{ totalEstimates }}</span>
           results
         </p>
         <div class="flex-1 flex justify-end">
@@ -81,49 +84,54 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useFindManyEstimate, useCountEstimate } from '~/lib/hooks';
+
 definePageMeta({
   layout: 'default',
-  middleware: 'auth-admin-only',
+  middleware: ['auth-admin-only'],
 });
 
 const { showLoading, hideLoading } = useGlobalLoading();
 const toast = useToast();
+const route = useRoute();
 const isSyncing = ref(false);
 
 const columns = [
-  { key: 'docNumber', label: 'Estimate #' },
-  { key: 'customer.name', label: 'Customer' },
-  { key: 'txnDate', label: 'Date' },
-  { key: 'total', label: 'Amount' },
+  { key: 'estimateNumber', label: 'Estimate #', sortable: true },
+  { key: 'customerName', label: 'Customer', sortable: false },
+  { key: 'transactionDate', label: 'Date', sortable: true },
+  { key: 'totalAmount', label: 'Amount', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false },
 ];
 
 const page = ref(1);
 const limit = ref(15);
-const sort = ref({ column: 'txnDate', direction: 'desc' as 'asc' | 'desc' });
+const sort = ref({ column: 'transactionDate', direction: 'desc' as 'asc' | 'desc' });
 
 const query = computed(() => ({
-  $skip: (page.value - 1) * limit.value,
-  $take: limit.value,
-  $include: { customer: true },
-  $orderBy: { [sort.value.column]: sort.value.direction },
+  skip: (page.value - 1) * limit.value,
+  take: limit.value,
+  include: { customer: true },
+  orderBy: { [sort.value.column]: sort.value.direction },
 }));
 
-const {
-  data: estimatesData,
-  pending,
-  refresh,
-} = await useAsyncData('estimates', () => $fetch<{ data: any[], count: number }>('/api/model/estimate', {
-  method: 'GET',
-  query: query.value,
-}), {
-  watch: [page, limit, sort],
-});
+const { data: estimates, isLoading: isEstimatesLoading, refetch: refreshEstimates } = useFindManyEstimate(query);
+const { data: totalEstimates, isLoading: isCountLoading, refetch: refreshCount } = useCountEstimate();
 
 const totalPages = computed(() => {
-  if (!estimatesData.value || estimatesData.value.count === 0)
-    return 1;
-  return Math.ceil(estimatesData.value.count / limit.value);
+  const count = totalEstimates.value ?? 0;
+  if (count === 0) return 1;
+  return Math.ceil(count / limit.value);
+});
+
+// When navigating back to this page, force a refresh
+watch(() => route.fullPath, (fullPath) => {
+  if (fullPath === '/admin/estimates') {
+    refreshEstimates();
+    refreshCount();
+  }
 });
 
 async function handleSync(syncMode: 'UPSERT' | 'CREATE_NEW') {
@@ -135,11 +143,12 @@ async function handleSync(syncMode: 'UPSERT' | 'CREATE_NEW') {
       body: { syncMode },
     });
     const message = `Sync complete. Estimates: ${result.estimatesSynced}, Orders: ${result.invoicesSynced}.`;
-    toast.add({ title: 'QBO Sync Successful', description: message, color: 'green' });
-    await refresh();
+    toast.success({ title: 'QBO Sync Successful', message: message });
+    refreshEstimates();
+    refreshCount();
   } catch (e) {
     const error = e as { data?: { data?: { message?: string } } };
-    toast.add({ title: 'Error', description: error.data?.data?.message || 'Failed to sync with QBO.', color: 'red' });
+    toast.error({ title: 'Error', message: error.data?.data?.message || 'Failed to sync with QBO.' });
   } finally {
     isSyncing.value = false;
     hideLoading();
