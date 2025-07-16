@@ -90,6 +90,16 @@
             <label for="notes" class="block text-sm font-medium text-gray-700">Notes</label>
             <textarea id="notes" v-model="form.notes" rows="4" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"/>
           </div>
+          <div class="pt-4">
+            <button
+              type="submit"
+              :disabled="isSaving"
+              class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              <Icon v-if="isSaving" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
+              {{ isSaving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -111,6 +121,7 @@ definePageMeta({
 });
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const orderId = route.params.id as string;
 const isSyncing = ref(false);
@@ -198,7 +209,6 @@ async function syncOrder() {
 
 function goToEstimate() {
   if (order.value?.estimate?.id) {
-    const router = useRouter();
     router.push(`/admin/estimates/view/${order.value.estimate.id}`);
   }
 }
