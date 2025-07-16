@@ -3,7 +3,6 @@ import { getEnhancedPrismaClient, unenhancedPrisma } from '~/server/lib/db';
 import { recordAuditLog } from '~/server/utils/auditLog';
 import { z } from 'zod';
 import type { PrismaClient } from '@prisma/client';
-import type QuickBooks from 'node-quickbooks';
 import type { H3Event } from 'h3';
 
 const SyncInputSchema = z.object({
@@ -14,8 +13,17 @@ interface QboRef { value: string; }
 interface QboEstimate { Id: string; CustomerRef: QboRef; DocNumber?: string; TxnDate?: string; ExpirationDate?: string; TotalAmt?: number; }
 interface QboInvoice { Id: string; CustomerRef: QboRef; LinkedTxn?: { TxnId: string; TxnType: string; }[]; DocNumber?: string; TxnDate?: string; DueDate?: string; TotalAmt?: number; }
 
-async function syncEstimates(event: H3Event, prisma: PrismaClient, qbo: QuickBooks, syncMode: 'UPSERT' | 'CREATE_NEW') {
-    const estimates: QboEstimate[] = await qbo.findEstimates({fetchAll: true});
+async function syncEstimates(event: H3Event, prisma: PrismaClient, token: { access_token: string; realmId: string }, baseUrl: string, syncMode: 'UPSERT' | 'CREATE_NEW') {
+    // Fetch estimates using REST API
+    const estimateQuery = "SELECT * FROM Estimate";
+    const estimateQueryUrl = `${baseUrl}/v3/company/${token.realmId}/query?query=${encodeURIComponent(estimateQuery)}`;
+    
+    const estimateResponse: { QueryResponse: { Estimate?: QboEstimate[] } } = await $fetch(estimateQueryUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token.access_token}` }
+    });
+    
+    const estimates = estimateResponse.QueryResponse.Estimate || [];
     let count = 0;
 
     if (syncMode === 'CREATE_NEW') {
@@ -35,10 +43,10 @@ async function syncEstimates(event: H3Event, prisma: PrismaClient, qbo: QuickBoo
                 data: {
                     quickbooksEstimateId: estimate.Id,
                     customer: { connect: { id: customer.id } },
-                    docNumber: estimate.DocNumber,
-                    txnDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
+                    estimateNumber: estimate.DocNumber,
+                    transactionDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
                     expirationDate: estimate.ExpirationDate ? new Date(estimate.ExpirationDate) : null,
-                    total: estimate.TotalAmt,
+                    totalAmount: estimate.TotalAmt || 0,
                 },
             });
             await recordAuditLog(event, { action: 'QBO_ESTIMATE_SYNC_CREATE', entityName: 'Estimate', entityId: created.id, newValue: created }, null);
@@ -52,10 +60,10 @@ async function syncEstimates(event: H3Event, prisma: PrismaClient, qbo: QuickBoo
 
             const estimateData = {
                 customer: { connect: { id: customer.id } },
-                docNumber: estimate.DocNumber,
-                txnDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
+                estimateNumber: estimate.DocNumber,
+                transactionDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
                 expirationDate: estimate.ExpirationDate ? new Date(estimate.ExpirationDate) : null,
-                total: estimate.TotalAmt,
+                totalAmount: estimate.TotalAmt || 0,
             };
 
             const existingEstimate = await unenhancedPrisma.estimate.findUnique({ where: { quickbooksEstimateId: estimate.Id } });
@@ -71,8 +79,17 @@ async function syncEstimates(event: H3Event, prisma: PrismaClient, qbo: QuickBoo
     return count;
 }
 
-async function syncInvoices(event: H3Event, prisma: PrismaClient, qbo: QuickBooks, syncMode: 'UPSERT' | 'CREATE_NEW') {
-    const invoices: QboInvoice[] = await qbo.findInvoices({fetchAll: true});
+async function syncInvoices(event: H3Event, prisma: PrismaClient, token: { access_token: string; realmId: string }, baseUrl: string, syncMode: 'UPSERT' | 'CREATE_NEW') {
+    // Fetch invoices using REST API
+    const invoiceQuery = "SELECT * FROM Invoice";
+    const invoiceQueryUrl = `${baseUrl}/v3/company/${token.realmId}/query?query=${encodeURIComponent(invoiceQuery)}`;
+    
+    const invoiceResponse: { QueryResponse: { Invoice?: QboInvoice[] } } = await $fetch(invoiceQueryUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token.access_token}` }
+    });
+    
+    const invoices = invoiceResponse.QueryResponse.Invoice || [];
     let count = 0;
 
     if (syncMode === 'CREATE_NEW') {
@@ -102,10 +119,11 @@ async function syncInvoices(event: H3Event, prisma: PrismaClient, qbo: QuickBook
                     quickbooksOrderId: invoice.Id,
                     customer: { connect: { id: customer.id } },
                     estimate: estimateId ? { connect: { id: estimateId } } : undefined,
-                    docNumber: invoice.DocNumber,
-                    txnDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
+                    salesOrderNumber: invoice.DocNumber,
+                    transactionDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
                     dueDate: invoice.DueDate ? new Date(invoice.DueDate) : null,
-                    total: invoice.TotalAmt,
+                    totalAmount: invoice.TotalAmt || 0,
+                    contactEmail: customer.email || 'no-email@example.com', // Required field
                 },
             });
             await recordAuditLog(event, { action: 'QBO_ORDER_SYNC_CREATE', entityName: 'Order', entityId: created.id, newValue: created }, null);
@@ -129,10 +147,11 @@ async function syncInvoices(event: H3Event, prisma: PrismaClient, qbo: QuickBook
             const orderData = {
                 customer: { connect: { id: customer.id } },
                 estimate: estimateId ? { connect: { id: estimateId } } : undefined,
-                docNumber: invoice.DocNumber,
-                txnDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
+                salesOrderNumber: invoice.DocNumber,
+                transactionDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
                 dueDate: invoice.DueDate ? new Date(invoice.DueDate) : null,
-                total: invoice.TotalAmt,
+                totalAmount: invoice.TotalAmt || 0,
+                contactEmail: customer.email || 'no-email@example.com', // Required field
             };
 
             const existingOrder = await unenhancedPrisma.order.findUnique({ where: { quickbooksOrderId: invoice.Id } });
@@ -156,12 +175,16 @@ export default defineEventHandler(async (event) => {
     }
     const { syncMode } = result.data;
 
-    const qbo = await getQboClient(event);
+    const { oauthClient, token } = await getQboClient(event);
     const prisma = await getEnhancedPrismaClient(event);
+    
+    const baseUrl = oauthClient.environment === 'sandbox' 
+        ? 'https://sandbox-quickbooks.api.intuit.com' 
+        : 'https://quickbooks.api.intuit.com';
 
     try {
-        const estimatesSynced = await syncEstimates(event, prisma, qbo, syncMode);
-        const invoicesSynced = await syncInvoices(event, prisma, qbo, syncMode);
+        const estimatesSynced = await syncEstimates(event, prisma, token, baseUrl, syncMode);
+        const invoicesSynced = await syncInvoices(event, prisma, token, baseUrl, syncMode);
 
         return {
             success: true,
