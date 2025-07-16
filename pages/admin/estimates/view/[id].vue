@@ -59,7 +59,7 @@
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Details</h2>
         <dl class="space-y-2">
             <div class="flex justify-between"><dt>Total Amount:</dt><dd class="font-mono">${{ Number(estimate.totalAmount).toFixed(2) }}</dd></div>
-            <div class="flex justify-between"><dt>Transaction Date:</dt><dd>{{ new Date(estimate.transactionDate).toLocaleDateString() }}</dd></div>
+            <div class="flex justify-between"><dt>Transaction Date:</dt><dd>{{ estimate.transactionDate ? new Date(estimate.transactionDate).toLocaleDateString() : '-' }}</dd></div>
             <div class="flex justify-between"><dt>Expiration Date:</dt><dd>{{ estimate.expirationDate ? new Date(estimate.expirationDate).toLocaleDateString() : '-' }}</dd></div>
         </dl>
       </div>
@@ -104,16 +104,18 @@ async function syncEstimate() {
   }
 
   isSyncing.value = true;
-  toast.info({ title: 'Sync Started', message: `Syncing Estimate #${estimate.value.estimateNumber} with QuickBooks...`});
+  toast.info({ title: 'Sync Started', message: `Syncing Estimate #${estimate.value.estimateNumber} and related invoices with QuickBooks...`});
   try {
-    await $fetch('/api/qbo/sync/single', {
+    const result = await $fetch('/api/qbo/sync/single', {
       method: 'POST',
       body: {
-        resourceType: 'Estimate',
+        resourceType: 'EstimateWithInvoices',
         resourceId: estimate.value.quickbooksEstimateId,
       },
-    });
-    toast.success({ title: 'Sync Complete', message: 'Estimate data has been updated from QuickBooks.' });
+    }) as { message?: string };
+    
+    const message = result?.message || 'Estimate and related invoices have been updated from QuickBooks.';
+    toast.success({ title: 'Sync Complete', message });
     refetchEstimate();
   } catch (error) {
     const e = error as Error & { data?: { data?: { message?: string } } };
