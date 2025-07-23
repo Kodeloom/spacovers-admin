@@ -52,7 +52,7 @@ enum OrderItemProcessingStatus {
   NOT_STARTED_PRODUCTION
   CUTTING
   SEWING
-  WRAPPING
+  FOAM_CUTTING
   READY
 }
 
