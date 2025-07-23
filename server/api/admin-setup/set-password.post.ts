@@ -30,7 +30,18 @@ export default defineEventHandler(async (event) => {
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found.' });
   }
-  if (user.passwordHash !== PLACEHOLDER_HASH) {
+
+  // Check the Account table for the credential provider (Better-Auth stores passwords there)
+  const credentialAccount = await prisma.account.findUnique({
+    where: { 
+      providerId_accountId: {
+        providerId: 'credential',
+        accountId: email 
+      }
+    }
+  });
+
+  if (!credentialAccount || credentialAccount.password !== PLACEHOLDER_HASH) {
     throw createError({
       statusCode: 403,
       statusMessage: 'Forbidden: Initial password already set or user cannot be set up this way.',
@@ -47,11 +58,12 @@ export default defineEventHandler(async (event) => {
     console.log(`Admin password securely set for user: ${email} via Better-Auth internal adapter.`);
     return { success: true, message: 'Admin password set successfully.' };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error setting initial admin password via Better-Auth:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error setting password via Better-Auth.';
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'Internal Server Error setting password via Better-Auth.',
+      statusMessage: errorMessage,
     });
   }
 }); 
