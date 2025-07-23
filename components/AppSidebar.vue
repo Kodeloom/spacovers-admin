@@ -57,8 +57,10 @@ const menuItems = ref([
   { name: 'Permissions', path: '/admin/permissions', icon: 'heroicons:key' },
   { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
   { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
+  { name: 'Stations', path: '/admin/stations', icon: 'heroicons:building-office-2' },
   { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
   { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
+  { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
   { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'heroicons:book-open' },
   { name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' },
 ]);
