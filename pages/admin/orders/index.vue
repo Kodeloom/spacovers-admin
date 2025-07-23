@@ -5,6 +5,13 @@
         Orders
       </h1>
       <div class="flex items-center space-x-2">
+        <NuxtLink
+          to="/admin/orders/add"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+        >
+          <Icon name="heroicons:plus-solid" class="mr-2 h-5 w-5" />
+          Add Order
+        </NuxtLink>
         <button
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
           :disabled="isSyncing"
@@ -25,6 +32,47 @@
       </div>
     </div>
 
+    <!-- Customer Filter -->
+    <div class="mb-4 bg-white p-4 rounded-lg shadow">
+      <div class="flex items-center space-x-4">
+        <div class="flex-1">
+          <label for="customerFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Customer</label>
+          <input
+            id="customerFilter"
+            v-model="customerFilter"
+            type="text"
+            placeholder="Type customer name to filter..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+        </div>
+        <div>
+          <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+          <select
+            id="statusFilter"
+            v-model="statusFilter"
+            class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="ORDER_PROCESSING">In Progress</option>
+            <option value="READY_TO_SHIP">Ready to Ship</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button
+            @click="clearFilters"
+            class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="bg-white shadow rounded-lg">
       <AppTable
         v-model:sort="sort"
@@ -42,12 +90,22 @@
           <span>{{ row.customer?.name || '-' }}</span>
         </template>
         <template #actions-data="{ row }">
-          <NuxtLink
-            :to="`/admin/orders/edit/${row.id}`"
-            class="text-indigo-600 hover:text-indigo-900"
-          >
-            <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
-          </NuxtLink>
+          <div class="flex space-x-2">
+            <NuxtLink
+              :to="`/admin/orders/edit/${row.id}`"
+              class="text-indigo-600 hover:text-indigo-900"
+            >
+              <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
+            </NuxtLink>
+            <button
+              v-if="row.orderStatus === 'PENDING'"
+              @click="approveOrder(row)"
+              class="text-green-600 hover:text-green-900"
+              title="Approve Order"
+            >
+              <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5" />
+            </button>
+          </div>
         </template>
       </AppTable>
       <div
@@ -111,13 +169,42 @@ const columns = [
 const page = ref(1);
 const limit = ref(15);
 const sort = ref({ column: 'transactionDate', direction: 'desc' as 'asc' | 'desc' });
+const customerFilter = ref('');
+const statusFilter = ref('');
 
-const query = computed(() => ({
-  skip: (page.value - 1) * limit.value,
-  take: limit.value,
-  include: { customer: true },
-  orderBy: { [sort.value.column]: sort.value.direction },
-}));
+const query = computed(() => {
+  const baseQuery = {
+    skip: (page.value - 1) * limit.value,
+    take: limit.value,
+    include: { customer: true },
+    orderBy: { [sort.value.column]: sort.value.direction },
+    where: undefined as any,
+  };
+
+  // Add filters
+  const where: Record<string, any> = {};
+  
+  if (customerFilter.value) {
+    where.customer = {
+      name: {
+        contains: customerFilter.value,
+        mode: 'insensitive'
+      }
+    };
+  }
+  
+  if (statusFilter.value) {
+    where.orderStatus = statusFilter.value;
+  }
+  
+  if (Object.keys(where).length > 0) {
+    baseQuery.where = where;
+  } else {
+    delete baseQuery.where;
+  }
+  
+  return baseQuery;
+});
 
 const { data: orders, isLoading: isOrdersLoading, refetch: refreshOrders } = useFindManyOrder(query);
 const { data: totalOrders, isLoading: isCountLoading, refetch: refreshCount } = useCountOrder();
@@ -135,6 +222,39 @@ watch(() => route.fullPath, (fullPath) => {
     refreshCount();
   }
 });
+
+function clearFilters() {
+  customerFilter.value = '';
+  statusFilter.value = '';
+  page.value = 1; // Reset to first page
+}
+
+async function approveOrder(order: Record<string, any>) {
+  try {
+    await $fetch(`/api/model/Order/${order.id}`, {
+      method: 'PUT',
+      body: {
+        orderStatus: 'APPROVED',
+        approvedAt: new Date().toISOString(),
+        barcode: order.salesOrderNumber || `ORDER-${order.id.slice(-8)}`, // Generate barcode
+      },
+    });
+    
+    toast.success({ 
+      title: 'Order Approved', 
+      message: `Order ${order.salesOrderNumber || order.id} has been approved and is ready for production.` 
+    });
+    
+    refreshOrders();
+    refreshCount();
+  } catch (error) {
+    const err = error as { data?: { data?: { message?: string } } };
+    toast.error({ 
+      title: 'Error', 
+      message: err.data?.data?.message || 'Failed to approve order.' 
+    });
+  }
+}
 
 async function handleSync(syncMode: 'UPSERT' | 'CREATE_NEW') {
   isSyncing.value = true;
