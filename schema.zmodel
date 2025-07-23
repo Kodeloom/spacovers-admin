@@ -62,7 +62,7 @@ enum OrderItemProcessingStatus { // Renamed for clarity
   NOT_STARTED_PRODUCTION
   CUTTING
   SEWING
-  WRAPPING
+  FOAM_CUTTING
   READY
 }
 
@@ -97,31 +97,20 @@ model User {
 
   role               String?
 
-  // Access Control Policies
+  // Access Control Policies - HYBRID APPROACH
+  
+  // ROLE-BASED: Admin access for user management
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 
-  // GENERAL CRUD for Super Admins (delete is handled more specifically below)
-  @@allow('create,read,update', auth() != null && auth().roles?[role.name == "Super Admin"]) 
-
-  // USER SELF-SERVICE - Read own profile
+  // SELF-SERVICE: Users can read/update their own profile
   @@allow('read', auth() != null && id == auth().id)
-  // USER SELF-SERVICE - Update own profile (specific fields should be controlled by API logic if not all fields are updatable by user)
   @@allow('update', auth() != null && id == auth().id) 
 
-  // --- DELETE POLICIES --- 
-  // Priority 1: Deny self-deletion for everyone
-  @@deny('delete', auth() != null && id == auth().id)
-
-  // Priority 2: Allow rules for delete (these will be checked only if the deny rule above doesn't apply)
-  // Super Admins can delete any user (that isn't themselves due to the deny rule)
+  // DELETE POLICIES with protection
+  @@deny('delete', auth() != null && id == auth().id) // No self-deletion
   @@allow('delete', auth() != null && auth().roles?[role.name == "Super Admin"])
-  
-  // Admins can delete users who are NOT Super Admins (and not themselves, due to the deny rule)
-  @@deny('delete', auth() != null && auth().roles?[role.name == "Admin"] && roles?[role.name == "Super Admin"])
-
-
+  @@deny('delete', auth() != null && auth().roles?[role.name == "Admin"] && roles?[role.name == "Super Admin"]) // Admins can't delete Super Admins
   @@allow('delete', auth() != null && auth().roles?[role.name == "Admin"])
-
-  // Note: ZenStack applies a default deny if no allow rule matches for an operation.
 
   @@map("user")
 }
@@ -137,9 +126,8 @@ model Role {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  // Access Control Policies
-  // Only Admins can manage roles
-  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  // Access Control Policies - ROLE-BASED (Admin-only)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 }
 
 model Permission {
@@ -154,9 +142,9 @@ model Permission {
 
   @@unique([action, subject])
 
-  // Access Control Policies
-  // Only Admins can manage permissions
+  // Access Control Policies - ROLE-BASED (Admin-only for security)
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Admin"]) // Admins can view permissions
 }
 
 model UserRole {
@@ -170,8 +158,9 @@ model UserRole {
 
   @@id([userId, roleId])
 
-  @@allow('create,delete,update', auth() != null && auth().roles?[role.name == "Super Admin"])
-  @@allow('read', auth() != null)
+  // Access Control Policies - ADMIN-ONLY (User role management)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+  @@allow('read', auth() != null) // Anyone can see role assignments
 }
 
 model RolePermission {
@@ -183,7 +172,10 @@ model RolePermission {
   assignedAt   DateTime   @default(now())
 
   @@id([roleId, permissionId])
+  
+  // Access Control Policies - ADMIN-ONLY (Permission management)
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Admin"]) // Admins can view permission assignments
 }
 
 model Customer {
@@ -213,7 +205,10 @@ model Customer {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  // Access Control Policies - ROLE-BASED (Business operations)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name == "Customer Service"])
+  @@allow('read', auth() != null && auth().roles?[role.name in ["Manager", "Warehouse Staff"]])
 }
 
 model Item {
@@ -234,7 +229,10 @@ model Item {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  // Access Control Policies - ROLE-BASED (Product management)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name in ["Manager", "Customer Service"]])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Warehouse Staff"])
 }
 
 model Station {
@@ -249,6 +247,13 @@ model Station {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
+  // Access Control Policies - PERMISSION-BASED (Warehouse setup)
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "Station"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "Station"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "Station"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "Station"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
@@ -261,7 +266,9 @@ model RoleStation {
   assignedAt DateTime @default(now())
 
   @@id([roleId, stationId])
-  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  
+  // Access Control Policies - ADMIN-ONLY (Association management)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 }
 
 model Order {
@@ -314,6 +321,17 @@ model Order {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
+  // Access Control Policies - PERMISSION-BASED (Core warehouse operations)
+  // Create orders: Customer service, admins
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "Order"]])
+  // Read orders: Most roles need to view orders
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "Order"]])
+  // Update orders: Approval workflow, status changes
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "Order"]])
+  // Delete orders: Admin-only for corrections
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "Order"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
@@ -341,6 +359,13 @@ model OrderItem {
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
 
+  // Access Control Policies - PERMISSION-BASED (Warehouse operations)
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "OrderItem"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "OrderItem"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "OrderItem"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "OrderItem"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
@@ -360,6 +385,13 @@ model ItemProcessingLog {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  // Access Control Policies - PERMISSION-BASED (Critical for warehouse tracking)
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "ItemProcessingLog"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "ItemProcessingLog"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "ItemProcessingLog"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "ItemProcessingLog"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
@@ -379,7 +411,9 @@ model AuditLog {
   @@index([userId])
   @@index([action])
 
+  // Access Control Policies - SECURITY SENSITIVE (Admin-only)
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Admin"]) // Admins can view audit logs
 }
 // Better Auth Models
 model Session {
