@@ -238,24 +238,55 @@ model Customer {
 }
 
 model Item {
-  id               String         @id @default(cuid())
-  quickbooksItemId String?        @unique // For QBO sync
-  name             String
-  imageUrl         String?
-  category         String?
-  wholesalePrice   Decimal?       @db.Decimal(10, 2)
-  retailPrice      Decimal?       @db.Decimal(10, 2)
-  cost             Decimal?       @db.Decimal(10, 2)
-  description      String?
-  status           ItemStatus     @default(ACTIVE)
+  id                String         @id @default(cuid())
+  quickbooksItemId  String?        @unique // For QBO sync
+  name              String
+  imageUrl          String?
+  category          String?
+  wholesalePrice    Decimal?       @db.Decimal(10, 2)
+  retailPrice       Decimal?       @db.Decimal(10, 2)
+  cost              Decimal?       @db.Decimal(10, 2)
+  description       String?
+  status            ItemStatus     @default(ACTIVE)
+  
+  // Flag to identify the 4 main spacover items
+  isSpacoverProduct Boolean        @default(false)
 
-  orderItems       OrderItem[]
-  estimateItems    EstimateItem[]
+  orderItems        OrderItem[]
+  estimateItems     EstimateItem[]
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   // Access Control Policies - ROLE-BASED (Product management)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name in ["Manager", "Customer Service"]])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Warehouse Staff"])
+}
+
+model Product {
+  id              String      @id @default(cuid())
+  
+  // Product specifications
+  size            String   // e.g., "93X93"
+  shape           String   // e.g., "Round", "Square", "Rectangular"
+  pieces          Int      // e.g., 8
+  foamThickness   String // e.g., "5\"-2.5\" STEAM STOPPER"
+  skit            String   // e.g., "5-FL-SLIT", "Flap", "5 Connected"
+  tiedown         String   // e.g., "6-TD", "4 Corner", "4-H"
+  color           String   // e.g., "BLACK (VINYL)", "BLUE"
+  
+  // Generated fields
+  fullDescription String      @unique // Complete formatted description
+  displayName     String         // Human-readable name
+  
+  // Relations
+  orderItems      OrderItem[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Access Control Policies
   @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
   @@allow('create,read,update', auth() != null && auth().roles?[role.name in ["Manager", "Customer Service"]])
   @@allow('read', auth() != null && auth().roles?[role.name == "Warehouse Staff"])
@@ -377,9 +408,13 @@ model OrderItem {
   pricePerItem          Decimal                   @db.Decimal(10, 2)
   itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
   notes                 String?
+  
+  // Product association for spacover items
+  productId             String?
 
   order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   item                  Item                      @relation(fields: [itemId], references: [id])
+  product               Product?                  @relation(fields: [productId], references: [id])
   processingLogs        ItemProcessingLog[]
 
   createdAt             DateTime                  @default(now())

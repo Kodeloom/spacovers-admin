@@ -241,7 +241,7 @@ export function useCountItem<TArgs extends Prisma.ItemCountArgs, TQueryFnData = 
 }
 import type { ItemStatus } from '@prisma-app/client';
 
-export function useCheckItem<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; quickbooksItemId?: string; name?: string; imageUrl?: string; category?: string; description?: string; status?: ItemStatus }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
+export function useCheckItem<TError = DefaultError>(args: { operation: PolicyCrudKind; where?: { id?: string; quickbooksItemId?: string; name?: string; imageUrl?: string; category?: string; description?: string; status?: ItemStatus; isSpacoverProduct?: boolean }; }, options?: (MaybeRefOrGetter<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> | ComputedRef<Omit<UnwrapRef<UseQueryOptions<boolean, TError, boolean>>, 'queryKey'>> & ExtraQueryOptions)) {
     const { endpoint, fetch } = getHooksContext();
     return useModelQuery<boolean, boolean, TError>('Item', `${endpoint}/item/check`, args, options, fetch);
 }

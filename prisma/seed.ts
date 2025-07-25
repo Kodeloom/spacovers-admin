@@ -1,3 +1,4 @@
+import type { ItemStatus } from '@prisma-app/client';
 import { PrismaClient, UserStatus } from '@prisma-app/client';
 
 const prisma = new PrismaClient();
@@ -82,6 +83,65 @@ async function main() {
       create: stationData,
     });
     console.log(`Ensured station '${stationData.name}' exists`);
+  }
+
+  // 6. Create the 4 main Spacover Items
+  console.log('Creating main Spacover items...');
+  
+  const spacoverItems = [
+    { 
+      name: 'Spacovers Out Of State Retail',
+      description: 'Spacover product for out-of-state retail customers',
+      isSpacoverProduct: true,
+      status: 'ACTIVE'
+    },
+    { 
+      name: 'Spacovers Out Of State Wholesale',
+      description: 'Spacover product for out-of-state wholesale customers',
+      isSpacoverProduct: true,
+      status: 'ACTIVE'
+    },
+    { 
+      name: 'Spacovers CA Retail',
+      description: 'Spacover product for California retail customers',
+      isSpacoverProduct: true,
+      status: 'ACTIVE'
+    },
+    { 
+      name: 'Spacovers CA Wholesale',
+      description: 'Spacover product for California wholesale customers',
+      isSpacoverProduct: true,
+      status: 'ACTIVE'
+    }
+  ];
+
+  for (const itemData of spacoverItems) {
+    // Check if item exists by name
+    const existingItem = await prisma.item.findFirst({
+      where: { name: itemData.name }
+    });
+
+    if (existingItem) {
+      // Update existing item
+      await prisma.item.update({
+        where: { id: existingItem.id },
+        data: {
+          isSpacoverProduct: true,
+          status: itemData.status as ItemStatus
+        }
+      });
+    } else {
+      // Create new item
+      await prisma.item.create({
+        data: {
+          name: itemData.name,
+          description: itemData.description,
+          isSpacoverProduct: true,
+          status: itemData.status as ItemStatus
+        }
+      });
+    }
+    console.log(`Ensured Spacover item '${itemData.name}' exists`);
   }
 
   // 6. Create All CRUD Permissions for All Models

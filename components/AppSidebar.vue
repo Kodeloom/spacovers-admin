@@ -58,6 +58,7 @@ const menuItems = ref([
   { name: 'Permissions', path: '/admin/permissions', icon: 'heroicons:key' },
   { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
   { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
+  { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
   { name: 'Stations', path: '/admin/stations', icon: 'heroicons:building-office-2' },
   { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
   { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },

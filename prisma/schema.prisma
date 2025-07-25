@@ -170,20 +170,37 @@ model Customer {
 }
 
 model Item {
-  id               String         @id() @default(cuid())
-  quickbooksItemId String?        @unique()
-  name             String
-  imageUrl         String?
-  category         String?
-  wholesalePrice   Decimal?       @db.Decimal(10, 2)
-  retailPrice      Decimal?       @db.Decimal(10, 2)
-  cost             Decimal?       @db.Decimal(10, 2)
-  description      String?
-  status           ItemStatus     @default(ACTIVE)
-  orderItems       OrderItem[]
-  estimateItems    EstimateItem[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt()
+  id                String         @id() @default(cuid())
+  quickbooksItemId  String?        @unique()
+  name              String
+  imageUrl          String?
+  category          String?
+  wholesalePrice    Decimal?       @db.Decimal(10, 2)
+  retailPrice       Decimal?       @db.Decimal(10, 2)
+  cost              Decimal?       @db.Decimal(10, 2)
+  description       String?
+  status            ItemStatus     @default(ACTIVE)
+  isSpacoverProduct Boolean        @default(false)
+  orderItems        OrderItem[]
+  estimateItems     EstimateItem[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt()
+}
+
+model Product {
+  id              String      @id() @default(cuid())
+  size            String
+  shape           String
+  pieces          Int
+  foamThickness   String
+  skit            String
+  tiedown         String
+  color           String
+  fullDescription String      @unique()
+  displayName     String
+  orderItems      OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt()
 }
 
 model Station {
@@ -262,8 +279,10 @@ model OrderItem {
   pricePerItem          Decimal                   @db.Decimal(10, 2)
   itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
   notes                 String?
+  productId             String?
   order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   item                  Item                      @relation(fields: [itemId], references: [id])
+  product               Product?                  @relation(fields: [productId], references: [id])
   processingLogs        ItemProcessingLog[]
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt()

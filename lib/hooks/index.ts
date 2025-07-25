@@ -13,6 +13,7 @@ export * from './user-role';
 export * from './role-permission';
 export * from './customer';
 export * from './item';
+export * from './product';
 export * from './station';
 export * from './role-station';
 export * from './order';

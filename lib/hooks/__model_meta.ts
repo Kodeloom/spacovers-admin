@@ -524,6 +524,10 @@ const metadata = {
                     name: "status",
                     type: "ItemStatus",
                     attributes: [{ "name": "@default", "args": [] }],
+                }, isSpacoverProduct: {
+                    name: "isSpacoverProduct",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
                 }, orderItems: {
                     name: "orderItems",
                     type: "OrderItem",
@@ -552,6 +556,65 @@ const metadata = {
                 }, quickbooksItemId: {
                     name: "quickbooksItemId",
                     fields: ["quickbooksItemId"]
+                },
+            },
+        },
+        product: {
+            name: 'Product', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, size: {
+                    name: "size",
+                    type: "String",
+                }, shape: {
+                    name: "shape",
+                    type: "String",
+                }, pieces: {
+                    name: "pieces",
+                    type: "Int",
+                }, foamThickness: {
+                    name: "foamThickness",
+                    type: "String",
+                }, skit: {
+                    name: "skit",
+                    type: "String",
+                }, tiedown: {
+                    name: "tiedown",
+                    type: "String",
+                }, color: {
+                    name: "color",
+                    type: "String",
+                }, fullDescription: {
+                    name: "fullDescription",
+                    type: "String",
+                }, displayName: {
+                    name: "displayName",
+                    type: "String",
+                }, orderItems: {
+                    name: "orderItems",
+                    type: "OrderItem",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'product',
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, fullDescription: {
+                    name: "fullDescription",
+                    fields: ["fullDescription"]
                 },
             },
         },
@@ -889,6 +952,12 @@ const metadata = {
                     name: "notes",
                     type: "String",
                     isOptional: true,
+                }, productId: {
+                    name: "productId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'product',
                 }, order: {
                     name: "order",
                     type: "Order",
@@ -904,6 +973,14 @@ const metadata = {
                     backLink: 'orderItems',
                     isRelationOwner: true,
                     foreignKeyMapping: { "id": "itemId" },
+                }, product: {
+                    name: "product",
+                    type: "Product",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'orderItems',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "productId" },
                 }, processingLogs: {
                     name: "processingLogs",
                     type: "ItemProcessingLog",
