@@ -6,6 +6,7 @@
 // @ts-nocheck
 
 export * from './user';
+export * from './role-type';
 export * from './role';
 export * from './permission';
 export * from './user-role';

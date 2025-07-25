@@ -145,11 +145,162 @@ async function main() {
     }
   }
 
-  // 7. Assign All Permissions to Super Admin Role
-  console.log('Assigning all permissions to Super Admin role...');
+  // 7. Create Role Types (Templates)
+  const roleTypes = [
+    {
+      name: 'Office Employee',
+      description: 'General office staff with basic administrative access',
+      color: '#10B981', // Green
+      canUseStations: false,
+      isSystem: true,
+      displayOrder: 1,
+      defaultPermissions: {
+        subjects: ['Customer', 'Item', 'Order', 'Estimate'],
+        actions: ['read']
+      }
+    },
+    {
+      name: 'Customer Service',
+      description: 'Customer-facing staff who manage customer relationships and orders',
+      color: '#3B82F6', // Blue
+      canUseStations: false,
+      isSystem: true,
+      displayOrder: 2,
+      defaultPermissions: {
+        subjects: ['Customer', 'Item', 'Order', 'OrderItem', 'Estimate', 'EstimateItem'],
+        actions: ['read', 'create', 'update']
+      }
+    },
+    {
+      name: 'Warehouse Staff',
+      description: 'Production workers assigned to specific manufacturing stations',
+      color: '#F59E0B', // Orange
+      canUseStations: true,
+      isSystem: true,
+      displayOrder: 3,
+      defaultPermissions: {
+        subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station'],
+        actions: ['read', 'update']
+      }
+    },
+    {
+      name: 'Manager',
+      description: 'Management staff with oversight and reporting capabilities',
+      color: '#8B5CF6', // Purple
+      canUseStations: false,
+      isSystem: true,
+      displayOrder: 4,
+      defaultPermissions: {
+        subjects: ['User', 'Customer', 'Item', 'Order', 'OrderItem', 'Station', 'ItemProcessingLog', 'AuditLog', 'Estimate'],
+        actions: ['read', 'update']
+      }
+    },
+    {
+      name: 'Administrator',
+      description: 'System administrators with broad access to most features',
+      color: '#EF4444', // Red
+      canUseStations: false,
+      isSystem: true,
+      displayOrder: 5,
+      defaultPermissions: {
+        subjects: ['User', 'Role', 'Permission', 'Customer', 'Item', 'Order', 'OrderItem', 'Station', 'AuditLog', 'Estimate', 'EstimateItem'],
+        actions: ['read', 'create', 'update', 'delete']
+      }
+    }
+  ];
+
+  const roleTypeMap = new Map();
+
+  for (const roleTypeData of roleTypes) {
+    const roleType = await prisma.roleType.upsert({
+      where: { name: roleTypeData.name },
+      update: {},
+      create: roleTypeData,
+    });
+    roleTypeMap.set(roleType.name, roleType);
+    console.log(`Ensured role type '${roleType.name}' exists with id: ${roleType.id}`);
+  }
+
+  // 8. Create Additional Roles (now with role types)
+  const additionalRoles = [
+    { 
+      name: 'Admin', 
+      description: 'System administrator with broad access to most features',
+      roleTypeName: 'Administrator',
+      permissions: ['read', 'create', 'update', 'delete'], // Most permissions
+      subjects: ['User', 'Role', 'Permission', 'Customer', 'Item', 'Order', 'OrderItem', 'Station', 'AuditLog', 'Estimate', 'EstimateItem']
+    },
+    { 
+      name: 'Manager', 
+      description: 'Operations manager with oversight access',
+      roleTypeName: 'Manager',
+      permissions: ['read', 'update'],
+      subjects: ['User', 'Customer', 'Item', 'Order', 'OrderItem', 'Station', 'ItemProcessingLog', 'AuditLog', 'Estimate']
+    },
+    { 
+      name: 'Customer Service', 
+      description: 'Customer service representative',
+      roleTypeName: 'Customer Service',
+      permissions: ['read', 'create', 'update'],
+      subjects: ['Customer', 'Item', 'Order', 'OrderItem', 'Estimate', 'EstimateItem']
+    },
+    { 
+      name: 'Warehouse Staff', 
+      description: 'Production worker assigned to specific stations',
+      roleTypeName: 'Warehouse Staff',
+      permissions: ['read', 'update'],
+      subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station']
+    }
+  ];
+
+  const roleMap = new Map();
+  roleMap.set(superAdminRole.name, superAdminRole);
+
+  for (const roleData of additionalRoles) {
+    const roleType = roleTypeMap.get(roleData.roleTypeName);
+    const role = await prisma.role.upsert({
+      where: { name: roleData.name },
+      update: {},
+      create: {
+        name: roleData.name,
+        description: roleData.description,
+        roleTypeId: roleType.id,
+      },
+    });
+    roleMap.set(role.name, role);
+    console.log(`Ensured role '${role.name}' exists with id: ${role.id} (type: ${roleData.roleTypeName})`);
+  }
+
+  // 8. Assign Station Associations for Warehouse Staff
+  console.log('Setting up station assignments...');
+  
+  const warehouseStaffRole = roleMap.get('Warehouse Staff');
+  const allStations = await prisma.station.findMany();
+  
+  // Assign Warehouse Staff to all stations (they can work at any station)
+  for (const station of allStations) {
+    await prisma.roleStation.upsert({
+      where: { 
+        roleId_stationId: { 
+          roleId: warehouseStaffRole.id, 
+          stationId: station.id 
+        } 
+      },
+      update: {},
+      create: {
+        roleId: warehouseStaffRole.id,
+        stationId: station.id,
+      },
+    });
+    console.log(`✓ Assigned Warehouse Staff to ${station.name} station`);
+  }
+
+  // 9. Assign Permissions to Roles
+  console.log('Assigning permissions to roles...');
   
   const allPermissions = await prisma.permission.findMany();
   
+  // Super Admin gets all permissions
   for (const permission of allPermissions) {
     await prisma.rolePermission.upsert({
       where: { 
@@ -165,8 +316,37 @@ async function main() {
       },
     });
   }
-  
   console.log(`✅ Assigned ${allPermissions.length} permissions to Super Admin role`);
+
+  // Assign specific permissions to other roles
+  for (const roleData of additionalRoles) {
+    const role = roleMap.get(roleData.name);
+    let assignedCount = 0;
+    
+    for (const permission of allPermissions) {
+      const shouldAssign = roleData.permissions.includes(permission.action) && 
+                          roleData.subjects.includes(permission.subject);
+      
+      if (shouldAssign) {
+        await prisma.rolePermission.upsert({
+          where: { 
+            roleId_permissionId: { 
+              roleId: role.id, 
+              permissionId: permission.id 
+            } 
+          },
+          update: {},
+          create: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        });
+        assignedCount++;
+      }
+    }
+    console.log(`✅ Assigned ${assignedCount} permissions to ${role.name} role`);
+  }
+  
   console.log(`Seeding finished.`);
 }
 

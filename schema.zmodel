@@ -115,10 +115,36 @@ model User {
   @@map("user")
 }
 
+model RoleType {
+  id                 String   @id @default(cuid())
+  name               String   @unique // e.g., "Office Employee", "Warehouse Staff", "Manager"
+  description        String?
+  color              String?   // For UI display (e.g., "#3B82F6")
+  canUseStations     Boolean  @default(false) // Whether roles of this type can be assigned to stations
+  isSystem           Boolean  @default(false) // System-defined types that can't be deleted
+  displayOrder       Int      @default(0) // For UI ordering
+  
+  // Default permissions for this role type (JSON structure)
+  defaultPermissions Json? // Structure: { "subjects": ["Order", "Item"], "actions": ["read", "update"] }
+
+  roles              Role[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Access Control Policies - ROLE-BASED (Admin-only)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+}
+
 model Role {
   id          String           @id @default(cuid())
   name        String           @unique
   description String?
+  
+  // Role Type association
+  roleTypeId  String?
+  roleType    RoleType?        @relation(fields: [roleTypeId], references: [id], onDelete: SetNull)
+
   users       UserRole[]
   permissions RolePermission[]
   stations    RoleStation[]

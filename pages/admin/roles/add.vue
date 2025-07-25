@@ -3,6 +3,47 @@
     <div class="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-6">Add New Role</h1>
       <form @submit.prevent="handleSubmit">
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-3">Role Type</label>
+          <p class="text-sm text-gray-600 mb-4">Choose a role type template to get started with pre-configured permissions</p>
+          
+          <div v-if="isRoleTypesLoading" class="text-center py-4">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-indigo-500 mx-auto" />
+            <p class="text-gray-500 mt-2">Loading role types...</p>
+          </div>
+          
+          <div v-else-if="roleTypesError" class="text-red-500 py-4">
+            Error loading role types: {{ roleTypesError.message }}
+          </div>
+          
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div 
+              v-for="roleType in allRoleTypes" 
+              :key="roleType.id"
+              :class="[
+                'p-4 border-2 rounded-lg cursor-pointer transition-colors duration-200',
+                selectedRoleType?.id === roleType.id
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              ]"
+              @click="selectRoleType(roleType)"
+            >
+              <div class="flex items-center space-x-3 mb-2">
+                <div 
+                  v-if="roleType.color"
+                  :style="{ backgroundColor: roleType.color }" 
+                  class="w-4 h-4 rounded-full"
+                />
+                <h3 class="font-medium text-gray-900">{{ roleType.name }}</h3>
+                <div v-if="roleType.canUseStations" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  Stations
+                </div>
+              </div>
+              <p v-if="roleType.description" class="text-sm text-gray-600">{{ roleType.description }}</p>
+            </div>
+          </div>
+        </div>
+
         <div class="mb-4">
           <label for="roleName" class="block text-sm font-medium text-gray-700 mb-1">Role Name</label>
           <input 
@@ -23,6 +64,36 @@
             rows="3" 
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
+        </div>
+
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold text-gray-700 mb-3">Assign Stations</h2>
+          <p class="text-sm text-gray-600 mb-3">Select which stations this role can work at (primarily for Warehouse Staff roles)</p>
+          <div v-if="isStationsLoading" class="text-center py-4">
+            <p class="text-gray-500">Loading stations...</p>
+            <Icon name="svg-spinners:180-ring-with-bg" class="mt-2 h-6 w-6 text-indigo-500 mx-auto" />
+          </div>
+          <div v-else-if="stationsError" class="text-red-500 py-4">
+            Error loading stations: {{ stationsError.message }}
+          </div>
+          <div v-else-if="allStations && allStations.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div v-for="station in allStations" :key="station.id" class="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <input 
+                :id="`station-${station.id}`"
+                type="checkbox"
+                :checked="selectedStationIds.includes(station.id)"
+                class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                @change="toggleStation(station.id)"
+              >
+              <label :for="`station-${station.id}`" class="flex-1 cursor-pointer">
+                <div class="font-medium text-gray-900">{{ station.name }}</div>
+                <div v-if="station.description" class="text-sm text-gray-500">{{ station.description }}</div>
+              </label>
+            </div>
+          </div>
+          <div v-else>
+            <p class="text-gray-500 py-4">No stations available. Create stations first in the Stations management page.</p>
+          </div>
         </div>
 
         <div class="mb-6">
@@ -95,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { useFindManyPermission } from '~/lib/hooks/index';
+import { useFindManyPermission, useFindManyStation, useFindManyRoleType } from '~/lib/hooks/index';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 // import type { Permission } from '@prisma-app/client'; // Assuming GridCellPermission can be simplified or based on this. Commented out as unused.
 
@@ -114,6 +185,8 @@ const roleData = reactive({
 });
 
 const selectedPermissionIds = ref<string[]>([]);
+const selectedStationIds = ref<string[]>([]);
+const selectedRoleType = ref(null);
 const validationErrors = reactive({ name: '' });
 const apiError = ref<string | null>(null);
 
@@ -126,20 +199,40 @@ const {
   orderBy: [{ subject: 'asc' }, { action: 'asc' }]
 });
 
+const { 
+  data: allStations, 
+  isLoading: isStationsLoading, 
+  error: stationsError,
+  suspense: stationsSuspense 
+} = useFindManyStation({
+  orderBy: [{ name: 'asc' }]
+});
+
+const { 
+  data: allRoleTypes, 
+  isLoading: isRoleTypesLoading, 
+  error: roleTypesError,
+  suspense: roleTypesSuspense 
+} = useFindManyRoleType({
+  orderBy: [{ displayOrder: 'asc' }]
+});
+
 onMounted(async () => {
   try {
     await permissionsSuspense();
+    await stationsSuspense();
+    await roleTypesSuspense();
     console.log('Mounted Add Role - allPermissions.value:', JSON.parse(JSON.stringify(allPermissions.value)));
+    console.log('Mounted Add Role - allStations.value:', JSON.parse(JSON.stringify(allStations.value)));
+    console.log('Mounted Add Role - allRoleTypes.value:', JSON.parse(JSON.stringify(allRoleTypes.value)));
   } catch (e: unknown) {
-    console.error("Error during initial permission fetch for add role page:", e);
+    console.error("Error during initial data fetch for add role page:", e);
     if (e instanceof Error) {
-      toast.error({ title: 'Error', message: `Failed to load permissions: ${e.message}` });
+      toast.error({ title: 'Error', message: `Failed to load data: ${e.message}` });
     }
-    // Set an error state that the template can show, if permissionsError isn't already covering it
-    if (!permissionsError.value && e instanceof Error) {
-      // This is a bit manual, ideally the hook's error state would capture this.
-      // For now, let's ensure the user sees something.
-      apiError.value = `Failed to load critical permission data: ${e.message}`;
+    // Set an error state that the template can show, if errors aren't already covering it
+    if ((!permissionsError.value && !stationsError.value && !roleTypesError.value) && e instanceof Error) {
+      apiError.value = `Failed to load critical data: ${e.message}`;
     }
   }
 });
@@ -197,6 +290,47 @@ const togglePermission = (permissionId: string | undefined) => {
   }
 };
 
+const toggleStation = (stationId: string) => {
+  const index = selectedStationIds.value.indexOf(stationId);
+  if (index === -1) {
+    selectedStationIds.value.push(stationId);
+  } else {
+    selectedStationIds.value.splice(index, 1);
+  }
+};
+
+// Role type selection function
+const selectRoleType = (roleType: any) => {
+  selectedRoleType.value = roleType;
+  
+  // Apply default permissions from role type
+  if (roleType.defaultPermissions && allPermissions.value) {
+    selectedPermissionIds.value = [];
+    
+    const defaults = roleType.defaultPermissions as { subjects?: string[], actions?: string[] };
+    const subjects = defaults.subjects || [];
+    const actions = defaults.actions || [];
+    
+    allPermissions.value.forEach(permission => {
+      if (subjects.includes(permission.subject) && actions.includes(permission.action)) {
+        selectedPermissionIds.value.push(permission.id);
+      }
+    });
+  }
+  
+  // Apply default station access for warehouse roles
+  if (roleType.canUseStations && allStations.value) {
+    selectedStationIds.value = allStations.value.map(station => station.id);
+  } else {
+    selectedStationIds.value = [];
+  }
+  
+  // Set default name if empty
+  if (!roleData.name) {
+    roleData.name = `New ${roleType.name}`;
+  }
+};
+
 const validateForm = (): boolean => {
   validationErrors.name = '';
   let isValid = true;
@@ -209,7 +343,7 @@ const validateForm = (): boolean => {
 };
 
 const { mutate: createRole, isPending: isSubmitting } = useMutation({
-  mutationFn: (payload: { name: string; description: string | null; permissionIds: string[] }) => {
+  mutationFn: (payload: { name: string; description: string | null; permissionIds: string[]; stationIds: string[] }) => {
     return $fetch('/api/admin/roles', {
       method: 'POST',
       body: payload,
@@ -241,6 +375,7 @@ const handleSubmit = () => {
     name: roleData.name,
     description: roleData.description || null,
     permissionIds: selectedPermissionIds.value,
+    stationIds: selectedStationIds.value,
   };
 
   createRole(payload);

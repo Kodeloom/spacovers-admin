@@ -54,6 +54,7 @@ const menuItems = ref([
   { name: 'Dashboard', path: '/', icon: 'heroicons:home' },
   { name: 'Users', path: '/admin/users', icon: 'heroicons:users' },
   { name: 'Roles', path: '/admin/roles', icon: 'heroicons:user-group' },
+  { name: 'Role Types', path: '/admin/role-types', icon: 'heroicons:squares-2x2' },
   { name: 'Permissions', path: '/admin/permissions', icon: 'heroicons:key' },
   { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
   { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },

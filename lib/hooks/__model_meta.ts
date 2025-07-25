@@ -119,6 +119,65 @@ const metadata = {
                 },
             },
         },
+        roleType: {
+            name: 'RoleType', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, name: {
+                    name: "name",
+                    type: "String",
+                }, description: {
+                    name: "description",
+                    type: "String",
+                    isOptional: true,
+                }, color: {
+                    name: "color",
+                    type: "String",
+                    isOptional: true,
+                }, canUseStations: {
+                    name: "canUseStations",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, isSystem: {
+                    name: "isSystem",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, displayOrder: {
+                    name: "displayOrder",
+                    type: "Int",
+                    attributes: [{ "name": "@default", "args": [{ "value": 0 }] }],
+                }, defaultPermissions: {
+                    name: "defaultPermissions",
+                    type: "Json",
+                    isOptional: true,
+                }, roles: {
+                    name: "roles",
+                    type: "Role",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'roleType',
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, name: {
+                    name: "name",
+                    fields: ["name"]
+                },
+            },
+        },
         role: {
             name: 'Role', fields: {
                 id: {
@@ -133,6 +192,21 @@ const metadata = {
                     name: "description",
                     type: "String",
                     isOptional: true,
+                }, roleTypeId: {
+                    name: "roleTypeId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'roleType',
+                }, roleType: {
+                    name: "roleType",
+                    type: "RoleType",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'roles',
+                    isRelationOwner: true,
+                    onDeleteAction: 'SetNull',
+                    foreignKeyMapping: { "id": "roleTypeId" },
                 }, users: {
                     name: "users",
                     type: "UserRole",

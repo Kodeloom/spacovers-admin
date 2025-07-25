@@ -9,6 +9,7 @@ const CreateRoleInputSchema = z.object({
   name: z.string().min(1, 'Role name is required.'),
   description: z.string().nullable().optional(), // Description can be null or omitted
   permissionIds: z.array(z.string().cuid2({ message: 'Invalid permission ID format.' })).optional(),
+  stationIds: z.array(z.string().cuid2({ message: 'Invalid station ID format.' })).optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { name, description, permissionIds } = result.data;
+  const { name, description, permissionIds, stationIds } = result.data;
   const prisma = await getEnhancedPrismaClient(event);
 
   const sessionData = await auth.api.getSession({ headers: event.headers });
@@ -48,11 +49,22 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      // 3. Return the created role with its permissions for confirmation
+      // 3. Create RoleStation entries if stationIds are provided
+      if (stationIds && stationIds.length > 0) {
+        await tx.roleStation.createMany({
+          data: stationIds.map(sId => ({
+            roleId: role.id,
+            stationId: sId,
+          })),
+        });
+      }
+
+      // 4. Return the created role with its permissions and stations for confirmation
       return tx.role.findUniqueOrThrow({
         where: { id: role.id },
         include: {
           permissions: { include: { permission: true } },
+          stations: { include: { station: true } },
         },
       });
     });

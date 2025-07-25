@@ -83,10 +83,26 @@ model User {
   @@map("user")
 }
 
+model RoleType {
+  id                 String   @id() @default(cuid())
+  name               String   @unique()
+  description        String?
+  color              String?
+  canUseStations     Boolean  @default(false)
+  isSystem           Boolean  @default(false)
+  displayOrder       Int      @default(0)
+  defaultPermissions Json?
+  roles              Role[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt()
+}
+
 model Role {
   id          String           @id() @default(cuid())
   name        String           @unique()
   description String?
+  roleTypeId  String?
+  roleType    RoleType?        @relation(fields: [roleTypeId], references: [id], onDelete: SetNull)
   users       UserRole[]
   permissions RolePermission[]
   stations    RoleStation[]
