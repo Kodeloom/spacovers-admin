@@ -196,6 +196,7 @@ model Product {
   skit            String
   tiedown         String
   color           String
+  price           Decimal?    @db.Decimal(10, 2)
   fullDescription String      @unique()
   displayName     String
   orderItems      OrderItem[]

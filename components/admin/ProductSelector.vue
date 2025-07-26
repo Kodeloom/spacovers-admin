@@ -132,23 +132,34 @@
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tiedown</label>
-        <input
-          v-model="manualProduct.tiedown"
-          type="text"
-          placeholder="e.g., 6-TD"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tiedown</label>
+          <input
+            v-model="manualProduct.tiedown"
+            type="text"
+            placeholder="e.g., 6-TD"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+          <input
+            v-model.number="manualProduct.price"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="e.g., 299.99"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+        </div>
+        
+        <button
+          :disabled="isCreating || !isManualProductValid"
+          class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          @click="createManualProduct"
         >
-      </div>
-      
-      <button
-        :disabled="isCreating || !isManualProductValid"
-        class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        @click="createManualProduct"
-      >
-        {{ isCreating ? 'Creating...' : 'Create Product' }}
-      </button>
+          {{ isCreating ? 'Creating...' : 'Create Product' }}
+        </button>
     </div>
 
     <!-- Description-based Product Creation -->
@@ -223,7 +234,6 @@ BLACK (VINYL)"
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useToast } from '#imports'
 
 const props = defineProps<{
   show: boolean
@@ -253,7 +263,8 @@ const manualProduct = ref({
   foamThickness: '',
   skit: '',
   tiedown: '',
-  color: ''
+  color: '',
+  price: 0
 })
 
 // Description text
@@ -261,8 +272,8 @@ const descriptionText = ref('')
 
 // Computed
 const isManualProductValid = computed(() => {
-  const { size, shape, pieces, foamThickness, skit, tiedown, color } = manualProduct.value
-  return size && shape && pieces > 0 && foamThickness && skit && tiedown && color
+  const { size, shape, pieces, foamThickness, skit, tiedown, color, price } = manualProduct.value
+  return size && shape && pieces > 0 && foamThickness && skit && tiedown && color && price >= 0
 })
 
 // Methods
@@ -280,13 +291,10 @@ const loadProducts = async () => {
     }
     
     const response = await $fetch(`/api/admin/products?${params}`)
-    products.value = response.products
-  } catch (error: any) {
-    toast.add({
-      title: 'Error',
-      description: 'Failed to load products',
-      color: 'red'
-    })
+    products.value = response.data || []
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load products';
+    toast.add({ title: 'Error', description: errorMessage, color: 'red' });
   } finally {
     isLoading.value = false
   }
@@ -336,11 +344,7 @@ const createManualProduct = async () => {
       body: { description }
     })
 
-    toast.add({
-      title: 'Success',
-      description: response.message,
-      color: 'green'
-    })
+    toast.add({ title: 'Success', description: 'Product created successfully!', color: 'green' });
 
     // Select the created product
     selectProduct(response.product)
@@ -353,18 +357,16 @@ const createManualProduct = async () => {
       foamThickness: '',
       skit: '',
       tiedown: '',
-      color: ''
+      color: '',
+      price: 0
     }
     
     // Switch back to existing selection
     selectionMode.value = 'existing'
     loadProducts()
-  } catch (error: any) {
-    toast.add({
-      title: 'Error',
-      description: error.data?.message || 'Failed to create product',
-      color: 'red'
-    })
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
+    toast.add({ title: 'Error', description: errorMessage, color: 'red' });
   } finally {
     isCreating.value = false
   }
@@ -381,11 +383,7 @@ const createFromDescription = async () => {
       body: { description: descriptionText.value }
     })
 
-    toast.add({
-      title: 'Success',
-      description: response.message,
-      color: 'green'
-    })
+    toast.add({ title: 'Success', description: 'Product created successfully!', color: 'green' });
 
     // Select the created product
     selectProduct(response.product)
@@ -396,12 +394,9 @@ const createFromDescription = async () => {
     // Switch back to existing selection
     selectionMode.value = 'existing'
     loadProducts()
-  } catch (error: any) {
-    toast.add({
-      title: 'Error',
-      description: error.data?.message || 'Failed to create product from description',
-      color: 'red'
-    })
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create product from description';
+    toast.add({ title: 'Error', description: errorMessage, color: 'red' });
   } finally {
     isCreating.value = false
   }

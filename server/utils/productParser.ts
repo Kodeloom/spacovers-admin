@@ -10,6 +10,7 @@ export interface ProductSpecs {
   skit: string
   tiedown: string
   color: string
+  price?: number
 }
 
 export interface ParsedProduct {
@@ -94,6 +95,7 @@ export async function findOrCreateProduct(specs: ProductSpecs): Promise<{ produc
       skit: specs.skit,
       tiedown: specs.tiedown,
       color: specs.color,
+      price: specs.price,
       fullDescription,
       displayName
     }

@@ -56,6 +56,7 @@ enum OrderSystemStatus { // Renamed to avoid conflict with OrderItemStatus for c
   SHIPPED
   COMPLETED
   CANCELLED
+  ARCHIVED
 }
 
 enum OrderItemProcessingStatus { // Renamed for clarity
@@ -275,6 +276,9 @@ model Product {
   skit            String   // e.g., "5-FL-SLIT", "Flap", "5 Connected"
   tiedown         String   // e.g., "6-TD", "4 Corner", "4-H"
   color           String   // e.g., "BLACK (VINYL)", "BLUE"
+  
+  // Pricing
+  price           Decimal?    @db.Decimal(10, 2) // Price for this specific product configuration
   
   // Generated fields
   fullDescription String      @unique // Complete formatted description

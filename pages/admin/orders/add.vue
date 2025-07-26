@@ -3,23 +3,64 @@
     <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-6">Create New Order</h1>
       <form @submit.prevent="handleSubmit">
+        <!-- Order Information -->
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold text-gray-700 mb-3">Order Information</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label for="salesOrderNumber" class="block text-sm font-medium text-gray-700 mb-1">Order Number</label>
+              <div class="flex space-x-2">
+                <input
+                  id="salesOrderNumber"
+                  v-model="orderData.salesOrderNumber"
+                  type="text"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="Auto-generated"
+                >
+                <button
+                  type="button"
+                  class="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  :disabled="isGeneratingOrderNumber"
+                  @click="generateOrderNumber"
+                >
+                  {{ isGeneratingOrderNumber ? 'Generating...' : 'Generate' }}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="transactionDate" class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
+              <input
+                id="transactionDate"
+                v-model="orderData.transactionDate"
+                type="date"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+              <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-lg font-semibold text-gray-900">
+                ${{ orderTotal.toFixed(2) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Customer Selection -->
         <div class="mb-6">
           <h2 class="text-xl font-semibold text-gray-700 mb-3">Customer Information</h2>
           <div class="mb-4">
             <label for="customerId" class="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-            <select
+            <AppAutocomplete
               id="customerId"
-              v-model="orderData.customerId"
+              v-model="selectedCustomer"
+              :options="customers || []"
+              placeholder="Search customers..."
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              @change="onCustomerChange"
-            >
-              <option value="">Select a customer...</option>
-              <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                {{ customer.name }} ({{ customer.type }})
-              </option>
-            </select>
+              display-key="name"
+              value-key="id"
+              :search-keys="['name', 'email', 'contactNumber', 'type']"
+              @update:model-value="onCustomerSelect"
+            />
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -63,7 +104,7 @@
           </div>
           
           <div v-for="(item, index) in orderItems" :key="index" class="border border-gray-200 rounded-md p-4 mb-3">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
               <div class="md:col-span-2">
                 <label :for="`item-${index}`" class="block text-sm font-medium text-gray-700 mb-1">Item *</label>
                 <select
@@ -79,6 +120,7 @@
                   </option>
                 </select>
               </div>
+              
               <div>
                 <label :for="`quantity-${index}`" class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                 <input
@@ -88,50 +130,109 @@
                   min="1"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  @input="updateItemTotal(index)"
                 >
               </div>
+              
+              <div>
+                <label :for="`price-${index}`" class="block text-sm font-medium text-gray-700 mb-1">Price per Item *</label>
+                <input
+                  :id="`price-${index}`"
+                  v-model.number="item.pricePerItem"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  @input="updateItemTotal(index)"
+                >
+              </div>
+              
               <div class="flex items-center space-x-2">
-                <span class="text-sm text-gray-700">Total: ${{ (item.quantity * item.pricePerItem).toFixed(2) }}</span>
+                <div class="flex-1">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Total</label>
+                  <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm font-medium text-gray-900">
+                    ${{ (item.quantity * item.pricePerItem).toFixed(2) }}
+                  </div>
+                </div>
                 <button
                   type="button"
-                  class="text-red-600 hover:text-red-900"
+                  class="px-2 py-2 text-red-600 hover:text-red-800"
                   @click="removeOrderItem(index)"
                 >
-                  <Icon name="heroicons:x-mark-20-solid" class="h-5 w-5" />
+                  <Icon name="heroicons:trash" class="w-5 h-5" />
                 </button>
               </div>
             </div>
-          </div>
-          
-          <div v-if="orderItems.length > 0" class="text-right mt-4">
-            <span class="text-lg font-semibold">Order Total: ${{ orderTotal.toFixed(2) }}</span>
+            
+            <!-- Product Selection Row (only for Spacover items) -->
+            <div v-if="isSpacoverItem(item.itemId)" class="mt-3 pt-3 border-t border-gray-100">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <button
+                    type="button"
+                    class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    @click="openProductSelector(index)"
+                  >
+                    <Icon name="heroicons:cube" class="w-4 h-4 mr-2 inline" />
+                    Select Product Configuration
+                  </button>
+                </div>
+                
+                <!-- Selected Product Display -->
+                <div v-if="item.productId" class="flex-1 ml-4 p-2 bg-green-50 border border-green-200 rounded-md">
+                  <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                      <div class="text-sm font-medium text-green-800">Selected Product:</div>
+                      <div class="text-xs text-green-600 mt-1">{{ getProductDisplayName(item.productId) }}</div>
+                    </div>
+                    <button
+                      type="button"
+                      class="text-green-600 hover:text-green-800 ml-2"
+                      @click="clearProductSelection(index)"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="flex items-center justify-end space-x-4 mt-8">
-          <NuxtLink
-            to="/admin/orders"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300 transition duration-150 ease-in-out"
+        <!-- Submit Button -->
+        <div class="flex justify-end space-x-4">
+          <button
+            type="button"
+            class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            @click="router.push('/admin/orders')"
           >
             Cancel
-          </NuxtLink>
+          </button>
           <button
             type="submit"
-            :disabled="isSubmitting || orderItems.length === 0"
-            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition duration-150 ease-in-out"
+            :disabled="isSubmitting"
+            class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            <Icon v-if="isSubmitting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4 inline-block" />
-            {{ isSubmitting ? 'Creating...' : 'Create Order' }}
+            {{ isSubmitting ? 'Creating Order...' : 'Create Order' }}
           </button>
         </div>
       </form>
     </div>
+
+    <!-- Product Selector Modal -->
+    <ProductSelector
+      v-model="selectedProduct"
+      :is-open="showProductSelector"
+      @close="showProductSelector = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { useFindManyCustomer, useFindManyItem } from '~/lib/hooks/index';
-import { useMutation, useQueryClient } from '@tanstack/vue-query';
+import { useFindManyCustomer, useFindManyItem, useCreateOrder } from '~/lib/hooks/index';
+import { useQueryClient } from '@tanstack/vue-query';
+import ProductSelector from '~/components/admin/ProductSelector.vue';
 
 definePageMeta({
   layout: 'default',
@@ -146,13 +247,30 @@ const orderData = reactive({
   customerId: '',
   contactEmail: '',
   contactPhoneNumber: '',
+  salesOrderNumber: '',
+  transactionDate: new Date().toISOString().split('T')[0], // Today's date as default
 });
+
+// Customer autocomplete state
+const selectedCustomer = ref<any>(null);
 
 const orderItems = ref<Array<{
   itemId: string;
   quantity: number;
   pricePerItem: number;
+  productId?: string;
 }>>([]);
+
+// Product selector state
+const showProductSelector = ref(false);
+const selectedProduct = ref<any>(null);
+const currentItemIndex = ref(-1);
+
+// Store selected products for display
+const selectedProducts = ref<Record<string, any>>({});
+
+// Order number generation state
+const isGeneratingOrderNumber = ref(false);
 
 // Fetch customers and items
 const { data: customers } = useFindManyCustomer({
@@ -172,12 +290,29 @@ const orderTotal = computed(() => {
   }, 0);
 });
 
-function onCustomerChange() {
-  if (orderData.customerId && customers.value) {
-    const selectedCustomer = customers.value.find((c: { id: string; email?: string }) => c.id === orderData.customerId);
-    if (selectedCustomer) {
-      orderData.contactEmail = selectedCustomer.email || '';
-    }
+// Generate order number
+async function generateOrderNumber() {
+  try {
+    isGeneratingOrderNumber.value = true;
+    const response = await $fetch('/api/admin/orders/last-order-number');
+    orderData.salesOrderNumber = response.nextOrderNumber;
+    toast.success({ title: 'Success', message: 'Order number generated successfully!' });
+  } catch (error) {
+    toast.error({ title: 'Error', message: 'Failed to generate order number' });
+  } finally {
+    isGeneratingOrderNumber.value = false;
+  }
+}
+
+function onCustomerSelect(customer: any) {
+  if (customer) {
+    orderData.customerId = customer.id;
+    orderData.contactEmail = customer.email || '';
+    orderData.contactPhoneNumber = customer.contactNumber || '';
+  } else {
+    orderData.customerId = '';
+    orderData.contactEmail = '';
+    orderData.contactPhoneNumber = '';
   }
 }
 
@@ -196,26 +331,67 @@ function removeOrderItem(index: number) {
 function onItemChange(index: number) {
   const item = orderItems.value[index];
   if (item.itemId && items.value) {
-    const selectedItem = items.value.find((i: { id: string; retailPrice?: number; wholesalePrice?: number }) => i.id === item.itemId);
+    const selectedItem = items.value.find((i: any) => i.id === item.itemId);
     if (selectedItem) {
       item.pricePerItem = parseFloat(String(selectedItem.retailPrice || selectedItem.wholesalePrice || 0));
     }
   }
 }
 
-const { mutate: createOrder, isPending: isSubmitting } = useMutation({
-  mutationFn: (payload: Record<string, unknown>) => {
-    return $fetch('/api/model/Order', {
-      method: 'POST',
-      body: payload,
-    });
-  },
+function updateItemTotal(index: number) {
+  // This function is called when quantity or price changes
+  // The total is calculated automatically via the computed property
+}
+
+function isSpacoverItem(itemId: string): boolean {
+  if (!items.value) return false;
+  const item = items.value.find((i: any) => i.id === itemId);
+  return item?.isSpacoverProduct || false;
+}
+
+function openProductSelector(index: number) {
+  currentItemIndex.value = index;
+  showProductSelector.value = true;
+}
+
+// Helper function to get product display name
+function getProductDisplayName(productId: string): string {
+  const product = selectedProducts.value[productId];
+  return product ? product.displayName || product.fullDescription || 'Unknown Product' : 'Loading...';
+}
+
+// Helper function to clear product selection
+function clearProductSelection(index: number) {
+  const item = orderItems.value[index];
+  if (item.productId) {
+    delete selectedProducts.value[item.productId];
+    item.productId = undefined;
+    item.pricePerItem = 0;
+  }
+}
+
+// Watch for product selection
+watch(selectedProduct, (newProduct) => {
+  if (newProduct && currentItemIndex.value >= 0) {
+    const item = orderItems.value[currentItemIndex.value];
+    item.productId = newProduct.id;
+    item.pricePerItem = parseFloat(String(newProduct.price || 0));
+    
+    // Store the product for display
+    selectedProducts.value[newProduct.id] = newProduct;
+    
+    selectedProduct.value = null;
+    showProductSelector.value = false;
+  }
+});
+
+const { mutate: createOrder, isPending: isSubmitting } = useCreateOrder({
   onSuccess: async () => {
     toast.success({ title: 'Success', message: 'Order created successfully!' });
     await queryClient.invalidateQueries();
     router.push('/admin/orders');
   },
-  onError: (err) => {
+  onError: (err: any) => {
     const fetchError = err as {
       data?: {
         statusMessage?: string;
@@ -235,16 +411,22 @@ const handleSubmit = () => {
   }
 
   const payload = {
-    customerId: orderData.customerId,
-    contactEmail: orderData.contactEmail,
-    contactPhoneNumber: orderData.contactPhoneNumber || null,
-    orderStatus: 'PENDING',
-    items: {
-      create: orderItems.value.map(item => ({
-        itemId: item.itemId,
-        quantity: item.quantity,
-        pricePerItem: item.pricePerItem,
-      }))
+    data: {
+      customerId: orderData.customerId,
+      contactEmail: orderData.contactEmail,
+      contactPhoneNumber: orderData.contactPhoneNumber || null,
+      salesOrderNumber: orderData.salesOrderNumber || null,
+      transactionDate: orderData.transactionDate ? new Date(orderData.transactionDate) : null,
+      totalAmount: orderTotal.value,
+      orderStatus: 'PENDING' as const,
+      items: {
+        create: orderItems.value.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          pricePerItem: item.pricePerItem,
+          productId: item.productId || null,
+        }))
+      }
     }
   };
 

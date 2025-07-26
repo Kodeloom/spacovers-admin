@@ -4,7 +4,8 @@ import { auth } from '~/server/lib/auth'
 import { recordAuditLog } from '~/server/utils/auditLog'
 
 const CreateProductFromDescriptionSchema = z.object({
-  description: z.string().min(1, 'Description is required.')
+  description: z.string().min(1, 'Description is required.'),
+  price: z.number().optional()
 })
 
 export default defineEventHandler(async (event) => {
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { description } = result.data
+  const { description, price } = result.data
 
   try {
     // Parse the description
@@ -36,6 +37,11 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Invalid product description format. Expected 7 lines: Size, Shape, Pieces, Foam Thickness, Skit, Tiedown, Color'
       })
+    }
+
+    // Add price to specs if provided
+    if (price !== undefined) {
+      parsed.specs.price = price
     }
 
     // Find or create the product

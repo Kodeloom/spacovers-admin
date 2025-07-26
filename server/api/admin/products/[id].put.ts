@@ -5,7 +5,8 @@ import { getEnhancedPrismaClient } from '~/server/lib/db'
 import { recordAuditLog } from '~/server/utils/auditLog'
 
 const UpdateProductSchema = z.object({
-  description: z.string().min(1, 'Description is required.')
+  description: z.string().min(1, 'Description is required.'),
+  price: z.number().optional()
 })
 
 export default defineEventHandler(async (event) => {
@@ -35,7 +36,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { description } = result.data
+  const { description, price } = result.data
   const prisma = await getEnhancedPrismaClient(event)
 
   try {
@@ -58,6 +59,11 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Invalid product description format. Expected 7 lines: Size, Shape, Pieces, Foam Thickness, Skit, Tiedown, Color'
       })
+    }
+
+    // Add price to specs if provided
+    if (price !== undefined) {
+      parsed.specs.price = price
     }
 
     // Check if the new description would create a duplicate
@@ -83,6 +89,7 @@ export default defineEventHandler(async (event) => {
         skit: parsed.specs.skit,
         tiedown: parsed.specs.tiedown,
         color: parsed.specs.color,
+        price: parsed.specs.price,
         fullDescription: parsed.fullDescription,
         displayName: parsed.displayName
       }

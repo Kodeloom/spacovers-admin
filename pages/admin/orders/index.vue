@@ -60,12 +60,13 @@
             <option value="SHIPPED">Shipped</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
+            <option value="ARCHIVED">Archived</option>
           </select>
         </div>
         <div class="flex items-end">
           <button
-            @click="clearFilters"
             class="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            @click="clearFilters"
           >
             Clear
           </button>
@@ -99,9 +100,9 @@
             </NuxtLink>
             <button
               v-if="row.orderStatus === 'PENDING'"
-              @click="approveOrder(row)"
               class="text-green-600 hover:text-green-900"
               title="Approve Order"
+              @click="approveOrder(row)"
             >
               <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5" />
             </button>

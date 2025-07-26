@@ -587,6 +587,10 @@ const metadata = {
                 }, color: {
                     name: "color",
                     type: "String",
+                }, price: {
+                    name: "price",
+                    type: "Decimal",
+                    isOptional: true,
                 }, fullDescription: {
                     name: "fullDescription",
                     type: "String",
