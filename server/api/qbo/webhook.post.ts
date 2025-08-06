@@ -165,12 +165,12 @@ export default defineEventHandler(async (event) => {
     const body = await readRawBody(event);
 
     if (!signature || !body) {
-        console.error('Webhook request is missing signature or body.');
+        console.log('Webhook request is missing signature or body.');
         throw createError({ statusCode: 400, statusMessage: 'Missing signature or body' });
     }
 
     if (!verifyWebhookSignature(signature, body)) {
-        console.warn('Webhook signature validation failed.');
+        console.log('Webhook signature validation failed.');
         throw createError({ statusCode: 401, statusMessage: 'Invalid signature' });
     }
 
