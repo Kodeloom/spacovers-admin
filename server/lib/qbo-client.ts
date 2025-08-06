@@ -117,10 +117,6 @@ export async function getQboClientForWebhook(event: H3Event): Promise<Authentica
     // For webhooks, we need to find any valid token since we don't have user context
     // In a production environment, you might want to store the webhook token separately
     const tokenRecord = await prisma.quickbooksToken.findFirst({
-        where: {
-            // Add any conditions to find the appropriate token
-            // For now, just get the first valid token
-        },
         orderBy: {
             updatedAt: 'desc'
         }
