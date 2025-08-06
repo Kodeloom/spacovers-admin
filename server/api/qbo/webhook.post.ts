@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getEnhancedPrismaClient } from '~/server/lib/db';
-import { getQboClient } from '~/server/lib/qbo-client';
+import { getQboClientForWebhook } from '~/server/lib/qbo-client';
 import { CustomerType, CustomerStatus } from '@prisma-app/client';
 import type { H3Event } from 'h3';
 
@@ -48,28 +48,39 @@ interface QboCustomerPayload {
  * The webhook only gives us the ID, so we need to fetch the full record.
  */
 async function fetchCustomerDetails(customerId: string, event: H3Event): Promise<QboCustomerPayload | null> {
-    const { oauthClient, token } = await getQboClient(event);
-    const companyId = token.realmId;
-     if (!companyId) {
-        console.error('QuickBooks Realm ID not found.');
-        return null;
-    }
-    const companyInfoUrl = oauthClient.environment === 'sandbox' 
-        ? 'https://sandbox-quickbooks.api.intuit.com' 
-        : 'https://quickbooks.api.intuit.com';
-
-    const query = `SELECT * FROM Customer WHERE Id = '${customerId}'`;
-    const queryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`;
-
-    console.log(`Fetching customer details from QBO API: ${queryUrl}`);
-
+    console.log(`Starting fetchCustomerDetails for customer ID: ${customerId}`);
+    
     try {
+        const { oauthClient, token } = await getQboClientForWebhook(event);
+        console.log(`QBO client obtained successfully. Realm ID: ${token.realmId}`);
+        
+        const companyId = token.realmId;
+        if (!companyId) {
+            console.error('QuickBooks Realm ID not found.');
+            return null;
+        }
+        
+        const companyInfoUrl = oauthClient.environment === 'sandbox' 
+            ? 'https://sandbox-quickbooks.api.intuit.com' 
+            : 'https://quickbooks.api.intuit.com';
+
+        const query = `SELECT * FROM Customer WHERE Id = '${customerId}'`;
+        const queryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`;
+
+        console.log(`Fetching customer details from QBO API: ${queryUrl}`);
+        console.log(`Using access token: ${token.access_token.substring(0, 20)}...`);
+
         const response: { QueryResponse: { Customer: QboCustomerPayload[] } } = await $fetch(queryUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${token.access_token}`
             }
+        });
+        
+        console.log(`QBO API response received:`, {
+            hasQueryResponse: !!response.QueryResponse,
+            customerCount: response.QueryResponse?.Customer?.length || 0
         });
         
         const customer = response.QueryResponse.Customer?.[0] || null;
@@ -82,7 +93,11 @@ async function fetchCustomerDetails(customerId: string, event: H3Event): Promise
         
         return customer;
     } catch(e) {
-        console.error(`Failed to fetch full customer details for ID ${customerId}`, e);
+        console.error(`Failed to fetch full customer details for ID ${customerId}:`, e);
+        console.error(`Error details:`, {
+            message: e instanceof Error ? e.message : 'Unknown error',
+            stack: e instanceof Error ? e.stack : undefined
+        });
         return null;
     }
 }
