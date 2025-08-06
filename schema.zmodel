@@ -373,6 +373,7 @@ model Order {
   approvedAt           DateTime?
   readyToShipAt        DateTime?
   shippedAt            DateTime?
+  archivedAt           DateTime?
   notes                String?
 
   customer             Customer          @relation(fields: [customerId], references: [id])
