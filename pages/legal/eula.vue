@@ -1,42 +1,83 @@
 <template>
   <div class="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-4">End-User License Agreement (EULA)</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-4">Internal Use Agreement for Spacovers Admin Integration</h1>
       <p class="text-sm text-gray-500 mb-6">Last updated: {{ new Date().toLocaleDateString() }}</p>
 
       <div class="prose max-w-none text-gray-700">
-        <p>This End-User License Agreement ("EULA") is a legal agreement between you and Spacovers Admin ("we", "us", or "our"), the provider of the Warehouse Administrator application (the "Application").</p>
+        <p>This Internal Use Agreement ("Agreement") outlines the terms for accessing and using the Spacovers Admin application ("Application") and its integration with the Company's QuickBooks data. This Agreement is between the Company and you, the employee, who has been granted access to the Application.</p>
         
-        <p>This EULA governs your acquisition and use of our Application directly from us or indirectly through a reseller or distributor (a "Reseller").</p>
+        <p>By using the Application, you agree to these terms and conditions. If you do not agree, you must not use the Application.</p>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">1. Purpose and Scope of Use</h2>
+        <p>The Application is a Company tool designed for the sole purpose of retrieving and viewing confidential data from the Company's QuickBooks account for internal administrative record-keeping and warehouse management operations. The data accessed through the Application is for Company business purposes only.</p>
         
-        <p>Please read this EULA carefully before completing the installation process and using the Application. It provides a license to use the Application and contains warranty information and liability disclaimers.</p>
-
-        <p>By clicking "accept" or installing and/or using the Application, you are confirming your acceptance of the Application and agreeing to become bound by the terms of this EULA.</p>
-
-        <p>If you are entering into this EULA on behalf of a company or other legal entity, you represent that you have the authority to bind such entity and its affiliates to these terms and conditions. If you do not have such authority or if you do not agree with the terms and conditions of this EULA, do not install or use the Application, and you must not accept this EULA.</p>
-
-        <h2 class="text-xl font-semibold mt-6 mb-2">1. License Grant</h2>
-        <p>We hereby grant you a personal, non-transferable, non-exclusive license to use the Application on your devices in accordance with the terms of this EULA.</p>
-        <p>You are permitted to load the Application (for example a PC, laptop, mobile or tablet) under your control. You are responsible for ensuring your device meets the minimum requirements of the Application.</p>
-
-        <h2 class="text-xl font-semibold mt-6 mb-2">2. Restrictions</h2>
-        <p>You are not permitted to:</p>
-        <ul>
-            <li>Edit, alter, modify, adapt, translate or otherwise change the whole or any part of the Application nor permit the whole or any part of the Application to be combined with or become incorporated in any other software, nor decompile, disassemble or reverse engineer the Application or attempt to do any such things.</li>
-            <li>Reproduce, copy, distribute, resell or otherwise use the Application for any commercial purpose.</li>
-            <li>Allow any third party to use the Application on behalf of or for the benefit of any third party.</li>
-            <li>Use the Application in any way which breaches any applicable local, national or international law.</li>
+        <p>The Application provides functionality for:</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>Managing customer information and order data</li>
+          <li>Tracking warehouse operations and item processing</li>
+          <li>Generating reports for business operations</li>
+          <li>Administrative record-keeping and audit trails</li>
         </ul>
 
-        <h2 class="text-xl font-semibold mt-6 mb-2">3. Intellectual Property and Ownership</h2>
-        <p>We shall at all times retain ownership of the Application as originally downloaded by you and all subsequent downloads of the Application by you. The Application (and the copyright, and other intellectual property rights of whatever nature in the Application, including any modifications made thereto) are and shall remain our property.</p>
+        <h2 class="text-xl font-semibold mt-6 mb-2">2. Confidentiality and Data Handling</h2>
+        <p>You acknowledge that the Application provides access to confidential and proprietary business information from the Company's QuickBooks Online account. You agree to:</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>Use this data strictly for authorized business operations</li>
+          <li>Not share, copy, or distribute this data to any unauthorized individuals, either inside or outside the Company</li>
+          <li>Safeguard your login credentials and report any unauthorized access immediately</li>
+          <li>Maintain the confidentiality of all customer information, pricing data, and business records accessed through the Application</li>
+          <li>Use the Application only for its intended purpose of warehouse management and administrative operations</li>
+        </ul>
 
-        <h2 class="text-xl font-semibold mt-6 mb-2">4. Termination</h2>
-        <p>This EULA is effective from the date you first use the Application and shall continue until terminated. You may terminate it at any time upon written notice to us.</p>
-        <p>It will also terminate immediately if you fail to comply with any term of this EULA. Upon such termination, the licenses granted by this EULA will immediately terminate and you agree to stop all access and use of the Application.</p>
+        <h2 class="text-xl font-semibold mt-6 mb-2">3. QuickBooks Data Access</h2>
+        <p>The Application integrates with the Company's QuickBooks Online account to retrieve customer, item, and order data. You understand that:</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>All QuickBooks data accessed through the Application remains the property of the Company</li>
+          <li>You may not use the Application to create, modify, or delete QuickBooks data unless explicitly authorized to do so</li>
+          <li>Any data synchronization or updates to QuickBooks must be performed through authorized channels only</li>
+          <li>The Application is designed for read-only access to most QuickBooks data, with limited write capabilities for specific business operations</li>
+        </ul>
 
-        <h2 class="text-xl font-semibold mt-6 mb-2">5. Governing Law</h2>
-        <p>This EULA, and any dispute arising out of or in connection with this EULA, shall be governed by and construed in accordance with the laws of our operating jurisdiction.</p>
+        <h2 class="text-xl font-semibold mt-6 mb-2">4. Restrictions</h2>
+        <p>You are not permitted to:</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>Share your access to the Application with other employees or third parties</li>
+          <li>Use the Application for any purpose outside the scope of your employment or for any personal gain</li>
+          <li>Attempt to alter, modify, or reverse-engineer the Application</li>
+          <li>Export or download Company data for unauthorized purposes</li>
+          <li>Use the Application on unauthorized devices or networks</li>
+          <li>Bypass any security measures implemented in the Application</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">5. Security and Access Control</h2>
+        <p>You are responsible for:</p>
+        <ul class="list-disc pl-6 mb-4">
+          <li>Maintaining the security of your login credentials</li>
+          <li>Logging out of the Application when not in use</li>
+          <li>Reporting any security concerns or suspicious activity immediately</li>
+          <li>Not sharing your workstation or leaving the Application open when away from your desk</li>
+        </ul>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">6. Termination</h2>
+        <p>Your right to access and use the Application is contingent upon your continued employment with the Company and your authorized need for access. The Company may terminate your access at any time, for any reason, without notice.</p>
+        
+        <p>Upon termination of your access or employment, you must immediately cease all use of the Application and ensure that no Company data remains accessible to you.</p>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">7. Compliance and Monitoring</h2>
+        <p>The Company reserves the right to monitor usage of the Application to ensure compliance with this Agreement and to maintain the security of Company data. All activities within the Application are logged for audit purposes.</p>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">8. Acknowledgment</h2>
+        <p>By using the Application, you acknowledge that you have read, understood, and agree to be bound by the terms of this Agreement. You understand that violation of this Agreement may result in disciplinary action, up to and including termination of employment.</p>
+
+        <h2 class="text-xl font-semibold mt-6 mb-2">9. Governing Law</h2>
+        <p>This Agreement shall be governed by the internal policies and procedures of the Company and applicable employment laws.</p>
+
+        <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p class="text-sm text-blue-800">
+            <strong>Important:</strong> This Application is for internal business use only. All data accessed through this system is confidential and proprietary to the Company. Unauthorized access or use may result in legal action.
+          </p>
+        </div>
       </div>
     </div>
   </div>
