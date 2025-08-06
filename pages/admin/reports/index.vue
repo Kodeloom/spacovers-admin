@@ -191,7 +191,7 @@
         </div>
       </div>
       
-      <div class="bg-white shadow rounded-lg p-6">
+      <!-- <div class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:currency-dollar-20-solid" class="h-8 w-8 text-yellow-600" />
@@ -201,7 +201,7 @@
             <p class="text-2xl font-semibold text-gray-900">${{ summaryStats.totalLaborCost.toFixed(2) }}</p>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>
