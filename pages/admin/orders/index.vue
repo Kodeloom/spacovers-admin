@@ -95,6 +95,7 @@
             <NuxtLink
               :to="`/admin/orders/edit/${row.id}`"
               class="text-indigo-600 hover:text-indigo-900"
+              title="Edit Order"
             >
               <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
             </NuxtLink>
@@ -105,6 +106,14 @@
               @click="approveOrder(row)"
             >
               <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5" />
+            </button>
+            <button
+              v-if="row.orderStatus !== 'ARCHIVED'"
+              class="text-gray-600 hover:text-gray-900"
+              title="Archive Order"
+              @click="archiveOrder(row)"
+            >
+              <Icon name="heroicons:archive-box-20-solid" class="h-5 w-5" />
             </button>
           </div>
         </template>
@@ -140,13 +149,47 @@
         </div>
       </div>
     </div>
+
+    <!-- Archive Confirmation Modal -->
+    <AppModal
+      :is-open="showArchiveModal"
+      title="Archive Order"
+      @close="showArchiveModal = false"
+    >
+      <div class="p-6">
+        <p class="text-gray-700 mb-4">
+          Are you sure you want to archive order 
+          <span class="font-semibold">{{ orderToArchive?.salesOrderNumber || orderToArchive?.id }}</span>?
+        </p>
+        <p class="text-sm text-gray-600 mb-6">
+          This action will move the order to archived status. The order will remain in the system but will be hidden from the main view.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            @click="showArchiveModal = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            :disabled="isArchiving"
+            @click="confirmArchive"
+          >
+            {{ isArchiving ? 'Archiving...' : 'Archive Order' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useFindManyOrder, useCountOrder } from '~/lib/hooks';
+import { useFindManyOrder, useCountOrder, useUpdateOrder } from '~/lib/hooks';
 
 definePageMeta({
   layout: 'default',
@@ -157,6 +200,11 @@ const { showLoading, hideLoading } = useGlobalLoading();
 const toast = useToast();
 const route = useRoute();
 const isSyncing = ref(false);
+
+// Archive modal state
+const showArchiveModal = ref(false);
+const orderToArchive = ref<any>(null);
+const isArchiving = ref(false);
 
 const columns = [
   { key: 'salesOrderNumber', label: 'Order #', sortable: true },
@@ -254,6 +302,52 @@ async function approveOrder(order: Record<string, any>) {
       title: 'Error', 
       message: err.data?.data?.message || 'Failed to approve order.' 
     });
+  }
+}
+
+const { mutate: updateOrder } = useUpdateOrder({
+  onSuccess: () => {
+    refreshOrders();
+    refreshCount();
+  },
+  onError: (error: any) => {
+    const err = error as { data?: { data?: { message?: string } } };
+    toast.error({ 
+      title: 'Error', 
+      message: err.data?.data?.message || 'Failed to archive order.' 
+    });
+  },
+});
+
+async function archiveOrder(order: Record<string, any>) {
+  orderToArchive.value = order;
+  showArchiveModal.value = true;
+}
+
+async function confirmArchive() {
+  if (!orderToArchive.value) return;
+  
+  try {
+    isArchiving.value = true;
+    updateOrder({
+      where: { id: orderToArchive.value.id },
+      data: {
+        orderStatus: 'ARCHIVED',
+        archivedAt: new Date(),
+      },
+    });
+    
+    toast.success({ 
+      title: 'Order Archived', 
+      message: `Order ${orderToArchive.value.salesOrderNumber || orderToArchive.value.id} has been archived.` 
+    });
+    
+    showArchiveModal.value = false;
+    orderToArchive.value = null;
+  } catch (error) {
+    // Error handling is done in the hook's onError
+  } finally {
+    isArchiving.value = false;
   }
 }
 
