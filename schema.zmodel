@@ -542,7 +542,10 @@ model QuickbooksToken {
   user                   User     @relation(fields: [userId], references: [id])
   userId                 String   @unique
 
-  @@allow('all', auth() != null && userId == auth().id)
+  // Allow read access for webhook operations (no auth required)
+  // Allow write operations only for token owner
+  @@allow('read', true) // Webhooks need to read tokens
+  @@allow('create,update,delete', auth() != null && userId == auth().id)
 }
 
 model Estimate {
