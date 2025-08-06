@@ -61,6 +61,8 @@ async function fetchCustomerDetails(customerId: string, event: H3Event): Promise
     const query = `SELECT * FROM Customer WHERE Id = '${customerId}'`;
     const queryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`;
 
+    console.log(`Fetching customer details from QBO API: ${queryUrl}`);
+
     try {
         const response: { QueryResponse: { Customer: QboCustomerPayload[] } } = await $fetch(queryUrl, {
             method: 'GET',
@@ -69,7 +71,16 @@ async function fetchCustomerDetails(customerId: string, event: H3Event): Promise
                 'Authorization': `Bearer ${token.access_token}`
             }
         });
-        return response.QueryResponse.Customer?.[0] || null;
+        
+        const customer = response.QueryResponse.Customer?.[0] || null;
+        console.log(`Customer details fetched:`, customer ? {
+            Id: customer.Id,
+            DisplayName: customer.DisplayName,
+            Email: customer.PrimaryEmailAddr?.Address,
+            Active: customer.Active
+        } : 'No customer found');
+        
+        return customer;
     } catch(e) {
         console.error(`Failed to fetch full customer details for ID ${customerId}`, e);
         return null;
@@ -107,15 +118,28 @@ async function upsertCustomer(qboCustomer: QboCustomerPayload, event: H3Event) {
         type: customerType,
     };
 
-    await prisma.customer.upsert({
-        where: { quickbooksCustomerId: qboCustomer.Id },
-        update: data,
-        create: {
-            ...data,
-            quickbooksCustomerId: qboCustomer.Id,
-        }
+    console.log(`Upserting customer with data:`, {
+        quickbooksCustomerId: qboCustomer.Id,
+        name: data.name,
+        email: data.email,
+        type: data.type,
+        status: data.status
     });
-    console.log(`Successfully upserted customer ${qboCustomer.Id} from webhook.`);
+
+    try {
+        const result = await prisma.customer.upsert({
+            where: { quickbooksCustomerId: qboCustomer.Id },
+            update: data,
+            create: {
+                ...data,
+                quickbooksCustomerId: qboCustomer.Id,
+            }
+        });
+        console.log(`Successfully upserted customer ${qboCustomer.Id} from webhook. Database ID: ${result.id}`);
+    } catch (error) {
+        console.error(`Failed to upsert customer ${qboCustomer.Id}:`, error);
+        throw error;
+    }
 }
 
 
@@ -144,7 +168,10 @@ export default defineEventHandler(async (event) => {
                     console.log(`Processing ${entity.operation} event for Customer ID: ${entity.id}`);
                     const customerDetails = await fetchCustomerDetails(entity.id, event);
                     if (customerDetails) {
+                        console.log(`Customer details found, proceeding to upsert...`);
                         await upsertCustomer(customerDetails, event);
+                    } else {
+                        console.error(`Failed to fetch customer details for ID: ${entity.id}`);
                     }
                 }
             }
