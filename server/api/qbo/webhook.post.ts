@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import { getEnhancedPrismaClient } from '~/server/lib/db';
 import { getQboClientForWebhook } from '~/server/lib/qbo-client';
 import { CustomerType, CustomerStatus } from '@prisma-app/client';
 import type { H3Event } from 'h3';
@@ -105,10 +104,13 @@ async function fetchCustomerDetails(customerId: string, event: H3Event): Promise
 
 /**
  * Upserts a customer record from a QBO payload into the local database.
+ * Uses unenhanced Prisma client to bypass ZenStack policies for webhook operations.
  * @param qboCustomer The customer data from QuickBooks.
  */
-async function upsertCustomer(qboCustomer: QboCustomerPayload, event: H3Event) {
-    const prisma = await getEnhancedPrismaClient(event);
+async function upsertCustomer(qboCustomer: QboCustomerPayload, _event: H3Event) {
+    // Use unenhanced Prisma client to bypass ZenStack policies for webhook operations
+    const { unenhancedPrisma } = await import('~/server/lib/db');
+    const prisma = unenhancedPrisma;
     
     let customerType: CustomerType = CustomerType.RETAILER; // Default value
     const customerTypeName = qboCustomer.CustomerTypeRef?.name;
