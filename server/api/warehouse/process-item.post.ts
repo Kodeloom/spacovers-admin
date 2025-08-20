@@ -171,6 +171,36 @@ export default defineEventHandler(async (event) => {
         }
       });
 
+      // Log the item status change
+      try {
+        const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
+        await OrderTrackingService.logItemStatusChange({
+          orderItemId,
+          fromStatus: orderItem.itemStatus,
+          toStatus: newItemStatus,
+          userId,
+          changeReason: `Production started at ${station.name} station`,
+          triggeredBy: 'manual',
+          notes: `User ${user.name} started processing at ${station.name}`,
+        });
+
+        // If the item is now READY, log the completion
+        if (newItemStatus === 'READY') {
+          await OrderTrackingService.logItemStatusChange({
+            orderItemId,
+            fromStatus: newItemStatus, // This will be the previous status from the station
+            toStatus: 'READY',
+            userId,
+            changeReason: `Production completed at ${station.name} station`,
+            triggeredBy: 'manual',
+            notes: `User ${user.name} completed production at ${station.name}`,
+          });
+        }
+      } catch (logError) {
+        console.error('Failed to log item status change:', logError);
+        // Don't fail the main operation if logging fails
+      }
+
       // 11. Update order status if this is the first item to start production
       if (order.orderStatus === 'APPROVED') {
         await tx.order.update({
@@ -179,6 +209,23 @@ export default defineEventHandler(async (event) => {
             orderStatus: 'ORDER_PROCESSING'
           }
         });
+
+        // Log the order status change
+        try {
+          const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
+          await OrderTrackingService.logOrderStatusChange({
+            orderId,
+            fromStatus: 'APPROVED',
+            toStatus: 'ORDER_PROCESSING',
+            userId,
+            changeReason: 'First item started production',
+            triggeredBy: 'automation',
+            notes: `Automatically triggered when ${user.name} started processing item at ${station.name}`,
+          });
+        } catch (logError) {
+          console.error('Failed to log order status change:', logError);
+          // Don't fail the main operation if logging fails
+        }
       }
 
       // 12. Check if all items in the order are now READY
@@ -198,6 +245,23 @@ export default defineEventHandler(async (event) => {
             readyToShipAt: new Date()
           }
         });
+
+        // Log the order status change to READY_TO_SHIP
+        try {
+          const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
+          await OrderTrackingService.logOrderStatusChange({
+            orderId,
+            fromStatus: 'ORDER_PROCESSING',
+            toStatus: 'READY_TO_SHIP',
+            userId,
+            changeReason: 'All items completed production',
+            triggeredBy: 'automation',
+            notes: `Automatically triggered when all items reached READY status`,
+          });
+        } catch (logError) {
+          console.error('Failed to log order status change:', logError);
+          // Don't fail the main operation if logging fails
+        }
       }
 
       // Send email notifications
