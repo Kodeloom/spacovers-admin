@@ -3,14 +3,27 @@ import { unenhancedPrisma as prisma } from '~/server/lib/db';
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event);
-    const { startDate, endDate } = query;
+    const { startDate, endDate, days } = query;
 
     // Build where clause for filtering orders
-    const whereClause = {
-      orderStatus: { not: 'PENDING' }, // Only non-pending orders
-      ...(startDate && { createdAt: { gte: new Date(startDate as string) } }),
-      ...(endDate && { createdAt: { lte: new Date(endDate as string) } }),
+    const whereClause: any = {
+      // Include orders that have progressed beyond PENDING
+      // (APPROVED, ORDER_PROCESSING, READY_TO_SHIP, SHIPPED, COMPLETED)
+      orderStatus: { 
+        notIn: ['PENDING', 'CANCELLED', 'ARCHIVED'] 
+      },
     };
+
+    // If days parameter is provided, use it to calculate date range
+    if (days) {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days as string));
+      whereClause.createdAt = { gte: daysAgo };
+    } else {
+      // Fall back to startDate/endDate if provided
+      if (startDate) whereClause.createdAt = { ...whereClause.createdAt, gte: new Date(startDate as string) };
+      if (endDate) whereClause.createdAt = { ...whereClause.createdAt, lte: new Date(endDate as string) };
+    }
 
     // Fetch orders with related data
     const orders = await prisma.order.findMany({
@@ -42,10 +55,21 @@ export default defineEventHandler(async (event) => {
         daysInProduction = Math.ceil((endDate.getTime() - approvedAt.getTime()) / (1000 * 60 * 60 * 24));
       }
 
-      // Calculate total lead time (from creation to ready)
+      // Calculate total lead time with fallback hierarchy
       let totalLeadTime = 0;
+      let endDate = null;
+
+      // Check in priority order: readyToShipAt -> shippedAt -> completed (updatedAt)
       if (readyToShipAt) {
-        totalLeadTime = Math.ceil((readyToShipAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        endDate = new Date(readyToShipAt);
+      } else if (order.shippedAt) {
+        endDate = new Date(order.shippedAt);
+      } else if (order.orderStatus === 'COMPLETED') {
+        endDate = new Date(order.updatedAt); // When it was marked completed
+      }
+
+      if (endDate) {
+        totalLeadTime = Math.ceil((endDate.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
       }
 
       return {
@@ -63,7 +87,22 @@ export default defineEventHandler(async (event) => {
       };
     });
 
-    return result;
+    // Calculate average lead time
+    const completedOrders = result.filter((order: any) => order.totalLeadTime > 0);
+    const avgLeadTime = completedOrders.length > 0 
+      ? Math.round(completedOrders.reduce((sum: number, order: any) => sum + order.totalLeadTime, 0) / completedOrders.length)
+      : 0;
+
+    // If days parameter is provided, return just the average lead time
+    if (days) {
+      return { avgLeadTime };
+    }
+
+    // Otherwise return the full result with average
+    return {
+      orders: result,
+      avgLeadTime
+    };
 
   } catch (error) {
     console.error('Error generating lead time report:', error);
