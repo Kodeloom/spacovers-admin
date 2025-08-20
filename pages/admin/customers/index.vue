@@ -43,6 +43,9 @@
             <NuxtLink :to="`/admin/customers/edit/${row.id}`" class="text-indigo-600 hover:text-indigo-900">
               <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
             </NuxtLink>
+            <NuxtLink :to="`/admin/orders?customerId=${row.id}`" class="text-green-600 hover:text-green-900" title="View Orders">
+              <Icon name="heroicons:document-text-20-solid" class="h-5 w-5" />
+            </NuxtLink>
             <button class="text-red-600 hover:text-red-900" @click="confirmDeleteCustomer(row)">
               <Icon name="heroicons:trash-20-solid" class="h-5 w-5" />
             </button>
