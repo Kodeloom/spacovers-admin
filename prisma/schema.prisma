@@ -46,6 +46,7 @@ enum OrderSystemStatus {
   SHIPPED
   COMPLETED
   CANCELLED
+  ARCHIVED
 }
 
 enum OrderItemProcessingStatus {
@@ -54,6 +55,12 @@ enum OrderItemProcessingStatus {
   SEWING
   FOAM_CUTTING
   READY
+}
+
+enum OrderPriority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 model User {
@@ -73,6 +80,8 @@ model User {
   roles              UserRole[]
   itemProcessingLogs ItemProcessingLog[]
   auditLogs          AuditLog[]
+  orderStatusLogs    OrderStatusLog[]
+  itemStatusLogs     ItemStatusLog[]
   sessions           Session[]
   accounts           Account[]
   quickbooksToken    QuickbooksToken?
@@ -256,14 +265,17 @@ model Order {
   shippingZipCode      String?
   shippingCountry      String?
   orderStatus          OrderSystemStatus @default(PENDING)
+  priority             OrderPriority     @default(MEDIUM)
   barcode              String?           @unique()
   approvedAt           DateTime?
   readyToShipAt        DateTime?
   shippedAt            DateTime?
+  archivedAt           DateTime?
   notes                String?
   customer             Customer          @relation(fields: [customerId], references: [id])
   items                OrderItem[]
   estimate             Estimate?         @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  statusLogs           OrderStatusLog[]
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt()
 }
@@ -285,6 +297,7 @@ model OrderItem {
   item                  Item                      @relation(fields: [itemId], references: [id])
   product               Product?                  @relation(fields: [productId], references: [id])
   processingLogs        ItemProcessingLog[]
+  statusLogs            ItemStatusLog[]
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt()
 }
@@ -320,6 +333,44 @@ model AuditLog {
   @@index([entityName, entityId])
   @@index([userId])
   @@index([action])
+}
+
+model OrderStatusLog {
+  id           String             @id() @default(cuid())
+  orderId      String
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus   OrderSystemStatus?
+  toStatus     OrderSystemStatus
+  changeReason String?
+  triggeredBy  String?
+  timestamp    DateTime           @default(now())
+  notes        String?            @db.Text()
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([toStatus])
+  @@index([timestamp])
+}
+
+model ItemStatusLog {
+  id           String                     @id() @default(cuid())
+  orderItemId  String
+  orderItem    OrderItem                  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus   OrderItemProcessingStatus?
+  toStatus     OrderItemProcessingStatus
+  changeReason String?
+  triggeredBy  String?
+  timestamp    DateTime                   @default(now())
+  notes        String?                    @db.Text()
+
+  @@index([orderItemId])
+  @@index([userId])
+  @@index([toStatus])
+  @@index([timestamp])
 }
 
 model Session {
