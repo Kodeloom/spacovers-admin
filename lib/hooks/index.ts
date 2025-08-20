@@ -20,6 +20,8 @@ export * from './order';
 export * from './order-item';
 export * from './item-processing-log';
 export * from './audit-log';
+export * from './order-status-log';
+export * from './item-status-log';
 export * from './session';
 export * from './account';
 export * from './verification';

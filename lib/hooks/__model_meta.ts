@@ -78,6 +78,18 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'user',
+                }, orderStatusLogs: {
+                    name: "orderStatusLogs",
+                    type: "OrderStatusLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'user',
+                }, itemStatusLogs: {
+                    name: "itemStatusLogs",
+                    type: "ItemStatusLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'user',
                 }, sessions: {
                     name: "sessions",
                     type: "Session",
@@ -841,6 +853,10 @@ const metadata = {
                     name: "orderStatus",
                     type: "OrderSystemStatus",
                     attributes: [{ "name": "@default", "args": [] }],
+                }, priority: {
+                    name: "priority",
+                    type: "OrderPriority",
+                    attributes: [{ "name": "@default", "args": [] }],
                 }, barcode: {
                     name: "barcode",
                     type: "String",
@@ -855,6 +871,10 @@ const metadata = {
                     isOptional: true,
                 }, shippedAt: {
                     name: "shippedAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, archivedAt: {
+                    name: "archivedAt",
                     type: "DateTime",
                     isOptional: true,
                 }, notes: {
@@ -884,6 +904,12 @@ const metadata = {
                     onDeleteAction: 'NoAction',
                     onUpdateAction: 'NoAction',
                     foreignKeyMapping: { "id": "estimateId" },
+                }, statusLogs: {
+                    name: "statusLogs",
+                    type: "OrderStatusLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'order',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -988,6 +1014,12 @@ const metadata = {
                 }, processingLogs: {
                     name: "processingLogs",
                     type: "ItemProcessingLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'orderItem',
+                }, statusLogs: {
+                    name: "statusLogs",
+                    type: "ItemStatusLog",
                     isDataModel: true,
                     isArray: true,
                     backLink: 'orderItem',
@@ -1134,6 +1166,138 @@ const metadata = {
                     name: "timestamp",
                     type: "DateTime",
                     attributes: [{ "name": "@default", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                },
+            },
+        },
+        orderStatusLog: {
+            name: 'OrderStatusLog', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, orderId: {
+                    name: "orderId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'order',
+                }, order: {
+                    name: "order",
+                    type: "Order",
+                    isDataModel: true,
+                    backLink: 'statusLogs',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderId" },
+                }, userId: {
+                    name: "userId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'user',
+                }, user: {
+                    name: "user",
+                    type: "User",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'orderStatusLogs',
+                    isRelationOwner: true,
+                    onDeleteAction: 'SetNull',
+                    foreignKeyMapping: { "id": "userId" },
+                }, fromStatus: {
+                    name: "fromStatus",
+                    type: "OrderSystemStatus",
+                    isOptional: true,
+                }, toStatus: {
+                    name: "toStatus",
+                    type: "OrderSystemStatus",
+                }, changeReason: {
+                    name: "changeReason",
+                    type: "String",
+                    isOptional: true,
+                }, triggeredBy: {
+                    name: "triggeredBy",
+                    type: "String",
+                    isOptional: true,
+                }, timestamp: {
+                    name: "timestamp",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, notes: {
+                    name: "notes",
+                    type: "String",
+                    isOptional: true,
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                },
+            },
+        },
+        itemStatusLog: {
+            name: 'ItemStatusLog', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, orderItemId: {
+                    name: "orderItemId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'orderItem',
+                }, orderItem: {
+                    name: "orderItem",
+                    type: "OrderItem",
+                    isDataModel: true,
+                    backLink: 'statusLogs',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderItemId" },
+                }, userId: {
+                    name: "userId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'user',
+                }, user: {
+                    name: "user",
+                    type: "User",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'itemStatusLogs',
+                    isRelationOwner: true,
+                    onDeleteAction: 'SetNull',
+                    foreignKeyMapping: { "id": "userId" },
+                }, fromStatus: {
+                    name: "fromStatus",
+                    type: "OrderItemProcessingStatus",
+                    isOptional: true,
+                }, toStatus: {
+                    name: "toStatus",
+                    type: "OrderItemProcessingStatus",
+                }, changeReason: {
+                    name: "changeReason",
+                    type: "String",
+                    isOptional: true,
+                }, triggeredBy: {
+                    name: "triggeredBy",
+                    type: "String",
+                    isOptional: true,
+                }, timestamp: {
+                    name: "timestamp",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, notes: {
+                    name: "notes",
+                    type: "String",
+                    isOptional: true,
                 },
             }, uniqueConstraints: {
                 id: {
@@ -1503,8 +1667,8 @@ const metadata = {
         role: ['UserRole', 'RolePermission', 'RoleStation'],
         permission: ['RolePermission'],
         station: ['RoleStation'],
-        order: ['OrderItem'],
-        orderItem: ['ItemProcessingLog'],
+        order: ['OrderItem', 'OrderStatusLog'],
+        orderItem: ['ItemProcessingLog', 'ItemStatusLog'],
         estimate: ['EstimateItem'],
 
     },
