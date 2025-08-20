@@ -67,6 +67,12 @@ enum OrderItemProcessingStatus { // Renamed for clarity
   READY
 }
 
+enum OrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 // Models
 
 model User {
@@ -89,6 +95,8 @@ model User {
   roles              UserRole[]
   itemProcessingLogs ItemProcessingLog[]
   auditLogs          AuditLog[]
+  orderStatusLogs    OrderStatusLog[]
+  itemStatusLogs     ItemStatusLog[]
   sessions           Session[]  // Added by Better-Auth
   accounts           Account[]  // Added by Better-Auth
   quickbooksToken    QuickbooksToken?
@@ -369,6 +377,7 @@ model Order {
   shippingZipCode      String?
   shippingCountry      String?
   orderStatus          OrderSystemStatus @default(PENDING)
+  priority             OrderPriority     @default(MEDIUM)
   barcode              String?           @unique
   approvedAt           DateTime?
   readyToShipAt        DateTime?
@@ -379,6 +388,7 @@ model Order {
   customer             Customer          @relation(fields: [customerId], references: [id])
   items                OrderItem[]
   estimate             Estimate?         @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  statusLogs           OrderStatusLog[]
 
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
@@ -421,6 +431,7 @@ model OrderItem {
   item                  Item                      @relation(fields: [itemId], references: [id])
   product               Product?                  @relation(fields: [productId], references: [id])
   processingLogs        ItemProcessingLog[]
+  statusLogs            ItemStatusLog[]
 
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
@@ -480,6 +491,64 @@ model AuditLog {
   // Access Control Policies - SECURITY SENSITIVE (Admin-only)
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
   @@allow('read', auth() != null && auth().roles?[role.name == "Admin"]) // Admins can view audit logs
+}
+
+// Comprehensive Order Status Tracking
+model OrderStatusLog {
+  id           String             @id @default(cuid())
+  orderId      String
+  order        Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId       String?          // NULL for system changes
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus   OrderSystemStatus?
+  toStatus     OrderSystemStatus
+  changeReason String?          // e.g., "Admin approval", "System automation", "Customer request"
+  triggeredBy  String?          // "manual", "system", "automation"
+  timestamp    DateTime           @default(now())
+  notes        String?            @db.Text
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([toStatus])
+  @@index([timestamp])
+
+  // Access Control Policies - PERMISSION-BASED
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "OrderStatusLog"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "OrderStatusLog"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "OrderStatusLog"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "OrderStatusLog"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+}
+
+// Comprehensive Item Status Tracking
+model ItemStatusLog {
+  id           String                     @id @default(cuid())
+  orderItemId  String
+  orderItem    OrderItem                  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  userId       String?                   // NULL for system changes
+  user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus   OrderItemProcessingStatus?
+  toStatus     OrderItemProcessingStatus
+  changeReason String?                   // e.g., "Production started", "Station completed", "System automation"
+  triggeredBy  String?                   // "manual", "system", "automation"
+  timestamp    DateTime                   @default(now())
+  notes        String?                    @db.Text
+
+  @@index([orderItemId])
+  @@index([userId])
+  @@index([toStatus])
+  @@index([timestamp])
+
+  // Access Control Policies - PERMISSION-BASED
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "ItemStatusLog"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "ItemStatusLog"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "ItemStatusLog"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "ItemStatusLog"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 // Better Auth Models
 model Session {
