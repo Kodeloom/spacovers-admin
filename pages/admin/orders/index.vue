@@ -32,18 +32,122 @@
       </div>
     </div>
 
+    <!-- Metrics Cards -->
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- Average Lead Time (Always Last 60 Days) -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:clock" class="h-8 w-8 text-blue-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Avg Lead Time</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ metrics.avgLeadTime || '0' }} days</p>
+            <p class="text-xs text-gray-400">Last 60 days</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders Pending -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:clock" class="h-8 w-8 text-yellow-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Orders Pending</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersPending || '0' }}</p>
+            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders In Progress -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:cog" class="h-8 w-8 text-indigo-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Orders In Progress</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersInProgress || '0' }}</p>
+            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders Ready to Ship -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:truck" class="h-8 w-8 text-green-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Ready to Ship</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersReadyToShip || '0' }}</p>
+            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders Completed -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:check-circle" class="h-8 w-8 text-green-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Orders Completed</p>
+            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersCompleted || '0' }}</p>
+            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Time Filter for Metrics -->
+    <div class="mb-4 bg-white p-4 rounded-lg shadow">
+      <div class="flex items-center justify-between">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Time Filter for Metrics</label>
+          <p class="text-xs text-gray-500">Note: Average Lead Time is always calculated for the last 60 days</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <select
+            v-model="timeFilter"
+            class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            @change="updateMetrics"
+          >
+            <option value="30">Last 30 Days</option>
+            <option value="60">Last 60 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option value="ytd">Year To Date</option>
+            <option value="365">Last 365 Days</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <!-- Customer Filter -->
     <div class="mb-4 bg-white p-4 rounded-lg shadow">
       <div class="flex items-center space-x-4">
         <div class="flex-1">
           <label for="customerFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Customer</label>
-          <input
-            id="customerFilter"
-            v-model="customerFilter"
-            type="text"
-            placeholder="Type customer name to filter..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
+          <div class="flex items-center space-2">
+            <input
+              id="customerFilter"
+              v-model="customerFilter"
+              type="text"
+              placeholder="Type customer name to filter..."
+              :disabled="!!customerIdFromQuery"
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+            <div v-if="customerIdFromQuery" class="flex items-center space-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-md ml-3">
+              <Icon name="heroicons:check-circle-20-solid" class="h-4 w-4" />
+              <span>Filtered by: <span class="font-medium">{{ customerNameFromQuery || 'Loading...' }}</span></span>
+            </div>
+          </div>
         </div>
         <div>
           <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
@@ -90,6 +194,18 @@
         <template #customerName-data="{ row }">
           <span>{{ row.customer?.name || '-' }}</span>
         </template>
+        <template #priority-data="{ row }">
+          <span 
+            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+            :class="{
+              'bg-red-100 text-red-800': row.priority === 'HIGH',
+              'bg-yellow-100 text-yellow-800': row.priority === 'MEDIUM',
+              'bg-green-100 text-green-800': row.priority === 'LOW'
+            }"
+          >
+            {{ row.priority || 'MEDIUM' }}
+          </span>
+        </template>
         <template #actions-data="{ row }">
           <div class="flex space-x-2">
             <NuxtLink
@@ -101,11 +217,12 @@
             </NuxtLink>
             <button
               v-if="row.orderStatus === 'PENDING'"
-              class="text-green-600 hover:text-green-900"
-              title="Approve Order"
-              @click="approveOrder(row)"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm transition-colors duration-200"
+              title="Verify Order"
+              @click="openVerifyModal(row)"
             >
-              <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5" />
+              <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5 mr-1" />
+              Verify Order
             </button>
             <button
               v-if="row.orderStatus !== 'ARCHIVED'"
@@ -183,13 +300,77 @@
         </div>
       </div>
     </AppModal>
+
+    <!-- Order Verification Modal -->
+    <AppModal
+      :is-open="showVerifyModal"
+      title="Verify Order"
+      @close="showVerifyModal = false"
+    >
+      <div class="p-6">
+        <div class="mb-6">
+          <div class="flex items-center mb-4">
+            <Icon name="heroicons:exclamation-triangle-20-solid" class="h-6 w-6 text-yellow-500 mr-2" />
+            <h3 class="text-lg font-medium text-gray-900">Order Verification Required</h3>
+          </div>
+          <p class="text-gray-700 mb-4">
+            You are about to verify and approve order 
+            <span class="font-semibold">{{ orderToVerify?.salesOrderNumber || orderToVerify?.id }}</span>
+            for customer <span class="font-semibold">{{ orderToVerify?.customer?.name }}</span>.
+          </p>
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-medium text-gray-900 mb-2">Order Details:</h4>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-gray-600">Order Number:</span>
+                <span class="ml-2 font-medium">{{ orderToVerify?.salesOrderNumber || 'N/A' }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Date:</span>
+                <span class="ml-2 font-medium">{{ orderToVerify?.transactionDate ? new Date(orderToVerify.transactionDate).toLocaleDateString() : 'N/A' }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Total Amount:</span>
+                <span class="ml-2 font-medium">{{ orderToVerify?.totalAmount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(orderToVerify.totalAmount) : 'N/A' }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Items:</span>
+                <span class="ml-2 font-medium">{{ orderToVerify?.items?.length || 0 }} items</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-sm text-gray-600 mt-4">
+            <strong>Important:</strong> Once verified, this order will be moved to "APPROVED" status and can begin production. 
+            Please ensure all order details are correct before proceeding.
+          </p>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            @click="showVerifyModal = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            :disabled="isVerifying"
+            @click="confirmVerifyOrder"
+          >
+            <Icon v-if="isVerifying" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
+            {{ isVerifying ? 'Verifying...' : 'Verify & Approve Order' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useFindManyOrder, useCountOrder, useUpdateOrder } from '~/lib/hooks';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useFindManyOrder, useCountOrder, useUpdateOrder, useFindUniqueCustomer } from '~/lib/hooks';
 
 definePageMeta({
   layout: 'default',
@@ -199,6 +380,7 @@ definePageMeta({
 const { showLoading, hideLoading } = useGlobalLoading();
 const toast = useToast();
 const route = useRoute();
+const router = useRouter();
 const isSyncing = ref(false);
 
 // Archive modal state
@@ -206,9 +388,15 @@ const showArchiveModal = ref(false);
 const orderToArchive = ref<any>(null);
 const isArchiving = ref(false);
 
+// Verification modal state
+const showVerifyModal = ref(false);
+const orderToVerify = ref<any>(null);
+const isVerifying = ref(false);
+
 const columns = [
   { key: 'salesOrderNumber', label: 'Order #', sortable: true },
   { key: 'customerName', label: 'Customer', sortable: false },
+  { key: 'priority', label: 'Priority', sortable: true },
   { key: 'transactionDate', label: 'Date', sortable: true },
   { key: 'totalAmount', label: 'Amount', sortable: true },
   { key: 'orderStatus', label: 'Status', sortable: true },
@@ -220,6 +408,39 @@ const limit = ref(15);
 const sort = ref({ column: 'transactionDate', direction: 'desc' as 'asc' | 'desc' });
 const customerFilter = ref('');
 const statusFilter = ref('');
+
+// Metrics state
+const timeFilter = ref('30'); // Default to last 30 days
+const metrics = ref({
+  avgLeadTime: 0,
+  ordersPending: 0,
+  ordersInProgress: 0,
+  ordersReadyToShip: 0,
+  ordersCompleted: 0
+});
+
+// Computed property for time filter label
+const timeFilterLabel = computed(() => {
+  switch (timeFilter.value) {
+    case '30': return 'Last 30 days';
+    case '60': return 'Last 60 days';
+    case '90': return 'Last 90 days';
+    case 'ytd': return 'Year to date';
+    case '365': return 'Last 365 days';
+    case 'lifetime': return 'Lifetime';
+    default: return 'Last 30 days';
+  }
+});
+
+// Check for customerId in URL query params
+const customerIdFromQuery = computed(() => route.query.customerId as string);
+
+// Fetch customer name when filtering by customerId
+const { data: customerFromQuery } = useFindUniqueCustomer(
+  computed(() => customerIdFromQuery.value ? { where: { id: customerIdFromQuery.value } } : { where: { id: '' } })
+);
+
+const customerNameFromQuery = computed(() => customerFromQuery.value?.name);
 
 const query = computed(() => {
   const baseQuery = {
@@ -233,7 +454,10 @@ const query = computed(() => {
   // Add filters
   const where: Record<string, any> = {};
   
-  if (customerFilter.value) {
+  // Priority: URL customerId query param overrides manual customer filter
+  if (customerIdFromQuery.value) {
+    where.customerId = customerIdFromQuery.value;
+  } else if (customerFilter.value) {
     where.customer = {
       name: {
         contains: customerFilter.value,
@@ -269,41 +493,109 @@ watch(() => route.fullPath, (fullPath) => {
   if (fullPath === '/admin/orders') {
     refreshOrders();
     refreshCount();
+    fetchMetrics(); // Also refresh metrics
   }
+});
+
+// Fetch metrics function
+async function fetchMetrics() {
+  try {
+    // Always fetch average lead time for last 60 days
+    const leadTimeResponse = await $fetch('/api/reports/lead-time', {
+      query: { days: 60 }
+    });
+    
+    // Fetch order counts based on current time filter
+    const orderCountsResponse = await $fetch('/api/reports/order-counts', {
+      query: { timeFilter: timeFilter.value }
+    });
+    
+    metrics.value = {
+      avgLeadTime: leadTimeResponse.avgLeadTime || 0,
+      ordersPending: orderCountsResponse.pending || 0,
+      ordersInProgress: orderCountsResponse.inProgress || 0,
+      ordersReadyToShip: orderCountsResponse.readyToShip || 0,
+      ordersCompleted: orderCountsResponse.completed || 0
+    };
+  } catch (error) {
+    console.error('Failed to fetch metrics:', error);
+    // Keep existing metrics on error
+  }
+}
+
+// Update metrics when time filter changes
+async function updateMetrics() {
+  await fetchMetrics();
+}
+
+// Initial metrics fetch
+onMounted(() => {
+  fetchMetrics();
 });
 
 function clearFilters() {
   customerFilter.value = '';
   statusFilter.value = '';
   page.value = 1; // Reset to first page
+  
+  // Clear URL query parameter if it exists
+  if (customerIdFromQuery.value) {
+    router.push({ query: { ...route.query, customerId: undefined } });
+  }
 }
 
-async function approveOrder(order: Record<string, any>) {
+function openVerifyModal(order: Record<string, any>) {
+  orderToVerify.value = order;
+  showVerifyModal.value = true;
+}
+
+async function confirmVerifyOrder() {
+  if (!orderToVerify.value) return;
+  
   try {
-    await $fetch(`/api/model/Order/${order.id}`, {
-      method: 'PUT',
-      body: {
+    isVerifying.value = true;
+    
+    // Get current user info for logging
+    const currentUser = await $fetch('/api/auth/me');
+    
+    updateOrder({
+      where: { id: orderToVerify.value.id },
+      data: {
         orderStatus: 'APPROVED',
-        approvedAt: new Date().toISOString(),
-        barcode: order.salesOrderNumber || `ORDER-${order.id.slice(-8)}`, // Generate barcode
+        approvedAt: new Date(),
+        barcode: orderToVerify.value.salesOrderNumber || `ORDER-${orderToVerify.value.id.slice(-8)}`, // Generate barcode
+      },
+    });
+    
+    // Log the status change
+    await $fetch('/api/tracking/log-order-status', {
+      method: 'POST',
+      body: {
+        orderId: orderToVerify.value.id,
+        fromStatus: orderToVerify.value.orderStatus,
+        toStatus: 'APPROVED',
+        userId: currentUser?.id,
+        changeReason: 'Admin order verification and approval',
+        triggeredBy: 'manual',
+        notes: `Order verified by admin. Barcode generated: ${orderToVerify.value.salesOrderNumber || `ORDER-${orderToVerify.value.id.slice(-8)}`}`,
       },
     });
     
     toast.success({ 
-      title: 'Order Approved', 
-      message: `Order ${order.salesOrderNumber || order.id} has been approved and is ready for production.` 
+      title: 'Order Verified & Approved', 
+      message: `Order ${orderToVerify.value.salesOrderNumber || orderToVerify.value.id} has been verified and approved. Production can now begin.` 
     });
     
-    refreshOrders();
-    refreshCount();
+    showVerifyModal.value = false;
+    orderToVerify.value = null;
   } catch (error) {
-    const err = error as { data?: { data?: { message?: string } } };
-    toast.error({ 
-      title: 'Error', 
-      message: err.data?.data?.message || 'Failed to approve order.' 
-    });
+    // Error handling is done in the hook's onError
+  } finally {
+    isVerifying.value = false;
   }
 }
+
+
 
 const { mutate: updateOrder } = useUpdateOrder({
   onSuccess: () => {
@@ -314,7 +606,7 @@ const { mutate: updateOrder } = useUpdateOrder({
     const err = error as { data?: { data?: { message?: string } } };
     toast.error({ 
       title: 'Error', 
-      message: err.data?.data?.message || 'Failed to archive order.' 
+      message: err.data?.data?.message || 'Failed to update order.' 
     });
   },
 });
