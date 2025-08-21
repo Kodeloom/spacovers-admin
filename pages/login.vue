@@ -67,6 +67,7 @@
 import { ref } from 'vue';
 import { authClient } from '~/lib/auth-client';
 import { useRouter, useRoute } from 'vue-router';
+import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
 
 interface AuthError {
   data?: {
@@ -113,7 +114,10 @@ const handleLogin = async () => {
     if (redirectPath) {
       router.push(redirectPath);
     } else {
-      router.push('/'); 
+      // Use role-based routing to determine where to send the user
+      const { getDefaultRoute } = useRoleBasedRouting();
+      const defaultRoute = getDefaultRoute.value;
+      router.push(defaultRoute);
     }
 
   } catch (e: unknown) {
