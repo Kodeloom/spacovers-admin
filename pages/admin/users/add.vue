@@ -110,6 +110,7 @@ import { reactive, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOptions, ListboxOption } from '@headlessui/vue';
 import { useMutation, useQueryClient, type UseMutationOptions } from '@tanstack/vue-query';
+import { authClient } from '~/lib/auth-client';
 import { useFindManyRole } from '~/lib/hooks';
 import type { UserStatus } from '@prisma-app/client';
 
