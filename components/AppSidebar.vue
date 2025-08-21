@@ -64,6 +64,8 @@ const menuItems = ref([
   { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
   { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
   { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'heroicons:book-open' },
+  { name: 'Warehouse', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
+  { name: 'Kiosk', path: '/warehouse/kiosk', icon: 'heroicons:computer-desktop' },
   { name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' },
 ]);
 </script>
