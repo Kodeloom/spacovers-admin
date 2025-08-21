@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
-    <AppSidebar />
-    <div class="flex-1 flex flex-col">
+    <AppSidebar v-if="showSidebar" />
+    <div class="flex-1 flex flex-col" :class="{ 'ml-0': !showSidebar }">
       <main class="flex-1 container mx-auto p-4">
         <slot />
       </main>
@@ -16,6 +16,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
+
 // Import TheNavbar component. Nuxt 3 auto-imports components from the ~/components directory.
 // So, an explicit import might not be strictly necessary if auto-import is working,
 // but it can be good for clarity or if auto-import has issues.
@@ -23,6 +26,16 @@
 
 // AppSidebar should also be auto-imported if placed in ~/components
 // import AppSidebar from '~/components/AppSidebar.vue';
+
+const { isAdmin, isWarehouseStaff } = useRoleBasedRouting();
+
+// Show sidebar for admin users, hide for warehouse staff (they use empty layout)
+const showSidebar = computed(() => {
+  console.log('Default Layout - isAdmin:', isAdmin.value);
+  console.log('Default Layout - isWarehouseStaff:', isWarehouseStaff.value);
+  
+  return isAdmin.value;
+});
 </script>
 
 <style scoped>
