@@ -14,10 +14,14 @@
               <span class="mx-2">•</span>
               <span>{{ currentStation?.name || 'No Station' }}</span>
             </div>
+            <!-- Debug info (remove this later) -->
+            <div v-if="currentUser" class="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+              <div>Debug: {{ JSON.stringify(stationDebugInfo) }}</div>
+            </div>
             <button
               v-if="currentUser"
-              @click="logout"
               class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              @click="logout"
             >
               <Icon name="heroicons:arrow-right-on-rectangle" class="h-4 w-4 mr-2" />
               Logout
@@ -34,7 +38,7 @@
         <div class="bg-white p-8 rounded-lg shadow">
           <h2 class="text-xl font-semibold text-gray-900 mb-6 text-center">Employee Login</h2>
           
-          <form @submit.prevent="login" class="space-y-4">
+          <form class="space-y-4" @submit.prevent="login">
             <div>
               <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
@@ -44,7 +48,7 @@
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Enter your email"
-              />
+              >
             </div>
             
             <div>
@@ -56,7 +60,7 @@
                 required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Enter your password"
-              />
+              >
             </div>
             
             <button
@@ -92,16 +96,16 @@
           </div>
           <div class="mt-4 flex space-x-3">
             <button
-              @click="completeCurrentWork"
               :disabled="isCompletingWork"
               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              @click="completeCurrentWork"
             >
               <Icon v-if="isCompletingWork" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
               {{ isCompletingWork ? 'Completing...' : 'Mark Complete' }}
             </button>
             <button
-              @click="cancelCurrentWork"
               class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              @click="cancelCurrentWork"
             >
               Cancel Work
             </button>
@@ -122,11 +126,11 @@
                   placeholder="Scan or enter barcode"
                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   @keyup.enter="scanBarcode"
-                />
+                >
                 <button
-                  @click="scanBarcode"
                   :disabled="!scanForm.barcode || isScanning"
                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  @click="scanBarcode"
                 >
                   <Icon v-if="isScanning" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
                   {{ isScanning ? 'Scanning...' : 'Scan' }}
@@ -165,11 +169,11 @@
                     placeholder="Scan station QR code"
                     class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     @keyup.enter="startWork"
-                  />
+                  >
                   <button
-                    @click="startWork"
                     :disabled="!scanForm.stationCode || isStartingWork"
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    @click="startWork"
                   >
                     <Icon v-if="isStartingWork" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
                     {{ isStartingWork ? 'Starting...' : 'Start Work' }}
@@ -228,7 +232,7 @@ import { useFindManyOrderItem, useFindManyStation, useFindManyItemProcessingLog 
 
 definePageMeta({
   layout: 'empty',
-  middleware: 'auth-required',
+  middleware: 'auth-warehouse-only',
 });
 
 const router = useRouter();
@@ -355,6 +359,21 @@ const filteredWorkQueue = computed(() => {
 // Use filtered work queue
 const workQueue = computed(() => filteredWorkQueue.value);
 
+// Debug: Show station info
+const stationDebugInfo = computed(() => {
+  if (!currentUser.value) return 'No user';
+  
+  const userRoles = currentUser.value.roles;
+  if (!userRoles || !Array.isArray(userRoles)) return 'No roles';
+  
+  return userRoles.map(userRole => ({
+    roleName: userRole.role?.name,
+    roleType: userRole.role?.roleType?.name,
+    stations: userRole.role?.stations,
+    hasStations: userRole.role?.stations && userRole.role.stations.length > 0
+  }));
+});
+
 // Methods
 async function login() {
   try {
@@ -365,13 +384,35 @@ async function login() {
     if (session.value?.data?.user) {
       // Set the current station based on user's roles
       const userRoles = session.value.data.user.roles;
+      console.log('Kiosk Login - User roles:', userRoles);
+      
       if (userRoles && Array.isArray(userRoles)) {
         for (const userRole of userRoles) {
+          console.log('Kiosk Login - Checking role:', userRole.role);
+          console.log('Kiosk Login - Role stations:', userRole.role.stations);
+          
+          // Check if this role has stations assigned
           if (userRole.role.stations && userRole.role.stations.length > 0) {
-            currentStation.value = userRole.role.stations[0];
+            currentStation.value = userRole.role.stations[0].station;
+            console.log('Kiosk Login - Set current station:', currentStation.value);
             break;
           }
+          
+          // Fallback: Check if role name matches a station name
+          if (userRole.role.name && ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting'].includes(userRole.role.name)) {
+            // Find the station by name
+            const station = stations.value?.find(s => s.name === userRole.role.name);
+            if (station) {
+              currentStation.value = station;
+              console.log('Kiosk Login - Set current station by name:', currentStation.value);
+              break;
+            }
+          }
         }
+      }
+      
+      if (!currentStation.value) {
+        console.warn('Kiosk Login - No station found for user');
       }
       
       toast.add({
@@ -393,9 +434,23 @@ async function login() {
   }
 }
 
-function logout() {
-  // Logout logic
-  router.push('/login');
+async function logout() {
+  try {
+    // Actually sign out the user
+    await authClient.signOut();
+    
+    // Clear local state
+    currentStation.value = null;
+    currentWorkItem.value = null;
+    scannedItem.value = null;
+    
+    // Redirect to login
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout failed:', error);
+    // Even if logout fails, redirect to login
+    router.push('/login');
+  }
 }
 
 async function scanBarcode() {
@@ -404,7 +459,7 @@ async function scanBarcode() {
     
     const response = await $fetch('/api/warehouse/scan-barcode', {
       method: 'POST',
-      body: { barcode: scanForm.barcode }
+      body: { barcode: scanForm.value.barcode }
     });
     
     if (response.success) {
@@ -435,7 +490,7 @@ async function startWork() {
       method: 'POST',
       body: { 
         orderItemId: scannedItem.value.id,
-        stationCode: scanForm.stationCode
+        stationCode: scanForm.value.stationCode
       }
     });
     
