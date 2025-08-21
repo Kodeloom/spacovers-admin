@@ -259,8 +259,9 @@ class="px-2 py-1 rounded-full text-xs font-medium"
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { authClient } from '~/lib/auth-client';
+import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
 
 // Define a minimal type for what we expect in user.roles for display
 interface UserRoleForDisplay {
@@ -270,6 +271,7 @@ interface UserRoleForDisplay {
 }
 
 const session = authClient.useSession();
+const { isAdmin: isAdminRole, isWarehouseStaff, getDefaultRoute } = useRoleBasedRouting();
 
 // Dashboard state
 const timeFilter = ref('30'); // Default to last 30 days
@@ -383,6 +385,21 @@ async function fetchDashboardMetrics() {
 async function updateDashboardMetrics() {
   await fetchDashboardMetrics();
 }
+
+// Role-based routing
+watch(session, (newSession) => {
+  if (newSession?.data?.user) {
+    // If user is warehouse staff, redirect to kiosk
+    if (isWarehouseStaff.value) {
+      navigateTo('/warehouse/kiosk');
+    }
+    // If user is admin, they can stay on dashboard
+    // If user has no valid roles, redirect to login
+    else if (!isAdminRole.value) {
+      navigateTo('/login');
+    }
+  }
+}, { immediate: true });
 
 // Initial metrics fetch
 onMounted(() => {
