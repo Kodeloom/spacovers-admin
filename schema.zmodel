@@ -585,6 +585,9 @@ model Account {
 
   @@unique([providerId, accountId]) // Ensures unique account per provider for a user
   @@map("account")
+
+
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
 }
 
 model Verification {
