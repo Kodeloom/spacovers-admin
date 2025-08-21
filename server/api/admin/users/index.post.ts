@@ -40,19 +40,36 @@ export default defineEventHandler(async (event) => {
   const actorId = sessionData?.user?.id || null;
 
   try {
+    const newAccount = await auth.api.createUser({
+      body: {
+        email,
+        password,
+        name,
+        data: { status: status, roles: roleIds?.map(id => ({ id })) }
+      }
+    });
+
     const finalUser = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const user = await tx.user.create({
-        data: {
-          name,
-          email,
-          passwordHash: hashSync(password, 12),
-          status,
-        },
+      const user = await tx.user.findUnique({
+        where: {
+          id: newAccount.user.id,
+        }
       });
 
       if (!user) {
         throw new Error('User creation failed within transaction.');
       }
+
+      await tx.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          name,
+          email,
+          status,
+        },
+      });
 
       if (roleIds && roleIds.length > 0) {
         await tx.userRole.createMany({
