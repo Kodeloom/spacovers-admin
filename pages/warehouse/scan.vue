@@ -195,6 +195,7 @@ import { useFindManyStation } from '~/lib/hooks/index';
 
 definePageMeta({
   layout: 'empty',
+  middleware: 'auth-warehouse-only',
 });
 
 const toast = useToast();
