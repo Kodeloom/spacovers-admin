@@ -20,12 +20,21 @@ export default defineNuxtRouteMiddleware(async (to, _from) => {
   if (isAuthenticated) {
     // Access user data from the session
     const user = sessionData.value!.user;
-    // user.roles is expected to be like: [{ role: { name: 'Admin' } }, { role: { name: 'Editor' } }]
-    // Ensure user.roles is checked for existence and is an array before calling .some()
+    // user.roles is expected to be like: [{ role: { name: 'Admin', roleType: { name: 'Administrator' } } }]
+    // Check for admin role types: Administrator, Manager, Super Administrator
     if (user.roles && Array.isArray(user.roles)) {
-      userIsAdmin = user.roles.some((userRole: { role?: { name?: string } }) => 
-        userRole.role && (userRole.role.name === 'Super Admin' || userRole.role.name === 'Admin')
-      );
+      userIsAdmin = user.roles.some((userRole: { role?: { name?: string, roleType?: { name?: string } } }) => {
+        const roleName = userRole.role?.name;
+        const roleTypeName = userRole.role?.roleType?.name;
+        
+        // Admin roles by name (fallback)
+        const adminRoleNames = ['Super Admin', 'Admin', 'Manager'];
+        // Admin roles by type (preferred)
+        const adminRoleTypes = ['Administrator', 'Manager', 'Super Administrator'];
+        
+        return (roleName && adminRoleNames.includes(roleName)) || 
+               (roleTypeName && adminRoleTypes.includes(roleTypeName));
+      });
     } else {
       console.warn('[AuthAdminOnly Middleware] User object in session does not have a correctly structured roles array:', user.roles);
     }
