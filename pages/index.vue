@@ -161,6 +161,34 @@
           </div>
         </div>
       </div>
+
+      <!-- Items at Stuffing Station (Admin Only) -->
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:archive-box" class="h-8 w-8 text-orange-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Items at Stuffing</p>
+            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.stuffingItems || '0' }}</p>
+            <p class="text-xs text-gray-400">Currently in production</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Items at Packaging Station (Admin Only) -->
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <Icon name="heroicons:gift" class="h-8 w-8 text-green-600" />
+          </div>
+          <div class="ml-4 flex-1">
+            <p class="text-sm font-medium text-gray-500">Items at Packaging</p>
+            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.packagingItems || '0' }}</p>
+            <p class="text-xs text-gray-400">Currently in production</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Performance Metrics Row (Admin Only) -->
@@ -285,6 +313,8 @@ const dashboardMetrics = ref({
   cuttingItems: 0,
   sewingItems: 0,
   foamCuttingItems: 0,
+  stuffingItems: 0,
+  packagingItems: 0,
   itemsInProduction: 0,
   itemsCompletedToday: 0,
   avgItemsPerDay: 0,
@@ -357,6 +387,8 @@ async function fetchDashboardMetrics() {
     const cuttingItems = stationItemsResponse.find((s: any) => s.stationName === 'Cutting')?.itemsCount || 0;
     const sewingItems = stationItemsResponse.find((s: any) => s.stationName === 'Sewing')?.itemsCount || 0;
     const foamCuttingItems = stationItemsResponse.find((s: any) => s.stationName === 'Foam Cutting')?.itemsCount || 0;
+    const stuffingItems = stationItemsResponse.find((s: any) => s.stationName === 'Stuffing')?.itemsCount || 0;
+    const packagingItems = stationItemsResponse.find((s: any) => s.stationName === 'Packaging')?.itemsCount || 0;
     
     // Update metrics
     dashboardMetrics.value = {
@@ -370,7 +402,9 @@ async function fetchDashboardMetrics() {
       cuttingItems,
       sewingItems,
       foamCuttingItems,
-      itemsInProduction: cuttingItems + sewingItems + foamCuttingItems,
+      stuffingItems,
+      packagingItems,
+      itemsInProduction: cuttingItems + sewingItems + foamCuttingItems + stuffingItems + packagingItems,
       itemsCompletedToday: 0, // TODO: Implement when ItemProcessingLog is available
       avgItemsPerDay: 0, // TODO: Implement when ItemProcessingLog is available
       recentOrders: recentOrdersResponse?.data || []
