@@ -540,6 +540,18 @@ const metadata = {
                     name: "isSpacoverProduct",
                     type: "Boolean",
                     attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, productType: {
+                    name: "productType",
+                    type: "ProductType",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
                 }, orderItems: {
                     name: "orderItems",
                     type: "OrderItem",
@@ -552,14 +564,12 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'item',
-                }, createdAt: {
-                    name: "createdAt",
-                    type: "DateTime",
-                    attributes: [{ "name": "@default", "args": [] }],
-                }, updatedAt: {
-                    name: "updatedAt",
-                    type: "DateTime",
-                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                }, products: {
+                    name: "products",
+                    type: "Product",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'item',
                 },
             }, uniqueConstraints: {
                 id: {
@@ -615,6 +625,20 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'product',
+                }, item: {
+                    name: "item",
+                    type: "Item",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'products',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "itemId" },
+                }, itemId: {
+                    name: "itemId",
+                    type: "String",
+                    isOptional: true,
+                    isForeignKey: true,
+                    relationField: 'item',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -947,25 +971,28 @@ const metadata = {
                     type: "String",
                     isForeignKey: true,
                     relationField: 'order',
+                }, order: {
+                    name: "order",
+                    type: "Order",
+                    isDataModel: true,
+                    backLink: 'items',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderId" },
                 }, itemId: {
                     name: "itemId",
                     type: "String",
                     isForeignKey: true,
                     relationField: 'item',
+                }, item: {
+                    name: "item",
+                    type: "Item",
+                    isDataModel: true,
+                    backLink: 'orderItems',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "itemId" },
                 }, quickbooksOrderLineId: {
                     name: "quickbooksOrderLineId",
-                    type: "String",
-                    isOptional: true,
-                }, lineDescription: {
-                    name: "lineDescription",
-                    type: "String",
-                    isOptional: true,
-                }, lineAmount: {
-                    name: "lineAmount",
-                    type: "Decimal",
-                    isOptional: true,
-                }, taxCode: {
-                    name: "taxCode",
                     type: "String",
                     isOptional: true,
                 }, quantity: {
@@ -974,6 +1001,10 @@ const metadata = {
                 }, pricePerItem: {
                     name: "pricePerItem",
                     type: "Decimal",
+                }, lineDescription: {
+                    name: "lineDescription",
+                    type: "String",
+                    isOptional: true,
                 }, itemStatus: {
                     name: "itemStatus",
                     type: "OrderItemProcessingStatus",
@@ -988,21 +1019,6 @@ const metadata = {
                     isOptional: true,
                     isForeignKey: true,
                     relationField: 'product',
-                }, order: {
-                    name: "order",
-                    type: "Order",
-                    isDataModel: true,
-                    backLink: 'items',
-                    isRelationOwner: true,
-                    onDeleteAction: 'Cascade',
-                    foreignKeyMapping: { "id": "orderId" },
-                }, item: {
-                    name: "item",
-                    type: "Item",
-                    isDataModel: true,
-                    backLink: 'orderItems',
-                    isRelationOwner: true,
-                    foreignKeyMapping: { "id": "itemId" },
                 }, product: {
                     name: "product",
                     type: "Product",
@@ -1011,18 +1027,90 @@ const metadata = {
                     backLink: 'orderItems',
                     isRelationOwner: true,
                     foreignKeyMapping: { "id": "productId" },
-                }, processingLogs: {
-                    name: "processingLogs",
-                    type: "ItemProcessingLog",
-                    isDataModel: true,
-                    isArray: true,
-                    backLink: 'orderItem',
-                }, statusLogs: {
-                    name: "statusLogs",
-                    type: "ItemStatusLog",
-                    isDataModel: true,
-                    isArray: true,
-                    backLink: 'orderItem',
+                }, isProduct: {
+                    name: "isProduct",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, productType: {
+                    name: "productType",
+                    type: "String",
+                    isOptional: true,
+                }, size: {
+                    name: "size",
+                    type: "String",
+                    isOptional: true,
+                }, shape: {
+                    name: "shape",
+                    type: "String",
+                    isOptional: true,
+                }, radiusSize: {
+                    name: "radiusSize",
+                    type: "String",
+                    isOptional: true,
+                }, skirtLength: {
+                    name: "skirtLength",
+                    type: "String",
+                    isOptional: true,
+                }, skirtType: {
+                    name: "skirtType",
+                    type: "String",
+                    isOptional: true,
+                }, tieDownsQty: {
+                    name: "tieDownsQty",
+                    type: "String",
+                    isOptional: true,
+                }, tieDownPlacement: {
+                    name: "tieDownPlacement",
+                    type: "String",
+                    isOptional: true,
+                }, distance: {
+                    name: "distance",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, foamUpgrade: {
+                    name: "foamUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, doublePlasticWrapUpgrade: {
+                    name: "doublePlasticWrapUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, webbingUpgrade: {
+                    name: "webbingUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, metalForLifterUpgrade: {
+                    name: "metalForLifterUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, steamStopperUpgrade: {
+                    name: "steamStopperUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, fabricUpgrade: {
+                    name: "fabricUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, extraHandleQty: {
+                    name: "extraHandleQty",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, extraLongSkirt: {
+                    name: "extraLongSkirt",
+                    type: "String",
+                    isOptional: true,
+                }, packaging: {
+                    name: "packaging",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -1031,6 +1119,24 @@ const metadata = {
                     name: "updatedAt",
                     type: "DateTime",
                     attributes: [{ "name": "@updatedAt", "args": [] }],
+                }, itemProcessingLogs: {
+                    name: "itemProcessingLogs",
+                    type: "ItemProcessingLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'orderItem',
+                }, itemStatusLogs: {
+                    name: "itemStatusLogs",
+                    type: "ItemStatusLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'orderItem',
+                }, productAttributes: {
+                    name: "productAttributes",
+                    type: "ProductAttribute",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'orderItem',
                 },
             }, uniqueConstraints: {
                 id: {
@@ -1058,7 +1164,7 @@ const metadata = {
                     name: "orderItem",
                     type: "OrderItem",
                     isDataModel: true,
-                    backLink: 'processingLogs',
+                    backLink: 'itemProcessingLogs',
                     isRelationOwner: true,
                     onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "orderItemId" },
@@ -1114,6 +1220,136 @@ const metadata = {
                 id: {
                     name: "id",
                     fields: ["id"]
+                },
+            },
+        },
+        productAttribute: {
+            name: 'ProductAttribute', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, orderItemId: {
+                    name: "orderItemId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'orderItem',
+                }, orderItem: {
+                    name: "orderItem",
+                    type: "OrderItem",
+                    isDataModel: true,
+                    backLink: 'productAttributes',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderItemId" },
+                }, productType: {
+                    name: "productType",
+                    type: "ProductType",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, size: {
+                    name: "size",
+                    type: "String",
+                    isOptional: true,
+                }, shape: {
+                    name: "shape",
+                    type: "String",
+                    isOptional: true,
+                }, radiusSize: {
+                    name: "radiusSize",
+                    type: "String",
+                    isOptional: true,
+                }, skirtLength: {
+                    name: "skirtLength",
+                    type: "String",
+                    isOptional: true,
+                }, skirtType: {
+                    name: "skirtType",
+                    type: "SkirtType",
+                    isOptional: true,
+                }, tieDownsQty: {
+                    name: "tieDownsQty",
+                    type: "String",
+                    isOptional: true,
+                }, tieDownPlacement: {
+                    name: "tieDownPlacement",
+                    type: "TieDownPlacement",
+                    isOptional: true,
+                }, distance: {
+                    name: "distance",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, foamUpgrade: {
+                    name: "foamUpgrade",
+                    type: "String",
+                    isOptional: true,
+                }, doublePlasticWrapUpgrade: {
+                    name: "doublePlasticWrapUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, webbingUpgrade: {
+                    name: "webbingUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, metalForLifterUpgrade: {
+                    name: "metalForLifterUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, steamStopperUpgrade: {
+                    name: "steamStopperUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, fabricUpgrade: {
+                    name: "fabricUpgrade",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "No" }] }],
+                }, extraHandleQty: {
+                    name: "extraHandleQty",
+                    type: "String",
+                    isOptional: true,
+                    attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, extraLongSkirt: {
+                    name: "extraLongSkirt",
+                    type: "String",
+                    isOptional: true,
+                }, packaging: {
+                    name: "packaging",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, verified: {
+                    name: "verified",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, isParsedFromDescription: {
+                    name: "isParsedFromDescription",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, parsingErrors: {
+                    name: "parsingErrors",
+                    type: "String",
+                    isArray: true,
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, orderItemId: {
+                    name: "orderItemId",
+                    fields: ["orderItemId"]
                 },
             },
         },
@@ -1256,7 +1492,7 @@ const metadata = {
                     name: "orderItem",
                     type: "OrderItem",
                     isDataModel: true,
-                    backLink: 'statusLogs',
+                    backLink: 'itemStatusLogs',
                     isRelationOwner: true,
                     onDeleteAction: 'Cascade',
                     foreignKeyMapping: { "id": "orderItemId" },
@@ -1668,7 +1904,7 @@ const metadata = {
         permission: ['RolePermission'],
         station: ['RoleStation'],
         order: ['OrderItem', 'OrderStatusLog'],
-        orderItem: ['ItemProcessingLog', 'ItemStatusLog'],
+        orderItem: ['ItemProcessingLog', 'ProductAttribute', 'ItemStatusLog'],
         estimate: ['EstimateItem'],
 
     },

@@ -19,6 +19,7 @@ export * from './role-station';
 export * from './order';
 export * from './order-item';
 export * from './item-processing-log';
+export * from './product-attribute';
 export * from './audit-log';
 export * from './order-status-log';
 export * from './item-status-log';
