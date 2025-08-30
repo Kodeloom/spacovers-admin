@@ -207,7 +207,7 @@
           </span>
         </template>
         <template #actions-data="{ row }">
-          <div class="flex space-x-2">
+          <div class="flex space-x-5 items-center">
             <NuxtLink
               :to="`/admin/orders/edit/${row.id}`"
               class="text-indigo-600 hover:text-indigo-900"
@@ -216,6 +216,14 @@
               <Icon name="heroicons:pencil-square-20-solid" class="h-5 w-5" />
             </NuxtLink>
             <button
+              v-if="row.orderStatus !== 'ARCHIVED'"
+              class="text-gray-600 hover:text-gray-900"
+              title="Archive Order"
+              @click="archiveOrder(row)"
+            >
+              <Icon name="heroicons:archive-box-20-solid" class="h-5 w-5" />
+            </button>
+            <button
               v-if="row.orderStatus === 'PENDING'"
               class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm transition-colors duration-200"
               title="Verify Order"
@@ -223,14 +231,6 @@
             >
               <Icon name="heroicons:check-circle-20-solid" class="h-5 w-5 mr-1" />
               Verify Order
-            </button>
-            <button
-              v-if="row.orderStatus !== 'ARCHIVED'"
-              class="text-gray-600 hover:text-gray-900"
-              title="Archive Order"
-              @click="archiveOrder(row)"
-            >
-              <Icon name="heroicons:archive-box-20-solid" class="h-5 w-5" />
             </button>
           </div>
         </template>
