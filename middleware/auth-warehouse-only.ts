@@ -19,8 +19,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const roleName = userRole.role?.name;
     const roleTypeName = userRole.role?.roleType?.name;
     
-    // Warehouse staff roles by name (fallback)
-    const warehouseRoleNames = ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting'];
+    // Warehouse staff role names (check both name and type)
+    const warehouseRoleNames = ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting', 'Stuffing', 'Packaging'];
     // Warehouse staff roles by type (preferred)
     const warehouseRoleTypes = ['Warehouse Staff'];
     
