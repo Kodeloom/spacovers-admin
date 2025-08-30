@@ -64,6 +64,8 @@ enum OrderItemProcessingStatus { // Renamed for clarity
   CUTTING
   SEWING
   FOAM_CUTTING
+  STUFFING
+  PACKAGING
   READY
 }
 
@@ -71,6 +73,22 @@ enum OrderPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum ProductType {
+  SPA_COVER
+  COVER_FOR_COVER
+}
+
+enum SkirtType {
+  CONN
+  SLIT
+}
+
+enum TieDownPlacement {
+  HANDLE_SIDE
+  CORNER_SIDE
+  FOLD_SIDE
 }
 
 // Models
@@ -247,25 +265,24 @@ model Customer {
 }
 
 model Item {
-  id                String         @id @default(cuid())
-  quickbooksItemId  String?        @unique // For QBO sync
-  name              String
-  imageUrl          String?
-  category          String?
-  wholesalePrice    Decimal?       @db.Decimal(10, 2)
-  retailPrice       Decimal?       @db.Decimal(10, 2)
-  cost              Decimal?       @db.Decimal(10, 2)
-  description       String?
-  status            ItemStatus     @default(ACTIVE)
-  
-  // Flag to identify the 4 main spacover items
-  isSpacoverProduct Boolean        @default(false)
+  id                 String      @id @default(cuid())
+  quickbooksItemId   String?     @unique
+  name               String
+  imageUrl           String?
+  category           String?
+  wholesalePrice     Decimal?    @db.Decimal(10, 2)
+  retailPrice        Decimal?    @db.Decimal(10, 2)
+  cost               Decimal?    @db.Decimal(10, 2)
+  description        String?
+  status             ItemStatus  @default(ACTIVE)
+  isSpacoverProduct  Boolean     @default(false)
+  productType        ProductType @default(SPA_COVER)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
-  orderItems        OrderItem[]
-  estimateItems     EstimateItem[]
-
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  orderItems         OrderItem[]
+  estimateItems      EstimateItem[]
+  products           Product[]
 
   // Access Control Policies - ROLE-BASED (Product management)
   @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
@@ -294,6 +311,8 @@ model Product {
   
   // Relations
   orderItems      OrderItem[]
+  item            Item?      @relation(fields: [itemId], references: [id])
+  itemId          String?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -410,40 +429,53 @@ model Order {
 model OrderItem {
   id                    String                    @id @default(cuid())
   orderId               String
+  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   itemId                String
+  item                  Item                      @relation(fields: [itemId], references: [id])
   quickbooksOrderLineId String?                   @unique
-  
-  // New fields from QBO Invoice Line
-  lineDescription       String?                   @db.Text
-  lineAmount            Decimal?                  @db.Decimal(10, 2)
-  taxCode               String?
-  
-  // Existing fields
   quantity              Int
   pricePerItem          Decimal                   @db.Decimal(10, 2)
+  lineDescription       String?                   @db.Text // Invoice line description from QBO
   itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
   notes                 String?
-  
-  // Product association for spacover items
   productId             String?
-
-  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  item                  Item                      @relation(fields: [itemId], references: [id])
   product               Product?                  @relation(fields: [productId], references: [id])
-  processingLogs        ItemProcessingLog[]
-  statusLogs            ItemStatusLog[]
-
+  isProduct             Boolean                   @default(false) // Whether this item goes to production
+  productType           String?                   // SPA_COVER or COVER_FOR_COVER
+  
+  // Product Attributes (parsed from description)
+  size                  String?
+  shape                 String?
+  radiusSize            String?
+  skirtLength           String?
+  skirtType             String?                   // CONN or SLIT
+  tieDownsQty           String?
+  tieDownPlacement      String?                   // HANDLE_SIDE, CORNER_SIDE, FOLD_SIDE
+  distance              String?                   @default("0")
+  
+  // Upgrades
+  foamUpgrade           String?                   @default("No")
+  doublePlasticWrapUpgrade String?                @default("No")
+  webbingUpgrade        String?                   @default("No")
+  metalForLifterUpgrade String?                   @default("No")
+  steamStopperUpgrade   String?                   @default("No")
+  fabricUpgrade         String?                   @default("No")
+  
+  // Special attributes
+  extraHandleQty        String?                   @default("0")
+  extraLongSkirt        String?
+  packaging             Boolean                    @default(false) // Whether packaging is required
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
 
-  // Access Control Policies - PERMISSION-BASED (Warehouse operations)
-  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "OrderItem"]])
-  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "OrderItem"]])
-  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "OrderItem"]])
-  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "OrderItem"]])
-  
-  // ROLE-BASED fallback: Super Admin always has access
-  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  itemProcessingLogs    ItemProcessingLog[]
+  itemStatusLogs        ItemStatusLog[]
+  productAttributes     ProductAttribute?
+
+  @@allow('create', auth() != null)
+  @@allow('read', auth() != null)
+  @@allow('update', auth() != null)
+  @@allow('delete', auth() != null)
 }
 
 model ItemProcessingLog {
@@ -470,6 +502,50 @@ model ItemProcessingLog {
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+}
+
+model ProductAttribute {
+  id                        String   @id @default(cuid())
+  orderItemId               String   @unique
+  orderItem                 OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  
+  // Product type
+  productType               ProductType @default(SPA_COVER)
+  
+  // Core attributes
+  size                      String?
+  shape                     String?
+  radiusSize                String?
+  skirtLength               String?
+  skirtType                 SkirtType?
+  tieDownsQty               String?
+  tieDownPlacement          TieDownPlacement?
+  distance                  String? @default("0")
+  
+  // Upgrades (Yes/No with defaults)
+  foamUpgrade               String? // e.g., "2#", "5-2.5", "6-4", "4-5-4", "54""
+  doublePlasticWrapUpgrade  String? @default("No")
+  webbingUpgrade            String? @default("No")
+  metalForLifterUpgrade     String? @default("No")
+  steamStopperUpgrade       String? @default("No")
+  fabricUpgrade             String? @default("No")
+  
+  // Special attributes
+  extraHandleQty            String? @default("0")
+  extraLongSkirt            String? // Calculated or explicit
+  packaging                 Boolean                    @default(false) // Whether packaging is required
+  verified                    Boolean                    @default(false) // Whether product attributes have been verified by admin
+  
+  // Metadata
+  isParsedFromDescription     Boolean @default(false)
+  parsingErrors             String[] // Array of parsing issues
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@allow('create', auth() != null)
+  @@allow('read', auth() != null)
+  @@allow('update', auth() != null)
+  @@allow('delete', auth() != null)
 }
 
 model AuditLog {
