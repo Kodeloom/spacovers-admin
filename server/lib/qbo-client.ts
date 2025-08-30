@@ -3,6 +3,13 @@ import { getEnhancedPrismaClient } from '~/server/lib/db';
 import type { H3Event } from 'h3';
 import { auth } from '~/server/lib/auth';
 
+// QuickBooks API Configuration
+export const QBO_API_CONFIG = {
+    VERSION: 'v3', // Change this to pin to a specific API version
+    USER_AGENT: 'Spacovers-Admin/1.0',
+    TIMEOUT: 30000, // 30 seconds
+} as const;
+
 type AuthenticatedQboClient = {
     oauthClient: InstanceType<typeof OAuthClient>;
     token: {
