@@ -17,6 +17,20 @@ const UpdateRoleInputSchema = z.object({
   permissionIds: z.array(z.string().cuid2({ message: 'Invalid permission ID format.' })).optional(),
 });
 
+const CreateStationInputSchema = z.object({
+    name: z.string().min(1, 'Station name is required.'),
+    barcode: z.string().nullable(),
+    description: z.string().nullable(),
+    roleIds: z.array(z.string().cuid2({ message: 'Invalid role ID format.' })).optional(),
+});
+
+const UpdateStationInputSchema = z.object({
+  name: z.string().min(1, 'Station name is required.'),
+  barcode: z.string().nullable(),
+  description: z.string().nullable(),
+  roleIds: z.array(z.string().cuid2({ message: 'Invalid role ID format.' })).optional(),
+});
+
 const defaultHandler = createEventHandler({
     getPrisma: getEnhancedPrismaClient,
 });
@@ -24,7 +38,11 @@ const defaultHandler = createEventHandler({
 export default defineEventHandler(async (event: H3Event) => {
     const path = event.path;
     const parts = path.split('/');
+    console.log('🔍 API Debug - Path:', path, 'Parts:', parts);
+    
+    // Fix: The path structure is /api/model/Station, so parts[3] should be the model
     const model = (parts.length >= 4 && parts[2] === 'model') ? parts[3] : null;
+    console.log('🔍 API Debug - Model:', model, 'Method:', event.method);
     
     // Special handling for Role updates to manage many-to-many with permissions
     if (model === 'role' && event.method === 'PUT') {
@@ -135,6 +153,65 @@ export default defineEventHandler(async (event: H3Event) => {
         }
     }
 
+    // Special handling for Station creation to manage many-to-many with roles
+    if (model === 'station' && event.method === 'POST') {
+        const result = await readValidatedBody(event, (body: any) => CreateStationInputSchema.safeParse(body.data));
+        if (!result.success) {
+            throw createError({ statusCode: 422, statusMessage: 'Validation failed.', data: result.error.flatten().fieldErrors });
+        }
+
+        const { name, barcode, description, roleIds } = result.data;
+
+        try {
+            const sessionData = await auth.api.getSession({ headers: event.headers });
+            const actorId = sessionData?.user?.id || null;
+
+            const newStation = await unenhancedPrisma.station.create({
+                data: {
+                    name,
+                    barcode,
+                    description,
+                    roles: {
+                        create: roleIds?.map(roleId => ({
+                            role: { connect: { id: roleId } },
+                        })),
+                    },
+                },
+                include: { roles: { include: { role: true } } },
+            });
+
+            await recordAuditLog(event, {
+                action: 'STATION_CREATE',
+                entityName: 'Station',
+                entityId: newStation.id,
+                oldValue: null,
+                newValue: newStation,
+            }, actorId);
+
+            const enhancedPrisma = await getEnhancedPrismaClient(event);
+            const createdStation = await enhancedPrisma.station.findUniqueOrThrow({
+                where: { id: newStation.id },
+                include: { roles: { include: { role: true } } },
+            });
+
+            // Mimic the structure of a standard ZenStack response
+            return { data: createdStation };
+
+        } catch (error) {
+            console.error(`Error during special station creation:`, error);
+            throw createError({ statusCode: 500, statusMessage: 'Failed to create station.'});
+        }
+    }
+
     // For all other requests, use the default ZenStack handler
-    return defaultHandler(event);
+    if (model) {
+        console.log('🔍 API Debug - Using default handler for model:', model);
+        return defaultHandler(event);
+    } else {
+        console.log('🔍 API Debug - No model found, path:', path);
+        throw createError({ 
+            statusCode: 400, 
+            statusMessage: `Invalid request path: ${path}. Expected format: /api/model/{ModelName}` 
+        });
+    }
 }); 
