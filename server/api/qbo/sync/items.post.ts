@@ -1,5 +1,6 @@
 import { getQboClient } from '~/server/lib/qbo-client';
 import { getEnhancedPrismaClient } from '~/server/lib/db';
+import { QBO_API_CONFIG } from '~/server/lib/qbo-client';
 import { ItemStatus } from '@prisma-app/client';
 
 interface QboItem {
@@ -27,14 +28,20 @@ export default defineEventHandler(async (event) => {
         : 'https://quickbooks.api.intuit.com';
 
     try {
+        const apiVersion = QBO_API_CONFIG.VERSION;
         const query = 'SELECT * FROM Item';
-        const url = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(query)}`;
+        const url = `${companyInfoUrl}/${apiVersion}/company/${companyId}/query?query=${encodeURIComponent(query)}`;
+
+        console.log(`🔍 Using QBO API version: ${apiVersion}`);
+        console.log(`🔍 Items query: ${query}`);
+        console.log(`🔍 Query URL: ${url}`);
 
         const response: { QueryResponse?: { Item: QboItem[] } } = await $fetch(url, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${token.access_token}`,
+                'User-Agent': QBO_API_CONFIG.USER_AGENT
             },
         });
 
