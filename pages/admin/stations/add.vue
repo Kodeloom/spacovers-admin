@@ -170,18 +170,9 @@ const { mutate: createStation, isPending: isSubmitting } = useMutation({
     description: string | null; 
     roleIds: string[] 
   }) => {
-    return $fetch('/api/model/Station', {
+    return $fetch('/api/admin/stations', {
       method: 'POST',
-      body: {
-        name: payload.name,
-        barcode: payload.barcode || null,
-        description: payload.description || null,
-        roles: {
-          create: payload.roleIds.map(roleId => ({
-            role: { connect: { id: roleId } }
-          }))
-        }
-      },
+      body: payload,
     });
   },
   onSuccess: async () => {
@@ -219,7 +210,7 @@ const handleSubmit = () => {
     name: stationData.name,
     barcode: stationData.barcode || null,
     description: stationData.description || null,
-    roleIds: selectedRoleIds.value,
+    roleIds: selectedRoleIds.value
   };
 
   createStation(payload);
