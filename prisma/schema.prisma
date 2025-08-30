@@ -54,6 +54,8 @@ enum OrderItemProcessingStatus {
   CUTTING
   SEWING
   FOAM_CUTTING
+  STUFFING
+  PACKAGING
   READY
 }
 
@@ -61,6 +63,22 @@ enum OrderPriority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum ProductType {
+  SPA_COVER
+  COVER_FOR_COVER
+}
+
+enum SkirtType {
+  CONN
+  SLIT
+}
+
+enum TieDownPlacement {
+  HANDLE_SIDE
+  CORNER_SIDE
+  FOLD_SIDE
 }
 
 model User {
@@ -190,10 +208,12 @@ model Item {
   description       String?
   status            ItemStatus     @default(ACTIVE)
   isSpacoverProduct Boolean        @default(false)
-  orderItems        OrderItem[]
-  estimateItems     EstimateItem[]
+  productType       ProductType    @default(SPA_COVER)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt()
+  orderItems        OrderItem[]
+  estimateItems     EstimateItem[]
+  products          Product[]
 }
 
 model Product {
@@ -209,6 +229,8 @@ model Product {
   fullDescription String      @unique()
   displayName     String
   orderItems      OrderItem[]
+  item            Item?       @relation(fields: [itemId], references: [id])
+  itemId          String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt()
 }
@@ -281,25 +303,43 @@ model Order {
 }
 
 model OrderItem {
-  id                    String                    @id() @default(cuid())
-  orderId               String
-  itemId                String
-  quickbooksOrderLineId String?                   @unique()
-  lineDescription       String?                   @db.Text()
-  lineAmount            Decimal?                  @db.Decimal(10, 2)
-  taxCode               String?
-  quantity              Int
-  pricePerItem          Decimal                   @db.Decimal(10, 2)
-  itemStatus            OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
-  notes                 String?
-  productId             String?
-  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  item                  Item                      @relation(fields: [itemId], references: [id])
-  product               Product?                  @relation(fields: [productId], references: [id])
-  processingLogs        ItemProcessingLog[]
-  statusLogs            ItemStatusLog[]
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt()
+  id                       String                    @id() @default(cuid())
+  orderId                  String
+  order                    Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId                   String
+  item                     Item                      @relation(fields: [itemId], references: [id])
+  quickbooksOrderLineId    String?                   @unique()
+  quantity                 Int
+  pricePerItem             Decimal                   @db.Decimal(10, 2)
+  lineDescription          String?                   @db.Text()
+  itemStatus               OrderItemProcessingStatus @default(NOT_STARTED_PRODUCTION)
+  notes                    String?
+  productId                String?
+  product                  Product?                  @relation(fields: [productId], references: [id])
+  isProduct                Boolean                   @default(false)
+  productType              String?
+  size                     String?
+  shape                    String?
+  radiusSize               String?
+  skirtLength              String?
+  skirtType                String?
+  tieDownsQty              String?
+  tieDownPlacement         String?
+  distance                 String?                   @default("0")
+  foamUpgrade              String?                   @default("No")
+  doublePlasticWrapUpgrade String?                   @default("No")
+  webbingUpgrade           String?                   @default("No")
+  metalForLifterUpgrade    String?                   @default("No")
+  steamStopperUpgrade      String?                   @default("No")
+  fabricUpgrade            String?                   @default("No")
+  extraHandleQty           String?                   @default("0")
+  extraLongSkirt           String?
+  packaging                Boolean                   @default(false)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt()
+  itemProcessingLogs       ItemProcessingLog[]
+  itemStatusLogs           ItemStatusLog[]
+  productAttributes        ProductAttribute?
 }
 
 model ItemProcessingLog {
@@ -316,6 +356,35 @@ model ItemProcessingLog {
   notes             String?   @db.Text()
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt()
+}
+
+model ProductAttribute {
+  id                       String            @id() @default(cuid())
+  orderItemId              String            @unique()
+  orderItem                OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productType              ProductType       @default(SPA_COVER)
+  size                     String?
+  shape                    String?
+  radiusSize               String?
+  skirtLength              String?
+  skirtType                SkirtType?
+  tieDownsQty              String?
+  tieDownPlacement         TieDownPlacement?
+  distance                 String?           @default("0")
+  foamUpgrade              String?
+  doublePlasticWrapUpgrade String?           @default("No")
+  webbingUpgrade           String?           @default("No")
+  metalForLifterUpgrade    String?           @default("No")
+  steamStopperUpgrade      String?           @default("No")
+  fabricUpgrade            String?           @default("No")
+  extraHandleQty           String?           @default("0")
+  extraLongSkirt           String?
+  packaging                Boolean           @default(false)
+  verified                 Boolean           @default(false)
+  isParsedFromDescription  Boolean           @default(false)
+  parsingErrors            String[]
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt()
 }
 
 model AuditLog {
