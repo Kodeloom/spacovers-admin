@@ -399,7 +399,7 @@ async function login() {
           }
           
           // Fallback: Check if role name matches a station name
-          if (userRole.role.name && ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting'].includes(userRole.role.name)) {
+          if (userRole.role.name && ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting', 'Stuffing', 'Packaging'].includes(userRole.role.name)) {
             // Find the station by name
             const station = stations.value?.find(s => s.name === userRole.role.name);
             if (station) {
