@@ -1,30 +1,30 @@
 import { PrismaClient, type OrderItemProcessingStatus } from '@prisma-app/client';
+import { ProductDescriptionParser } from '~/server/utils/productDescriptionParser';
 
 const prisma = new PrismaClient();
 
 export default defineEventHandler(async (event) => {
-  if (event.node.req.method !== 'POST') {
-    throw createError({
-      statusCode: 405,
-      statusMessage: 'Method not allowed'
-    });
-  }
-
   try {
-    const body = await readBody(event);
-    const { orderId, orderItemId, stationIdentifier, userId } = body;
+    const { orderId, orderItemId, stationIdentifier } = await readBody(event);
+    const userId = event.context.user?.id;
 
-    // Validate required fields
-    if (!orderId || !orderItemId || !stationIdentifier || !userId) {
+    if (!userId) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'User not authenticated'
+      });
+    }
+
+    if (!orderId || !orderItemId || !stationIdentifier) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Missing required fields: orderId, orderItemId, stationIdentifier, userId'
+        statusMessage: 'Missing required parameters: orderId, orderItemId, stationIdentifier'
       });
     }
 
     // Start a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch the order and verify it's approved
+      // 1. Fetch the order with items and shipping address
       const order = await tx.order.findUnique({
         where: { id: orderId },
         include: {
@@ -102,16 +102,7 @@ export default defineEventHandler(async (event) => {
         throw new Error('User not found');
       }
 
-      // 5. Check role-station authorization (optional - for now we'll allow any user)
-      // In a real implementation, you'd check if user's roles are associated with the station
-      // const userRoleIds = user.roles.map(ur => ur.role.id);
-      // const stationRoleIds = station.roles.map(sr => sr.role.id);
-      // const hasPermission = userRoleIds.some(roleId => stationRoleIds.includes(roleId));
-      // if (!hasPermission) {
-      //   throw new Error(`User does not have permission to work at station: ${station.name}`);
-      // }
-
-      // 6. Check for existing active task by this user
+      // 5. Check for existing active task by this user
       const existingActiveTask = await tx.itemProcessingLog.findFirst({
         where: {
           userId: userId,
@@ -123,7 +114,24 @@ export default defineEventHandler(async (event) => {
         throw new Error('User already has an active task. Please complete current task before starting a new one.');
       }
 
-      // 7. Validate station sequence
+      // 6. Determine required stations based on product type and shipping
+      // For now, use the existing logic until schema is migrated
+      const productType = 'SPA_COVER'; // Default until schema is updated
+      const shippingState = null; // Will be parsed from shipping address later
+      const packagingOverride = null; // Will come from product attributes later
+      
+      const packagingRequired = ProductDescriptionParser.determinePackagingRequired(
+        productType,
+        shippingState,
+        packagingOverride
+      );
+
+      const requiredStations = ProductDescriptionParser.getRequiredStations(productType);
+      if (packagingRequired) {
+        requiredStations.push('Packaging');
+      }
+
+      // 7. Validate station sequence using existing logic for now
       const expectedStation = getNextStationForItem(orderItem.itemStatus);
       if (expectedStation && station.name !== expectedStation) {
         throw new Error(`Invalid station. Expected: ${expectedStation}, but got: ${station.name}`);
@@ -271,7 +279,7 @@ export default defineEventHandler(async (event) => {
           const { emailService } = await import('~/server/utils/emailService');
           await emailService.sendOrderItemReady(order.contactEmail, {
             orderNumber: order.salesOrderNumber || order.id.slice(-8),
-            customerName: order.customer?.name || 'Valued Customer',
+            customerName: 'Valued Customer', // Will get from customer lookup later
             itemName: orderItem.item?.name || 'Item',
             quantity: orderItem.quantity
           });
@@ -286,7 +294,7 @@ export default defineEventHandler(async (event) => {
           const { emailService } = await import('~/server/utils/emailService');
           await emailService.sendOrderStatusUpdate(order.contactEmail, {
             orderNumber: order.salesOrderNumber || order.id.slice(-8),
-            customerName: order.customer?.name || 'Valued Customer',
+            customerName: 'Valued Customer', // Will get from customer lookup later
             orderStatus: 'READY_TO_SHIP'
           });
         } catch (emailError) {
@@ -328,6 +336,12 @@ function getNextStationForItem(currentStatus: string): string | null {
       return 'Sewing';
     case 'SEWING':
       return 'Foam Cutting';
+    case 'FOAM_CUTTING':
+      return 'Stuffing';
+    case 'STUFFING':
+      return 'Packaging';
+    case 'PACKAGING':
+      return null; // No next station after packaging
     default:
       return null;
   }
@@ -342,6 +356,10 @@ function getItemStatusForStation(stationName: string): string {
       return 'SEWING';
     case 'foam cutting':
       return 'FOAM_CUTTING';
+    case 'stuffing':
+      return 'STUFFING';
+    case 'packaging':
+      return 'PACKAGING';
     default:
       throw new Error(`Unknown station: ${stationName}`);
   }
