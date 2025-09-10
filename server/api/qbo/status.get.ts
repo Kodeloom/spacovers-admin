@@ -1,16 +1,8 @@
-import OAuthClient from 'intuit-oauth';
-import { getEnhancedPrismaClient } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
-
-interface QboToken {
-    token_type: 'Bearer';
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
-    x_refresh_token_expires_in: number;
-    realmId?: string;
-    iat?: number;
-}
+import { QuickBooksTokenManager } from '~/server/lib/quickbooksTokenManager';
+import { QuickBooksErrorHandler } from '~/server/lib/quickbooksErrorHandler';
+import { QuickBooksLogger } from '~/server/lib/quickbooksLogger';
+import { QuickBooksMonitor } from '~/server/lib/quickbooksMonitor';
 
 export default defineEventHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers });
@@ -18,90 +10,108 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 401, statusMessage: 'Unauthorized' });
     }
 
-    const prisma = await getEnhancedPrismaClient(event);
-    const config = useRuntimeConfig(event);
-
-    const tokenRecord = await prisma.quickbooksToken.findUnique({
-        where: { userId: session.user.id },
-    });
-
-    if (!tokenRecord) {
-        return { connected: false, message: 'No QuickBooks token found for this user.' };
-    }
-
-    const oauthClient = new OAuthClient({
-        clientId: config.qboClientId,
-        clientSecret: config.qboClientSecret,
-        environment: config.qboEnvironment as 'sandbox' | 'production',
-        redirectUri: '', // Not needed for refresh
-    });
-
-    // Reconstruct the token object for the client
-    const tokenForClient: QboToken = {
-        token_type: tokenRecord.tokenType as 'Bearer',
-        access_token: tokenRecord.accessToken,
-        refresh_token: tokenRecord.refreshToken,
-        expires_in: tokenRecord.expiresIn,
-        x_refresh_token_expires_in: tokenRecord.xRefreshTokenExpiresIn,
-        realmId: tokenRecord.realmId,
-        // The 'lat' (issued at time) is needed for the isTokenExpired() check
-        // We use our 'updatedAt' field as the source of truth for when the token was last set
-        iat: Math.floor(new Date(tokenRecord.updatedAt).getTime() / 1000),
-    };
-
-    oauthClient.setToken(tokenForClient);
-
-    // Manual token expiration check, as isTokenExpired() is unreliable.
-    const now = new Date();
-    const tokenCreationTime = new Date(tokenRecord.updatedAt); 
-    const expirationTime = new Date(tokenCreationTime.getTime() + (tokenRecord.expiresIn * 1000));
-    
-    // Check if the token expires in the next 60 seconds to be safe.
-    const isTokenNearingExpiration = expirationTime.getTime() - now.getTime() < 60 * 1000;
-
-    if (isTokenNearingExpiration) {
-        console.log('QuickBooks token is expired or nearing expiration, attempting to refresh...');
-        try {
-            const authResponse = await oauthClient.refresh();
-            const newToken = authResponse.getJson();
-
-            await prisma.quickbooksToken.update({
-                where: { id: tokenRecord.id },
-                data: {
-                    accessToken: newToken.access_token,
-                    refreshToken: newToken.refresh_token,
-                    expiresIn: newToken.expires_in,
-                    xRefreshTokenExpiresIn: newToken.x_refresh_token_expires_in,
-                },
-            });
-
-            // Update the client with the new token for the subsequent API call
-            oauthClient.setToken(newToken);
-
-        } catch (e) {
-            console.error('Failed to refresh QuickBooks token:', e);
-            // If refresh fails, it's likely the user needs to re-auth
-            await prisma.quickbooksToken.delete({ where: { id: tokenRecord.id }});
-            return { connected: false, message: 'Failed to refresh expired token. Please reconnect.' };
-        }
-    }
-
-    // Use the oauth client to make a direct API call, bypassing node-quickbooks
     try {
-        const companyInfoUrl = oauthClient.environment === 'sandbox' 
-            ? OAuthClient.environment.sandbox 
-            : OAuthClient.environment.production;
-        
-        const apiResponse = await oauthClient.makeApiCall({
-            url: `${companyInfoUrl}v3/company/${oauthClient.token.realmId}/companyinfo/${oauthClient.token.realmId}`
-        });
+        // Get detailed connection status from the token manager
+        const connectionStatus = await QuickBooksTokenManager.getConnectionStatus(event);
 
-        const companyInfo = apiResponse.json;
-        return { connected: true, companyName: companyInfo.CompanyInfo.CompanyName };
+        if (!connectionStatus.connected) {
+            return {
+                connected: false,
+                message: connectionStatus.error || 'No active QuickBooks integration found.',
+                automaticRefresh: false,
+            };
+        }
+
+        // Calculate time until token expiry
+        const now = new Date();
+        const accessTokenExpiresAt = connectionStatus.accessTokenExpiresAt!;
+        const refreshTokenExpiresAt = connectionStatus.refreshTokenExpiresAt!;
+        
+        const accessTokenMinutesRemaining = Math.max(0, Math.floor((accessTokenExpiresAt.getTime() - now.getTime()) / 60000));
+        const refreshTokenDaysRemaining = Math.max(0, Math.floor((refreshTokenExpiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+
+        // Try to fetch company information to verify the connection
+        let companyName = 'Unknown';
+        try {
+            const companyInfo = await QuickBooksTokenManager.makeAPIRequest(
+                `companyinfo/${connectionStatus.companyId}`,
+                'GET',
+                undefined,
+                event
+            );
+            
+            if (companyInfo?.QueryResponse?.CompanyInfo?.[0]?.Name) {
+                companyName = companyInfo.QueryResponse.CompanyInfo[0].Name;
+            }
+        } catch (apiError) {
+            console.warn('Failed to fetch company info for status check:', apiError);
+            // Don't fail the status check if we can't fetch company info
+        }
+
+        // Determine if automatic refresh is active
+        const automaticRefreshActive = accessTokenMinutesRemaining > 0 && refreshTokenDaysRemaining > 0;
+
+        // Get monitoring information
+        const monitor = QuickBooksMonitor.getInstance();
+        const schedulerStats = QuickBooksLogger.getSchedulerHealthStats(60);
+        const errorStats = QuickBooksLogger.getErrorStats(60);
+        const monitoringStats = monitor.getMonitoringStats();
+
+        return {
+            connected: true,
+            companyName,
+            companyId: connectionStatus.companyId,
+            connectedAt: connectionStatus.connectedAt,
+            lastRefreshedAt: connectionStatus.lastRefreshedAt,
+            tokenHealth: {
+                accessToken: {
+                    expiresAt: accessTokenExpiresAt,
+                    minutesRemaining: accessTokenMinutesRemaining,
+                    isExpired: accessTokenMinutesRemaining <= 0,
+                    needsRefresh: accessTokenMinutesRemaining <= 10, // Refresh threshold
+                },
+                refreshToken: {
+                    expiresAt: refreshTokenExpiresAt,
+                    daysRemaining: refreshTokenDaysRemaining,
+                    isExpired: refreshTokenDaysRemaining <= 0,
+                    warningThreshold: refreshTokenDaysRemaining <= 7, // Warn when less than 7 days
+                },
+            },
+            automaticRefresh: {
+                enabled: automaticRefreshActive,
+                schedulerRunning: QuickBooksTokenManager.isSchedulerRunning(),
+                nextRefreshCheck: 'Every 30 minutes',
+                refreshThreshold: '10 minutes before expiry',
+                status: automaticRefreshActive ? 'Active' : 'Inactive - Token expired',
+                lastCheck: schedulerStats.lastCheckTime,
+                successRate: schedulerStats.totalChecks > 0 
+                    ? Math.round((schedulerStats.successfulChecks / schedulerStats.totalChecks) * 100) 
+                    : 0,
+            },
+            monitoring: {
+                uptime: monitoringStats.uptime,
+                lastHealthCheck: monitoringStats.lastHealthCheck,
+                schedulerHealth: schedulerStats.isHealthy,
+                errorCount: errorStats.totalErrors,
+                criticalErrors: errorStats.criticalErrors,
+                tokensRefreshed: schedulerStats.tokensRefreshed,
+            },
+            message: automaticRefreshActive 
+                ? 'QuickBooks integration is active with automatic token refresh'
+                : 'QuickBooks integration requires reconnection',
+        };
 
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Failed to connect to QuickBooks with stored token:', errorMessage);
-        return { connected: false, error: 'Failed to fetch company info.' };
+        const qbError = QuickBooksErrorHandler.createError(error, 'status-endpoint');
+        
+        return {
+            connected: false,
+            error: qbError.userMessage,
+            automaticRefresh: false,
+            message: qbError.userMessage,
+            errorType: qbError.type,
+            requiresReconnection: qbError.requiresReconnection,
+            recoverySuggestions: QuickBooksErrorHandler.getRecoverySuggestions(qbError.type),
+        };
     }
 }); 
