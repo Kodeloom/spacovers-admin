@@ -108,6 +108,12 @@ const metadata = {
                     isDataModel: true,
                     isOptional: true,
                     backLink: 'user',
+                }, barcodeScanners: {
+                    name: "barcodeScanners",
+                    type: "BarcodeScanner",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'user',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -688,6 +694,12 @@ const metadata = {
                     isDataModel: true,
                     isArray: true,
                     backLink: 'station',
+                }, barcodeScanners: {
+                    name: "barcodeScanners",
+                    type: "BarcodeScanner",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'station',
                 }, createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -707,6 +719,71 @@ const metadata = {
                 }, barcode: {
                     name: "barcode",
                     fields: ["barcode"]
+                },
+            },
+        },
+        barcodeScanner: {
+            name: 'BarcodeScanner', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, prefix: {
+                    name: "prefix",
+                    type: "String",
+                }, stationId: {
+                    name: "stationId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'station',
+                }, userId: {
+                    name: "userId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'user',
+                }, model: {
+                    name: "model",
+                    type: "String",
+                    isOptional: true,
+                }, serialNumber: {
+                    name: "serialNumber",
+                    type: "String",
+                    isOptional: true,
+                }, isActive: {
+                    name: "isActive",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": true }] }],
+                }, station: {
+                    name: "station",
+                    type: "Station",
+                    isDataModel: true,
+                    backLink: 'barcodeScanners',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "stationId" },
+                }, user: {
+                    name: "user",
+                    type: "User",
+                    isDataModel: true,
+                    backLink: 'barcodeScanners',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "userId" },
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, prefix: {
+                    name: "prefix",
+                    fields: ["prefix"]
                 },
             },
         },
@@ -931,6 +1008,12 @@ const metadata = {
                 }, statusLogs: {
                     name: "statusLogs",
                     type: "OrderStatusLog",
+                    isDataModel: true,
+                    isArray: true,
+                    backLink: 'order',
+                }, emailNotifications: {
+                    name: "emailNotifications",
+                    type: "EmailNotification",
                     isDataModel: true,
                     isArray: true,
                     backLink: 'order',
@@ -1247,6 +1330,10 @@ const metadata = {
                     name: "productType",
                     type: "ProductType",
                     attributes: [{ "name": "@default", "args": [] }],
+                }, color: {
+                    name: "color",
+                    type: "String",
+                    isOptional: true,
                 }, size: {
                     name: "size",
                     type: "String",
@@ -1257,6 +1344,14 @@ const metadata = {
                     isOptional: true,
                 }, radiusSize: {
                     name: "radiusSize",
+                    type: "String",
+                    isOptional: true,
+                }, length: {
+                    name: "length",
+                    type: "String",
+                    isOptional: true,
+                }, width: {
+                    name: "width",
                     type: "String",
                     isOptional: true,
                 }, skirtLength: {
@@ -1280,6 +1375,10 @@ const metadata = {
                     type: "String",
                     isOptional: true,
                     attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, notes: {
+                    name: "notes",
+                    type: "String",
+                    isOptional: true,
                 }, foamUpgrade: {
                     name: "foamUpgrade",
                     type: "String",
@@ -1763,6 +1862,63 @@ const metadata = {
                 },
             },
         },
+        quickBooksIntegration: {
+            name: 'QuickBooksIntegration', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, companyId: {
+                    name: "companyId",
+                    type: "String",
+                }, accessToken: {
+                    name: "accessToken",
+                    type: "String",
+                }, refreshToken: {
+                    name: "refreshToken",
+                    type: "String",
+                }, accessTokenExpiresAt: {
+                    name: "accessTokenExpiresAt",
+                    type: "DateTime",
+                }, refreshTokenExpiresAt: {
+                    name: "refreshTokenExpiresAt",
+                    type: "DateTime",
+                }, isActive: {
+                    name: "isActive",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": true }] }],
+                }, connectedAt: {
+                    name: "connectedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, disconnectedAt: {
+                    name: "disconnectedAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, lastRefreshedAt: {
+                    name: "lastRefreshedAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, companyId: {
+                    name: "companyId",
+                    fields: ["companyId"]
+                },
+            },
+        },
         estimate: {
             name: 'Estimate', fields: {
                 id: {
@@ -1828,6 +1984,66 @@ const metadata = {
                 }, quickbooksEstimateId: {
                     name: "quickbooksEstimateId",
                     fields: ["quickbooksEstimateId"]
+                },
+            },
+        },
+        emailNotification: {
+            name: 'EmailNotification', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, orderId: {
+                    name: "orderId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'order',
+                }, emailType: {
+                    name: "emailType",
+                    type: "String",
+                }, recipientEmail: {
+                    name: "recipientEmail",
+                    type: "String",
+                }, subject: {
+                    name: "subject",
+                    type: "String",
+                }, sentAt: {
+                    name: "sentAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, failedAt: {
+                    name: "failedAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, retryCount: {
+                    name: "retryCount",
+                    type: "Int",
+                    attributes: [{ "name": "@default", "args": [{ "value": 0 }] }],
+                }, errorMessage: {
+                    name: "errorMessage",
+                    type: "String",
+                    isOptional: true,
+                }, order: {
+                    name: "order",
+                    type: "Order",
+                    isDataModel: true,
+                    backLink: 'emailNotifications',
+                    isRelationOwner: true,
+                    foreignKeyMapping: { "id": "orderId" },
+                }, createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
                 },
             },
         },
