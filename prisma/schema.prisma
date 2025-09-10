@@ -54,8 +54,8 @@ enum OrderItemProcessingStatus {
   CUTTING
   SEWING
   FOAM_CUTTING
-  STUFFING
   PACKAGING
+  PRODUCT_FINISHED
   READY
 }
 
@@ -103,6 +103,7 @@ model User {
   sessions           Session[]
   accounts           Account[]
   quickbooksToken    QuickbooksToken?
+  barcodeScanners    BarcodeScanner[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
   role               String?
@@ -242,8 +243,23 @@ model Station {
   description        String?
   roles              RoleStation[]
   itemProcessingLogs ItemProcessingLog[]
+  barcodeScanners    BarcodeScanner[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt()
+}
+
+model BarcodeScanner {
+  id           String   @id() @default(cuid())
+  prefix       String   @unique()
+  stationId    String
+  userId       String
+  model        String?
+  serialNumber String?
+  isActive     Boolean  @default(true)
+  station      Station  @relation(fields: [stationId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt()
 }
 
 model RoleStation {
@@ -257,21 +273,21 @@ model RoleStation {
 }
 
 model Order {
-  id                   String            @id() @default(cuid())
-  quickbooksOrderId    String?           @unique()
+  id                   String              @id() @default(cuid())
+  quickbooksOrderId    String?             @unique()
   customerId           String
   salesOrderNumber     String?
   purchaseOrderNumber  String?
-  estimateId           String?           @unique()
+  estimateId           String?             @unique()
   transactionDate      DateTime?
   dueDate              DateTime?
   shipDate             DateTime?
   trackingNumber       String?
-  totalAmount          Decimal?          @db.Decimal(10, 2)
-  balance              Decimal?          @db.Decimal(10, 2)
-  totalTax             Decimal?          @db.Decimal(10, 2)
+  totalAmount          Decimal?            @db.Decimal(10, 2)
+  balance              Decimal?            @db.Decimal(10, 2)
+  totalTax             Decimal?            @db.Decimal(10, 2)
   emailStatus          String?
-  customerMemo         String?           @db.Text()
+  customerMemo         String?             @db.Text()
   contactEmail         String
   contactPhoneNumber   String?
   billingAddressLine1  String?
@@ -286,20 +302,21 @@ model Order {
   shippingState        String?
   shippingZipCode      String?
   shippingCountry      String?
-  orderStatus          OrderSystemStatus @default(PENDING)
-  priority             OrderPriority     @default(MEDIUM)
-  barcode              String?           @unique()
+  orderStatus          OrderSystemStatus   @default(PENDING)
+  priority             OrderPriority       @default(MEDIUM)
+  barcode              String?             @unique()
   approvedAt           DateTime?
   readyToShipAt        DateTime?
   shippedAt            DateTime?
   archivedAt           DateTime?
   notes                String?
-  customer             Customer          @relation(fields: [customerId], references: [id])
+  customer             Customer            @relation(fields: [customerId], references: [id])
   items                OrderItem[]
-  estimate             Estimate?         @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  estimate             Estimate?           @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   statusLogs           OrderStatusLog[]
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt()
+  emailNotifications   EmailNotification[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt()
 }
 
 model OrderItem {
@@ -363,14 +380,18 @@ model ProductAttribute {
   orderItemId              String            @unique()
   orderItem                OrderItem         @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
   productType              ProductType       @default(SPA_COVER)
+  color                    String?
   size                     String?
   shape                    String?
   radiusSize               String?
+  length                   String?
+  width                    String?
   skirtLength              String?
   skirtType                SkirtType?
   tieDownsQty              String?
   tieDownPlacement         TieDownPlacement?
   distance                 String?           @default("0")
+  notes                    String?           @db.Text()
   foamUpgrade              String?
   doublePlasticWrapUpgrade String?           @default("No")
   webbingUpgrade           String?           @default("No")
@@ -502,6 +523,21 @@ model QuickbooksToken {
   userId                 String   @unique()
 }
 
+model QuickBooksIntegration {
+  id                    String    @id() @default(cuid())
+  companyId             String    @unique()
+  accessToken           String    @db.Text()
+  refreshToken          String    @db.Text()
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  isActive              Boolean   @default(true)
+  connectedAt           DateTime  @default(now())
+  disconnectedAt        DateTime?
+  lastRefreshedAt       DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt()
+}
+
 model Estimate {
   id                   String         @id() @default(cuid())
   quickbooksEstimateId String         @unique()
@@ -515,6 +551,21 @@ model Estimate {
   linkedOrder          Order?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt()
+}
+
+model EmailNotification {
+  id             String    @id() @default(cuid())
+  orderId        String
+  emailType      String
+  recipientEmail String
+  subject        String
+  sentAt         DateTime?
+  failedAt       DateTime?
+  retryCount     Int       @default(0)
+  errorMessage   String?
+  order          Order     @relation(fields: [orderId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt()
 }
 
 model EstimateItem {
