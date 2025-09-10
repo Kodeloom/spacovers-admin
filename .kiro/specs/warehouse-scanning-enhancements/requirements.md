@@ -196,3 +196,17 @@ The following requirements have been implemented and are working correctly. DO N
 3. WHEN date ranges are invalid THEN system SHALL provide meaningful error messages
 4. WHEN database queries fail THEN metrics SHALL show appropriate error states
 5. WHEN large datasets are processed THEN metrics calculations SHALL remain performant
+### Re
+quirement 16: Production Deployment Compatibility
+
+**User Story:** As a system administrator, I want the application to deploy successfully to production environments (like Coolify) without breaking existing deployment processes.
+
+#### Acceptance Criteria
+
+1. WHEN deploying to production THEN the application SHALL work with existing Dockerfile configurations
+2. WHEN docker-compose files exist THEN they SHALL be optional and not required for production deployment
+3. WHEN deploying to Coolify THEN the build process SHALL complete successfully without docker-compose dependencies
+4. WHEN production deployment occurs THEN all environment variables SHALL be properly configured
+5. WHEN the application starts in production THEN all database connections and services SHALL initialize correctly
+6. WHEN deployment configuration changes THEN clear migration instructions SHALL be provided
+7. WHEN using single-container deployment THEN the application SHALL not require docker-compose orchestration
