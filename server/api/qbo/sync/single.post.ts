@@ -301,16 +301,15 @@ export default defineEventHandler(async (event) => {
 
     const { resourceType, resourceId } = result.data;
 
-    const { oauthClient, token } = await getQboClient(event);
-    const prisma = await getEnhancedPrismaClient(event);
-    const companyId = token.realmId;
-    if (!companyId) throw createError({ statusCode: 400, statusMessage: 'QuickBooks Realm ID not found.' });
-
-    const companyInfoUrl = oauthClient.environment === 'sandbox' 
-        ? 'https://sandbox-quickbooks.api.intuit.com' 
-        : 'https://quickbooks.api.intuit.com';
-
     try {
+        const { oauthClient, token } = await getQboClient(event);
+        const prisma = await getEnhancedPrismaClient(event);
+        const companyId = token.realmId;
+        if (!companyId) throw createError({ statusCode: 400, statusMessage: 'QuickBooks Realm ID not found.' });
+
+        const companyInfoUrl = oauthClient.environment === 'sandbox' 
+            ? 'https://sandbox-quickbooks.api.intuit.com' 
+            : 'https://quickbooks.api.intuit.com';
         if (resourceType === 'EstimateWithInvoices') {
             // First sync the estimate
             const apiVersion = QBO_API_CONFIG.VERSION;
@@ -631,7 +630,22 @@ export default defineEventHandler(async (event) => {
         }
 
     } catch (error: unknown) {
-        const e = error as { data?: { Fault?: { Error: { Detail?: string; Message?: string; }[] } }; message?: string; };
+        const e = error as { 
+            data?: { Fault?: { Error: { Detail?: string; Message?: string; }[] } }; 
+            message?: string;
+            statusCode?: number;
+            statusMessage?: string;
+        };
+        
+        // Handle token-related errors specifically
+        if (e.statusCode === 401 || e.statusCode === 404) {
+            console.error('QuickBooks authentication/connection error:', e.statusMessage || e.message);
+            throw createError({
+                statusCode: e.statusCode,
+                statusMessage: e.statusMessage || 'QuickBooks connection issue. Please check your connection status.',
+            });
+        }
+        
         console.error(`--- QBO Single Sync Error (${resourceType} ${resourceId}) ---`, JSON.stringify(e?.data || e, null, 2));
         const qboError = e.data?.Fault?.Error?.[0];
         const errorMessage = qboError?.Detail || qboError?.Message || `An unknown error occurred while syncing ${resourceType}.`;
