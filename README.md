@@ -40,6 +40,8 @@ yarn install
 bun install
 ```
 
+> **Note**: This application is designed for single-container deployment and does **not** require docker-compose for production. Docker-compose files are provided for local development convenience only.
+
 ### 2. Environment Configuration
 
 Create a `.env` file in the root directory with the following variables:
@@ -79,7 +81,9 @@ npx prisma db seed
 
 For email notifications to work, you'll need to configure AWS SES. See [`docs/AWS_SES_SETUP.md`](docs/AWS_SES_SETUP.md) for detailed setup instructions.
 
-## Development Server
+## Development
+
+### Local Development Server
 
 Start the development server on `http://localhost:3000`:
 
@@ -97,41 +101,72 @@ yarn dev
 bun run dev
 ```
 
+### Development with Docker (Optional)
+
+For local development with containerized database:
+
+```bash
+# Start development environment (includes PostgreSQL)
+docker-compose up -d
+
+# Stop development environment
+docker-compose down
+```
+
+> **Important**: The `docker-compose.yml` file is **only** for local development convenience. Production deployments should use the single-container approach described above.
+
 ## Production
 
-Build the application for production:
+### Single Container Deployment (Recommended)
+
+This application is optimized for single-container deployment without docker-compose:
 
 ```bash
-# npm
+# Build for production
 npm run build
 
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+# Start production server
+npm start
 ```
 
-Locally preview production build:
+The application runs standalone using:
+- Standard Node.js runtime
+- Built-in health checks at `/api/health`
+- External PostgreSQL database (managed service recommended)
+- No docker-compose orchestration required
+
+**Compatible Platforms:**
+- Coolify
+- Railway  
+- Render
+- Heroku
+- AWS App Runner
+- Google Cloud Run
+- Any container hosting service
+
+### Local Production Preview
 
 ```bash
-# npm
+# Build and preview locally
+npm run build
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+### Docker Deployment
+
+```bash
+# Build Docker image
+docker build -t warehouse-admin .
+
+# Run with external database
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+  -e BETTER_AUTH_SECRET="your-secret" \
+  -e BETTER_AUTH_URL="https://yourdomain.com" \
+  warehouse-admin
+```
+
+See [deployment documentation](./docs/DEPLOYMENT_GUIDE.md) for detailed instructions and platform-specific guides.
 
 ## Warehouse Workflow
 
