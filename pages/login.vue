@@ -98,26 +98,23 @@ const handleLogin = async () => {
   loading.value = true;
   try {
     // Attempt to sign in
-    // If this call is successful (does not throw), login is considered successful by Better Auth.
-    await authClient.signIn.email({
+    const response = await authClient.signIn.email({
       email: email.value,
       password: password.value,
     });
 
-    // If signIn.email did NOT throw, the login was successful from Better Auth's perspective.
-    // A session cookie should have been set by Better Auth.
-    // Redirect to the main dashboard or intended post-login page (e.g., '/').
-    // The middleware on the target route will handle further authorization checks.
+    // Wait a moment for the session to be established
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Check for a redirect query parameter
     const redirectPath = route.query.redirect as string | undefined;
     if (redirectPath) {
-      router.push(redirectPath);
+      await navigateTo(redirectPath);
     } else {
       // Use role-based routing to determine where to send the user
       const { getDefaultRoute } = useRoleBasedRouting();
       const defaultRoute = getDefaultRoute.value;
-      router.push(defaultRoute);
+      await navigateTo(defaultRoute);
     }
 
   } catch (e: unknown) {
