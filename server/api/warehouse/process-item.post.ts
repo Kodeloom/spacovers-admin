@@ -1,366 +1,345 @@
-import { PrismaClient, type OrderItemProcessingStatus } from '@prisma-app/client';
-import { ProductDescriptionParser } from '~/server/utils/productDescriptionParser';
+import { getEnhancedPrismaClient } from '~/server/lib/db';
+import { auth } from '~/server/lib/auth';
+import { EmailService } from '~/server/lib/emailService';
+import { createErrorResponse, handlePrismaError, logError, validateBarcodeFormat } from '~/utils/errorHandling';
 
-const prisma = new PrismaClient();
+// Helper function to get workflow step information
+function getWorkflowStepInfo(fromStatus: string, toStatus: string, stationName: string) {
+  const stepMap: { [key: string]: { step: number; description: string } } = {
+    'NOT_STARTED_PRODUCTION->CUTTING': { 
+      step: 1, 
+      description: 'Office confirmed order printed - Production started' 
+    },
+    'CUTTING->SEWING': { 
+      step: 2, 
+      description: 'Cutting completed - Moving to Sewing' 
+    },
+    'SEWING->FOAM_CUTTING': { 
+      step: 3, 
+      description: 'Sewing completed - Moving to Foam Cutting' 
+    },
+    'FOAM_CUTTING->PACKAGING': { 
+      step: 4, 
+      description: 'Foam Cutting completed - Moving to Packaging' 
+    },
+    'PACKAGING->PRODUCT_FINISHED': { 
+      step: 5, 
+      description: 'Packaging completed - Product finished' 
+    },
+    'PRODUCT_FINISHED->READY': { 
+      step: 6, 
+      description: 'Office confirmed - Ready for delivery/pickup' 
+    }
+  };
+
+  const key = `${fromStatus}->${toStatus}`;
+  return stepMap[key] || { step: 0, description: `Status changed from ${fromStatus} to ${toStatus}` };
+}
 
 export default defineEventHandler(async (event) => {
   try {
-    const { orderId, orderItemId, stationIdentifier } = await readBody(event);
-    const userId = event.context.user?.id;
+    const body = await readBody(event);
+    const { orderItemId, stationId, userId, barcodeData, currentStatus, nextStatus } = body;
 
-    if (!userId) {
+    if (!orderItemId || !stationId || !nextStatus) {
+      const errorResponse = createErrorResponse('INVALID_REQUEST', 'Missing required fields');
+      throw createError(errorResponse);
+    }
+
+    // Validate barcode format if provided
+    if (body.barcode) {
+      const barcodeValidation = validateBarcodeFormat(body.barcode);
+      if (barcodeValidation) {
+        const errorResponse = createErrorResponse('INVALID_BARCODE_FORMAT', barcodeValidation.message);
+        throw createError(errorResponse);
+      }
+    }
+
+    // Get the current user session
+    const sessionData = await auth.api.getSession({ headers: event.headers });
+    if (!sessionData?.user?.id) {
       throw createError({
         statusCode: 401,
-        statusMessage: 'User not authenticated'
+        statusMessage: 'Unauthorized'
       });
     }
 
-    if (!orderId || !orderItemId || !stationIdentifier) {
+    const prisma = await getEnhancedPrismaClient(event);
+
+    // Find the order item
+    const orderItem = await prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      include: {
+        order: true,
+        item: true
+      }
+    });
+
+    if (!orderItem) {
       throw createError({
-        statusCode: 400,
-        statusMessage: 'Missing required parameters: orderId, orderItemId, stationIdentifier'
+        statusCode: 404,
+        statusMessage: 'Order item not found'
       });
     }
 
-    // Start a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch the order with items and shipping address
-      const order = await tx.order.findUnique({
-        where: { id: orderId },
-        include: {
-          items: {
-            include: {
-              item: true
-            }
-          }
-        }
+    // Find the station by ID or name
+    let station;
+    if (stationId.length > 10) {
+      // Looks like an ID (long string)
+      station = await prisma.station.findUnique({
+        where: { id: stationId }
       });
-
-      if (!order) {
-        throw new Error('Order not found');
-      }
-
-      if (order.orderStatus !== 'APPROVED' && order.orderStatus !== 'ORDER_PROCESSING') {
-        throw new Error('Order is not approved for production');
-      }
-
-      // 2. Fetch the order item
-      const orderItem = await tx.orderItem.findUnique({
-        where: { id: orderItemId },
-        include: {
-          item: true,
-          order: true
-        }
-      });
-
-      if (!orderItem) {
-        throw new Error('Order item not found');
-      }
-
-      if (orderItem.orderId !== orderId) {
-        throw new Error('Order item does not belong to the specified order');
-      }
-
-      if (orderItem.itemStatus === 'READY') {
-        throw new Error('This item has already completed production');
-      }
-
-      // 3. Find the station by barcode or name
-      const station = await tx.station.findFirst({
-        where: {
+    } else {
+      // Try to find by exact name match first, then by contains
+      station = await prisma.station.findFirst({
+        where: { 
           OR: [
-            { barcode: stationIdentifier },
-            { name: { equals: stationIdentifier, mode: 'insensitive' } }
+            { name: { equals: stationId, mode: 'insensitive' } },
+            { name: { contains: stationId, mode: 'insensitive' } }
           ]
+        }
+      });
+    }
+
+    if (!station) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Station not found'
+      });
+    }
+
+    // Validate scanner prefix if provided (for multi-scanner system)
+    if (barcodeData?.prefix) {
+      const scanner = await prisma.barcodeScanner.findFirst({
+        where: {
+          prefix: barcodeData.prefix,
+          isActive: true
         },
         include: {
-          roles: {
-            include: {
-              role: true
-            }
+          user: true,
+          station: true
+        }
+      });
+
+      if (scanner) {
+        // Verify the scanner belongs to the current user
+        if (scanner.userId !== sessionData.user.id) {
+          throw createError({
+            statusCode: 403,
+            statusMessage: `Scanner ${barcodeData.prefix} is assigned to ${scanner.user.name}. Please use your assigned scanner or contact your supervisor.`
+          });
+        }
+
+        // Verify the scanner is assigned to the correct station
+        if (scanner.stationId !== station.id) {
+          throw createError({
+            statusCode: 403,
+            statusMessage: `Scanner ${barcodeData.prefix} is assigned to ${scanner.station.name} station, but you're trying to process work at ${station.name} station. Please use the correct scanner for this station.`
+          });
+        }
+
+        console.log(`Scanner validation passed: ${barcodeData.prefix} - User: ${scanner.user.name} - Station: ${scanner.station.name}`);
+      } else {
+        // Scanner not found or inactive
+        console.warn(`Scanner ${barcodeData.prefix} not found or inactive`);
+        throw createError({
+          statusCode: 404,
+          statusMessage: `Scanner ${barcodeData.prefix} is not registered or is inactive. Please contact your supervisor to register this scanner.`
+        });
+      }
+    } else {
+      console.log('No scanner prefix provided - allowing scan without scanner validation');
+    }
+
+    // Check if user is already working on another item (single task focus)
+    const activeWork = await prisma.itemProcessingLog.findFirst({
+      where: {
+        userId: sessionData.user.id,
+        endTime: null // Still in progress
+      },
+      include: {
+        orderItem: {
+          include: {
+            item: true,
+            order: true
           }
-        }
-      });
-
-      if (!station) {
-        throw new Error(`Station not found: ${stationIdentifier}`);
+        },
+        station: true
       }
+    });
 
-      // 4. Fetch user with roles
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        include: {
-          roles: {
-            include: {
-              role: true
-            }
-          }
-        }
-      });
+    if (activeWork) {
+      const activeOrderNumber = activeWork.orderItem.order.salesOrderNumber || activeWork.orderItem.order.id.slice(-8);
+      const errorResponse = createErrorResponse(
+        'USER_HAS_ACTIVE_WORK', 
+        `Currently working on ${activeWork.orderItem.item.name} from Order #${activeOrderNumber} at ${activeWork.station.name} station`
+      );
+      throw createError(errorResponse);
+    }
 
-      if (!user) {
-        throw new Error('User not found');
+    // Check if there's an existing active log for this item (from previous station)
+    const existingLog = await prisma.itemProcessingLog.findFirst({
+      where: {
+        orderItemId: orderItemId,
+        endTime: null // Still in progress
+      },
+      include: {
+        user: true,
+        station: true
       }
+    });
 
-      // 5. Check for existing active task by this user
-      const existingActiveTask = await tx.itemProcessingLog.findFirst({
-        where: {
-          userId: userId,
-          endTime: null
-        }
-      });
+    // If someone else is working on this item, prevent concurrent access
+    if (existingLog && existingLog.userId !== sessionData.user.id) {
+      const errorResponse = createErrorResponse(
+        'ITEM_BEING_PROCESSED', 
+        `${existingLog.user.name} is working on this item at ${existingLog.station.name} station`,
+        409
+      );
+      throw createError(errorResponse);
+    }
 
-      if (existingActiveTask) {
-        throw new Error('User already has an active task. Please complete current task before starting a new one.');
-      }
-
-      // 6. Determine required stations based on product type and shipping
-      // For now, use the existing logic until schema is migrated
-      const productType = 'SPA_COVER'; // Default until schema is updated
-      const shippingState = null; // Will be parsed from shipping address later
-      const packagingOverride = null; // Will come from product attributes later
+    // If there's an existing log, close it first (completing previous station work)
+    if (existingLog) {
+      const endTime = new Date();
+      const durationInSeconds = Math.floor((endTime.getTime() - existingLog.startTime.getTime()) / 1000);
       
-      const packagingRequired = ProductDescriptionParser.determinePackagingRequired(
-        productType,
-        shippingState,
-        packagingOverride
-      );
+      await prisma.itemProcessingLog.update({
+        where: { id: existingLog.id },
+        data: {
+          endTime: endTime,
+          durationInSeconds: durationInSeconds,
+          notes: `${existingLog.notes || ''} - Completed at ${endTime.toISOString()}`
+        }
+      });
+    }
 
-      const requiredStations = ProductDescriptionParser.getRequiredStations(productType);
-      if (packagingRequired) {
-        requiredStations.push('Packaging');
+    // Update the order item status
+    await prisma.orderItem.update({
+      where: { id: orderItemId },
+      data: {
+        itemStatus: nextStatus
       }
+    });
 
-      // 7. Validate station sequence using existing logic for now
-      const expectedStation = getNextStationForItem(orderItem.itemStatus);
-      if (expectedStation && station.name !== expectedStation) {
-        throw new Error(`Invalid station. Expected: ${expectedStation}, but got: ${station.name}`);
-      }
-
-      // 8. If there's an existing processing log for this item (at previous station), close it
-      const existingItemLog = await tx.itemProcessingLog.findFirst({
-        where: {
+    // Create a new processing log entry for the current station work
+    // Note: For the final step (PRODUCT_FINISHED -> READY), we don't start new work
+    let processingLog = null;
+    if (nextStatus !== 'READY') {
+      processingLog = await prisma.itemProcessingLog.create({
+        data: {
           orderItemId: orderItemId,
-          endTime: null
-        }
-      });
-
-      if (existingItemLog) {
-        const endTime = new Date();
-        const durationInSeconds = Math.floor((endTime.getTime() - new Date(existingItemLog.startTime).getTime()) / 1000);
-        
-        await tx.itemProcessingLog.update({
-          where: { id: existingItemLog.id },
-          data: {
-            endTime,
-            durationInSeconds
-          }
-        });
-      }
-
-      // 9. Create new processing log entry
-      const startTime = new Date();
-      const processingLog = await tx.itemProcessingLog.create({
-        data: {
-          orderItemId,
           stationId: station.id,
-          userId,
-          startTime,
-          notes: `Started processing at ${station.name}`
+          userId: sessionData.user.id,
+          startTime: new Date(),
+          scannerPrefix: barcodeData?.prefix || null,
+          notes: `Started work at ${station.name} station - Status: ${nextStatus}`
         }
       });
-
-      // 10. Update order item status
-      const newItemStatus = getItemStatusForStation(station.name) as OrderItemProcessingStatus;
-      const updatedOrderItem = await tx.orderItem.update({
-        where: { id: orderItemId },
+    } else {
+      // For final step, just log the completion without starting new work
+      await prisma.itemProcessingLog.create({
         data: {
-          itemStatus: newItemStatus
+          orderItemId: orderItemId,
+          stationId: station.id,
+          userId: sessionData.user.id,
+          startTime: new Date(),
+          endTime: new Date(),
+          durationInSeconds: 0,
+          scannerPrefix: barcodeData?.prefix || null,
+          notes: `Final scan - Product ready for delivery/pickup`
         }
       });
+    }
 
-      // Log the item status change
+    // Track order status changes based on workflow steps
+    let orderStatusChanged = false;
+    let newOrderStatus = orderItem.order.orderStatus;
+
+    // Step 1: First item starting production (Office scan: NOT_STARTED -> CUTTING)
+    if (nextStatus === 'CUTTING' && orderItem.order.orderStatus === 'APPROVED') {
+      await prisma.order.update({
+        where: { id: orderItem.orderId },
+        data: {
+          orderStatus: 'ORDER_PROCESSING'
+        }
+      });
+      orderStatusChanged = true;
+      newOrderStatus = 'ORDER_PROCESSING';
+
+      // Send production started email notification
       try {
-        const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
-        await OrderTrackingService.logItemStatusChange({
-          orderItemId,
-          fromStatus: orderItem.itemStatus,
-          toStatus: newItemStatus,
-          userId,
-          changeReason: `Production started at ${station.name} station`,
-          triggeredBy: 'manual',
-          notes: `User ${user.name} started processing at ${station.name}`,
-        });
-
-        // If the item is now READY, log the completion
-        if (newItemStatus === 'READY') {
-          await OrderTrackingService.logItemStatusChange({
-            orderItemId,
-            fromStatus: newItemStatus, // This will be the previous status from the station
-            toStatus: 'READY',
-            userId,
-            changeReason: `Production completed at ${station.name} station`,
-            triggeredBy: 'manual',
-            notes: `User ${user.name} completed production at ${station.name}`,
-          });
-        }
-      } catch (logError) {
-        console.error('Failed to log item status change:', logError);
-        // Don't fail the main operation if logging fails
+        await EmailService.sendOrderStatusEmail(orderItem.orderId, 'production_started');
+      } catch (emailError) {
+        console.error('Failed to send production started email:', emailError);
+        // Don't fail the main operation if email fails
       }
+    }
 
-      // 11. Update order status if this is the first item to start production
-      if (order.orderStatus === 'APPROVED') {
-        await tx.order.update({
-          where: { id: orderId },
-          data: {
-            orderStatus: 'ORDER_PROCESSING'
-          }
-        });
-
-        // Log the order status change
-        try {
-          const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
-          await OrderTrackingService.logOrderStatusChange({
-            orderId,
-            fromStatus: 'APPROVED',
-            toStatus: 'ORDER_PROCESSING',
-            userId,
-            changeReason: 'First item started production',
-            triggeredBy: 'automation',
-            notes: `Automatically triggered when ${user.name} started processing item at ${station.name}`,
-          });
-        } catch (logError) {
-          console.error('Failed to log order status change:', logError);
-          // Don't fail the main operation if logging fails
+    // Step 6: Final step - check if all items are ready for shipping
+    if (nextStatus === 'READY') {
+      const allItems = await prisma.orderItem.findMany({
+        where: { 
+          orderId: orderItem.orderId,
+          isProduct: true // Only check production items
         }
-      }
-
-      // 12. Check if all items in the order are now READY
-      const allOrderItems = await tx.orderItem.findMany({
-        where: { orderId }
       });
-
-      const allItemsReady = allOrderItems.every(item => 
-        item.id === orderItemId ? newItemStatus === 'READY' : item.itemStatus === 'READY'
-      );
-
-      if (allItemsReady) {
-        await tx.order.update({
-          where: { id: orderId },
+      
+      const allReady = allItems.every(item => item.itemStatus === 'READY');
+      
+      if (allReady) {
+        await prisma.order.update({
+          where: { id: orderItem.orderId },
           data: {
             orderStatus: 'READY_TO_SHIP',
             readyToShipAt: new Date()
           }
         });
+        orderStatusChanged = true;
+        newOrderStatus = 'READY_TO_SHIP';
 
-        // Log the order status change to READY_TO_SHIP
+        // Send order ready email notification
         try {
-          const { OrderTrackingService } = await import('~/server/utils/orderTrackingService');
-          await OrderTrackingService.logOrderStatusChange({
-            orderId,
-            fromStatus: 'ORDER_PROCESSING',
-            toStatus: 'READY_TO_SHIP',
-            userId,
-            changeReason: 'All items completed production',
-            triggeredBy: 'automation',
-            notes: `Automatically triggered when all items reached READY status`,
-          });
-        } catch (logError) {
-          console.error('Failed to log order status change:', logError);
-          // Don't fail the main operation if logging fails
-        }
-      }
-
-      // Send email notifications
-      if (newItemStatus === 'READY') {
-        // Send item ready notification
-        try {
-          const { emailService } = await import('~/server/utils/emailService');
-          await emailService.sendOrderItemReady(order.contactEmail, {
-            orderNumber: order.salesOrderNumber || order.id.slice(-8),
-            customerName: 'Valued Customer', // Will get from customer lookup later
-            itemName: orderItem.item?.name || 'Item',
-            quantity: orderItem.quantity
-          });
+          await EmailService.sendOrderStatusEmail(orderItem.orderId, 'order_ready');
         } catch (emailError) {
-          console.error('Error sending item ready email:', emailError);
+          console.error('Failed to send order ready email:', emailError);
+          // Don't fail the main operation if email fails
         }
       }
-
-      if (allItemsReady) {
-        // Send order ready to ship notification
-        try {
-          const { emailService } = await import('~/server/utils/emailService');
-          await emailService.sendOrderStatusUpdate(order.contactEmail, {
-            orderNumber: order.salesOrderNumber || order.id.slice(-8),
-            customerName: 'Valued Customer', // Will get from customer lookup later
-            orderStatus: 'READY_TO_SHIP'
-          });
-        } catch (emailError) {
-          console.error('Error sending order ready email:', emailError);
-        }
-      }
-
-      return {
-        processingLog,
-        updatedOrderItem,
-        station,
-        orderStatusUpdated: order.orderStatus === 'APPROVED' || allItemsReady
-      };
-    });
+    }
 
     return {
       success: true,
-      message: `Item processing started at ${result.station.name}`,
-      data: result
+      newItemStatus: nextStatus,
+      orderStatusChanged: orderStatusChanged,
+      newOrderStatus: newOrderStatus,
+      processingLogId: processingLog?.id || null,
+      message: `Item successfully moved to ${nextStatus.replace(/_/g, ' ')} status`,
+      workflowStep: getWorkflowStepInfo(currentStatus, nextStatus, station.name)
     };
 
-  } catch (error: unknown) {
-    console.error('Error in warehouse processing:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Error processing warehouse item';
-    throw createError({
-      statusCode: 400,
-      statusMessage: errorMessage
+  } catch (error) {
+    // Log error for debugging
+    logError(error, 'warehouse/process-item', sessionData?.user?.id, {
+      orderItemId,
+      stationId,
+      nextStatus,
+      barcodeData
     });
+    
+    if (error.statusCode) {
+      throw error;
+    }
+
+    // Handle Prisma errors
+    if (error.code && error.code.startsWith('P')) {
+      const prismaError = handlePrismaError(error);
+      const errorResponse = createErrorResponse(prismaError.code, prismaError.message, 500);
+      throw createError(errorResponse);
+    }
+    
+    // Generic server error
+    const errorResponse = createErrorResponse('SERVER_ERROR', error.message || 'Unknown error occurred', 500);
+    throw createError(errorResponse);
   }
 });
-
-// Helper function to determine the next station based on current item status
-function getNextStationForItem(currentStatus: string): string | null {
-  switch (currentStatus) {
-    case 'NOT_STARTED_PRODUCTION':
-      return 'Cutting';
-    case 'CUTTING':
-      return 'Sewing';
-    case 'SEWING':
-      return 'Foam Cutting';
-    case 'FOAM_CUTTING':
-      return 'Stuffing';
-    case 'STUFFING':
-      return 'Packaging';
-    case 'PACKAGING':
-      return null; // No next station after packaging
-    default:
-      return null;
-  }
-}
-
-// Helper function to determine the item status based on station
-function getItemStatusForStation(stationName: string): string {
-  switch (stationName.toLowerCase()) {
-    case 'cutting':
-      return 'CUTTING';
-    case 'sewing':
-      return 'SEWING';
-    case 'foam cutting':
-      return 'FOAM_CUTTING';
-    case 'stuffing':
-      return 'STUFFING';
-    case 'packaging':
-      return 'PACKAGING';
-    default:
-      throw new Error(`Unknown station: ${stationName}`);
-  }
-} 
