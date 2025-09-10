@@ -18,7 +18,11 @@
     "test:watch": "vitest",
     "test:unit": "vitest --run tests/unit",
     "test:integration": "vitest --run tests/integration",
-    "test:coverage": "vitest --run --coverage"
+    "test:coverage": "vitest --run --coverage",
+    "verify:standalone": "node scripts/test-standalone-deployment.js",
+    "verify:startup": "node scripts/verify-standalone-startup.js",
+    "verify:production": "node scripts/validate-production-config.js",
+    "verify:coolify": "node scripts/verify-coolify-deployment.js"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.848.0",
