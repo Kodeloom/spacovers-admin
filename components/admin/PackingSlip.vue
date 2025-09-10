@@ -3,7 +3,7 @@
     <!-- Print All Button -->
     <div class="print-controls mb-4">
       <button
-        @click="printAllPackingSlips"
+        @click="handlePrintAll"
         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         <Icon name="heroicons:printer" class="mr-2 h-4 w-4" />
@@ -23,7 +23,7 @@
             Packing Slip for: {{ orderItem.item?.name }}
           </h3>
           <button
-            @click="printSinglePackingSlip(orderItem)"
+            @click="handlePrintSingle(orderItem)"
             class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <Icon name="heroicons:printer" class="mr-1 h-3 w-3" />
@@ -32,122 +32,154 @@
         </div>
 
         <!-- Individual Packing Slip (4" x 6" format) -->
-        <div class="packing-slip" :ref="el => setPackingSlipRef(el, orderItem.id)">
-          <!-- Header Section -->
-          <div class="header-section">
+        <div class="packing-slip" :ref="(el: any) => setPackingSlipRef(el, orderItem.id)">
+      <!-- Header Section -->
+      <div class="header-section">
             <div class="header-content">
-              <div class="dealer-info">
-                <div class="dealer-label">Dealer:</div>
-                <div class="dealer-name">{{ order.customer?.name }}</div>
-                <div class="dealer-details">{{ order.customer?.shippingCity }}, {{ order.customer?.shippingState }}</div>
+                 <div class="dealer-info">
+           <div class="dealer-label">Dealer:</div>
+           <div class="dealer-name">{{ order.customer?.name }}</div>
+         </div>
+        
+        <div class="order-info">
+          <div class="order-number">Order #{{ order.salesOrderNumber || order.id.slice(-8) }}</div>
+          <div class="order-date">Date: {{ new Date(order.createdAt).toLocaleDateString() }}</div>
+                
+          <div class="po-number" v-if="order.purchaseOrderNumber">PO #{{ order.purchaseOrderNumber }}</div>
               </div>
-              
-              <div class="order-info">
-                <div class="order-number">Order #{{ order.salesOrderNumber || order.id.slice(-8) }}</div>
-                <div class="order-date">Date: {{ new Date(order.createdAt).toLocaleDateString() }}</div>
-                <div class="barcode-container">
-                  <canvas :ref="el => setBarcodeCanvas(el, orderItem.id)" class="barcode-canvas"></canvas>
+        </div>
+<div class="barcode-container">
+                  <canvas 
+                    :ref="(el: any) => setBarcodeCanvas(el, orderItem.id)" 
+                    class="barcode-canvas"
+                    width="380"
+                    height="100"
+                  ></canvas>
                 </div>
-                <div class="po-number" v-if="order.purchaseOrderNumber">PO #{{ order.purchaseOrderNumber }}</div>
-              </div>
-            </div>
-          </div>
+      </div>
 
-          <!-- Product Specifications -->
-          <div class="specs-section">
-            <div class="spec-row">
-              <div class="spec-label">Product Type:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'productType') }}</div>
-            </div>
-            
-            <div class="spec-row">
+             <!-- Product Specifications -->
+       <div class="specs-section">
+         <!-- Core Attributes - 2 Column Layout (First 8 attributes) -->
+         <div class="core-specs-grid">
+           <!-- Left Column (4 attributes) -->
+           <div class="spec-column">
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'color')">
+               <div class="spec-label">Color:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'color') }}</div>
+             </div>
+             
+                         <div class="spec-row" v-if="shouldShowSize(orderItem)">
               <div class="spec-label">Size:</div>
               <div class="spec-value">{{ getProductAttribute(orderItem, 'size') }}</div>
             </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Shape:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'shape') }}</div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'shape')">
+               <div class="spec-label">Shape:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'shape') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'radiusSize')">
+               <div class="spec-label">{{ getRadiusFieldLabel(orderItem) }}:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'radiusSize') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'length')">
+               <div class="spec-label">Length:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'length') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'width')">
+               <div class="spec-label">Width:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'width') }}</div>
+             </div>
+           </div>
+           
+           <!-- Right Column (4 attributes) -->
+           <div class="spec-column">
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'skirtLength')">
+               <div class="spec-label">Skirt Length:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtLength') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'skirtType')">
+               <div class="spec-label">Skirt Type:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtType') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'tieDownsQty')">
+               <div class="spec-label">Tie Downs Qty:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownsQty') }}</div>
+             </div>
+             
+             <div class="spec-row" v-if="getProductAttribute(orderItem, 'tieDownPlacement')">
+               <div class="spec-label">Tie Down Placement:</div>
+               <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownPlacement') }}</div>
+             </div>
+           </div>
+         </div>
+         
+         <!-- Additional Attributes (Below core specs) -->
+         <div class="additional-specs" v-if="hasAdditionalAttributes(orderItem)">
+           <div class="spec-row" v-if="getProductAttribute(orderItem, 'distance') && getProductAttribute(orderItem, 'distance') !== '0'">
+             <div class="spec-label">Distance:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'distance') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="getProductAttribute(orderItem, 'foamUpgrade')">
+             <div class="spec-label">Foam Upgrade:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'foamUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('doublePlasticWrapUpgrade', orderItem)">
+             <div class="spec-label">Double Plastic Wrap:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'doublePlasticWrapUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('webbingUpgrade', orderItem)">
+             <div class="spec-label">Webbing Upgrade:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'webbingUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('metalForLifterUpgrade', orderItem)">
+             <div class="spec-label">Metal For Lifter:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'metalForLifterUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('steamStopperUpgrade', orderItem)">
+             <div class="spec-label">Steam Stopper:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'steamStopperUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('fabricUpgrade', orderItem)">
+             <div class="spec-label">Fabric Upgrade:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'fabricUpgrade') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowExtraHandle(orderItem)">
+             <div class="spec-label">Extra Handle Qty:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'extraHandleQty') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="shouldShowUpgrade('extraLongSkirt', orderItem)">
+             <div class="spec-label">Extra Long Skirt:</div>
+             <div class="spec-value">{{ getProductAttribute(orderItem, 'extraLongSkirt') }}</div>
+           </div>
+           
+           <div class="spec-row" v-if="getProductAttribute(orderItem, 'packaging')">
+             <div class="spec-label">Requires Packaging:</div>
+             <div class="spec-value">Yes</div>
+           </div>
+           
+                       <div class="spec-row" v-if="shouldShowNotes(orderItem)">
+              <div class="spec-label">Notes:</div>
+              <div class="spec-value">{{ getProductAttribute(orderItem, 'notes') }}</div>
             </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Radius Size:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'radiusSize') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Skirt Length:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtLength') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Skirt Type:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtType') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Tie Downs Qty:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownsQty') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Tie Down Placement:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownPlacement') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Distance:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'distance') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Foam Upgrade:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'foamUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Double Plastic Wrap:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'doublePlasticWrapUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Webbing Upgrade:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'webbingUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Metal For Lifter:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'metalForLifterUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Steam Stopper:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'steamStopperUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Fabric Upgrade:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'fabricUpgrade') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Extra Handle Qty:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'extraHandleQty') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Extra Long Skirt:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'extraLongSkirt') }}</div>
-            </div>
-            
-            <div class="spec-row">
-              <div class="spec-label">Requires Packaging:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'packaging') ? 'Yes' : 'No' }}</div>
-            </div>
-          </div>
+         </div>
+       </div>
 
-          <!-- Footer Section -->
-          <div class="footer-section">
+      <!-- Footer Section -->
+      <div class="footer-section">
             <div class="save-info">SAVE for ReOrder</div>
           </div>
         </div>
@@ -165,12 +197,17 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
+import { BarcodeGenerator } from '~/utils/barcodeGenerator';
 
 interface Props {
   order: any;
 }
 
 const props = defineProps<Props>();
+const emit = defineEmits<{
+  'print-confirmation': [orderItem: any, printFunction: () => void]
+}>();
+
 const packingSlipRefs = ref<Record<string, HTMLElement>>({});
 const barcodeCanvases = ref<Record<string, HTMLCanvasElement>>({});
 const barcodeTypes = ref<Record<string, 'barcode' | 'qr'>>({});
@@ -187,7 +224,7 @@ const productionItems = computed(() => {
 
 // Initialize barcode types for new items
 watch(productionItems, (newItems) => {
-  newItems.forEach(item => {
+  newItems.forEach((item: any) => {
     if (!barcodeTypes.value[item.id]) {
       barcodeTypes.value[item.id] = 'barcode';
     }
@@ -199,7 +236,7 @@ watch(productionItems, (newItems) => {
   if (newItems.length > 0) {
     // Regenerate barcodes for all items after a short delay
     nextTick(() => {
-      newItems.forEach(item => {
+      newItems.forEach((item: any) => {
         if (barcodeCanvases.value[item.id]) {
           generateBarcodeImage(item.id);
         }
@@ -209,14 +246,14 @@ watch(productionItems, (newItems) => {
 }, { immediate: true });
 
 // Function to set packing slip ref for each item
-function setPackingSlipRef(el: HTMLElement | null, itemId: string) {
+function setPackingSlipRef(el: any, itemId: string) {
   if (el) {
     packingSlipRefs.value[itemId] = el;
   }
 }
 
 // Function to set barcode canvas ref for each item
-function setBarcodeCanvas(el: HTMLCanvasElement | null, itemId: string) {
+function setBarcodeCanvas(el: any, itemId: string) {
   if (el) {
     barcodeCanvases.value[itemId] = el;
     // Generate barcode once canvas is available
@@ -227,130 +264,64 @@ function setBarcodeCanvas(el: HTMLCanvasElement | null, itemId: string) {
 // Function to generate barcode for an item
 function generateBarcode(orderItem: any): string {
   const orderNumber = props.order.salesOrderNumber || props.order.id.slice(-8);
-  const itemId = orderItem.id.slice(-8); // Use last 8 characters of item ID
-  return `${orderNumber}-${itemId}`;
+  
+  // Use the full CUID for maximum uniqueness and reliability
+  // JsBarcode can handle longer strings without issues
+  return `${orderNumber}-${orderItem.id}`;
 }
 
 // Function to generate barcode image and display it in the canvas
-function generateBarcodeImage(itemId: string) {
+async function generateBarcodeImage(itemId: string) {
   const canvas = barcodeCanvases.value[itemId];
   if (!canvas) return;
 
-  const orderItem = productionItems.value.find(item => item.id === itemId);
+  const orderItem = productionItems.value.find((item: any) => item.id === itemId);
   if (!orderItem) return;
 
   const barcodeText = generateBarcode(orderItem);
   const barcodeType = getBarcodeType(itemId);
   
-  // Clear previous content
-  canvas.width = 0;
-  canvas.height = 0;
-
-  // Set high-resolution canvas for crisp rendering
-  const displayWidth = 80; // Display size
-  const displayHeight = 30; // Display size
-  const scale = 1.5; // Scale factor for crisp rendering
-  
-  canvas.width = displayWidth * scale;
-  canvas.height = displayHeight * scale;
-  
-  // Set display size via CSS
-  canvas.style.width = displayWidth + 'px';
-  canvas.style.height = displayHeight + 'px';
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  // Scale context for high-resolution rendering
-  ctx.scale(scale, scale);
-  
-  // Clear canvas
-  ctx.clearRect(0, 0, displayWidth, displayHeight);
-
-  if (barcodeType === 'barcode') {
-    // Generate barcode bars
-    const bars = generateBarcodeBars(barcodeText);
+  try {
+    // Simple, reliable configuration for JsBarcode
+    const config = {
+      width: 330,      
+      height: 130,     
+      fontSize: 30,    
+      margin: 10,      
+      showText: true,
+      format: 'CODE128' as const
+    };
     
-    // Draw barcode bars
-    const barWidth = displayWidth / bars.length;
-    ctx.fillStyle = '#000';
-    
-    for (let i = 0; i < bars.length; i++) {
-      if (bars[i] === 1) {
-        ctx.fillRect(i * barWidth, 0, barWidth, displayHeight - 8); // Leave space for text
-      }
+    if (barcodeType === 'barcode') {
+      await BarcodeGenerator.generateCode128(canvas, barcodeText, config);
+    } else {
+      BarcodeGenerator.generateQRCode(canvas, barcodeText, config);
     }
-  } else {
-    // Generate QR code pattern (simplified)
-    generateQRCode(ctx, barcodeText, displayWidth, displayHeight);
-  }
-
-  // Draw barcode text below
-  ctx.fillStyle = '#000';
-  ctx.font = '6px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(barcodeText, displayWidth / 2, displayHeight);
-}
-
-// Function to generate a simple QR code pattern
-function generateQRCode(ctx: CanvasRenderingContext2D, text: string, width: number, height: number) {
-  // Simple QR-like pattern using the text to generate a grid
-  const gridSize = 8;
-  const cellSize = Math.min(width, height - 12) / gridSize;
-  
-  ctx.fillStyle = '#000';
-  
-  // Generate a pattern based on the text
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const charIndex = (row * gridSize + col) % text.length;
-      const char = text[charIndex];
-      const charCode = char.charCodeAt(0);
+  } catch (error) {
+    console.error('Error generating barcode:', error);
+    
+    // Fallback to simple text display
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      canvas.width = 200;
+      canvas.height = 60;
+      canvas.style.width = '200px';
+      canvas.style.height = '60px';
       
-      // Create a pattern based on character code
-      if ((charCode + row + col) % 3 === 0) {
-        ctx.fillRect(
-          col * cellSize + (width - gridSize * cellSize) / 2,
-          row * cellSize,
-          cellSize,
-          cellSize
-        );
-      }
+      ctx.clearRect(0, 0, 200, 60);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 200, 60);
+      
+      ctx.fillStyle = '#000000';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(barcodeText, 100, 30);
     }
   }
 }
 
-// Function to generate barcode bars (simple binary representation)
-function generateBarcodeBars(text: string): number[] {
-  const bars: number[] = [];
-  
-  // Add start marker
-  bars.push(1, 0, 1, 0, 1, 0);
-  
-  // Convert text to bars using a simple encoding
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    const charCode = char.charCodeAt(0);
-    
-    // Simple encoding: use character code to determine bar pattern
-    // This creates a more varied and scannable pattern
-    const pattern = (charCode % 8) + 1; // 1-8 bars
-    
-    // Add bars for this character
-    for (let j = 0; j < pattern; j++) {
-      bars.push(1);
-    }
-    
-    // Add space between characters
-    bars.push(0);
-  }
-  
-  // Add end marker
-  bars.push(1, 0, 1, 0, 1, 0);
-  
-  return bars;
-}
+// These functions are now replaced by the professional BarcodeGenerator class
 
 // Function to get product attribute value
 function getProductAttribute(orderItem: any, attributeName: string): string {
@@ -365,10 +336,66 @@ function getProductAttribute(orderItem: any, attributeName: string): string {
   
   // Handle empty strings
   if (value === '' || value === null || value === undefined) {
-    return 'N/A';
+      return 'N/A';
   }
   
   return value.toString();
+}
+
+// Helper function to determine if an upgrade should be shown
+function shouldShowUpgrade(attributeName: string, orderItem: any): boolean {
+  const value = getProductAttribute(orderItem, attributeName);
+  // Show if value exists and is not "No" or "N/A"
+  return !!(value && value !== 'No' && value !== 'N/A');
+}
+
+// Helper function to determine if Extra Handle Qty should be shown
+function shouldShowExtraHandle(orderItem: any): boolean {
+  const value = getProductAttribute(orderItem, 'extraHandleQty');
+  // Show if value exists and is not "0" or "N/A"
+  return !!(value && value !== '0' && value !== 'N/A');
+}
+
+// Helper function to check if there are any additional attributes to show
+function hasAdditionalAttributes(orderItem: any): boolean {
+  return !!(
+    (getProductAttribute(orderItem, 'distance') && getProductAttribute(orderItem, 'distance') !== '0') ||
+    getProductAttribute(orderItem, 'foamUpgrade') ||
+    shouldShowUpgrade('doublePlasticWrapUpgrade', orderItem) ||
+    shouldShowUpgrade('webbingUpgrade', orderItem) ||
+    shouldShowUpgrade('metalForLifterUpgrade', orderItem) ||
+    shouldShowUpgrade('steamStopperUpgrade', orderItem) ||
+    shouldShowUpgrade('fabricUpgrade', orderItem) ||
+    shouldShowExtraHandle(orderItem) ||
+    shouldShowUpgrade('extraLongSkirt', orderItem) ||
+    getProductAttribute(orderItem, 'packaging') ||
+    shouldShowNotes(orderItem) ||
+    shouldShowSize(orderItem)
+  );
+}
+
+// Helper function to get the appropriate label for radius/side length field
+function getRadiusFieldLabel(orderItem: any): string {
+  const shape = getProductAttribute(orderItem, 'shape');
+  if (shape === 'Octagon') {
+    return 'Side Length';
+  }
+  return 'Radius Size';
+}
+
+// Helper function to determine if Size should be shown (only for Round and Octagon)
+function shouldShowSize(orderItem: any): boolean {
+  const shape = getProductAttribute(orderItem, 'shape');
+  const value = getProductAttribute(orderItem, 'size');
+  // Show size only for Round and Octagon shapes, and only if it has a value
+  return (shape === 'Round' || shape === 'Octagon') && !!(value && value.trim() !== '' && value !== 'N/A');
+}
+
+// Helper function to determine if Notes should be shown
+function shouldShowNotes(orderItem: any): boolean {
+  const value = getProductAttribute(orderItem, 'notes');
+  // Show if value exists and is not empty, "N/A", or just whitespace
+  return !!(value && value.trim() !== '' && value !== 'N/A');
 }
 
 // Function to get priority styling class
@@ -397,8 +424,31 @@ function toggleBarcodeType(itemId: string) {
   nextTick(() => generateBarcodeImage(itemId));
 }
 
+// Handler functions for print confirmation
+async function handlePrintAll() {
+  // Check if any items are already in production
+  const itemsInProduction = productionItems.value.filter(item => item.itemStatus !== 'NOT_STARTED_PRODUCTION');
+  
+  if (itemsInProduction.length > 0) {
+    const itemNames = itemsInProduction.map(item => item.item?.name).join(', ');
+    const confirmed = confirm(
+      `The following products are already in production: ${itemNames}. ` +
+      `This means packing slips have been previously printed for these items. ` +
+      `Are you sure you want to print all packing slips again?`
+    );
+    
+    if (!confirmed) return;
+  }
+  
+  await printAllPackingSlips();
+}
+
+function handlePrintSingle(orderItem: any) {
+  emit('print-confirmation', orderItem, async () => await printSinglePackingSlip(orderItem));
+}
+
 // Function to print all packing slips
-function printAllPackingSlips() {
+async function printAllPackingSlips() {
   if (productionItems.value.length === 0) return;
   
   const printWindow = window.open('', '_blank');
@@ -420,25 +470,25 @@ function printAllPackingSlips() {
         body {
           font-family: Arial, sans-serif;
           margin: 0;
-          padding: 0.1in;
-          font-size: 8pt;
-          line-height: 1.2;
+          padding: 0.05in;
+          font-size: 7pt;
+          line-height: 1.1;
         }
         
         .packing-slip {
           width: 3.8in;
           height: 5.8in;
           border: 1px solid #000;
-          padding: 0.1in;
+          padding: 0.05in;
           box-sizing: border-box;
-          margin-bottom: 0.2in;
+          margin-bottom: 0.1in;
           page-break-inside: avoid;
+          page-break-after: avoid;
           overflow: hidden;
         }
         
         .header-section {
           border-bottom: 1px solid #000;
-          padding-bottom: 0.1in;
           margin-bottom: 0.1in;
         }
         
@@ -446,7 +496,6 @@ function printAllPackingSlips() {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 0.1in;
         }
         
         .dealer-info {
@@ -509,6 +558,23 @@ function printAllPackingSlips() {
           margin: 0.1in 0;
         }
         
+        .core-specs-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 0.1in !important;
+          margin-bottom: 0.1in !important;
+        }
+        
+        .spec-column {
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        
+        .additional-specs {
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        
         .spec-row {
           display: flex;
           justify-content: space-between;
@@ -519,12 +585,10 @@ function printAllPackingSlips() {
         
         .spec-label {
           font-weight: bold;
-          min-width: 1.5in;
         }
         
         .spec-value {
           text-align: right;
-          min-width: 1.5in;
         }
         
         .footer-section {
@@ -564,27 +628,52 @@ function printAllPackingSlips() {
         .text-green-600 { color: #16a34a; }
         .font-bold { font-weight: bold; }
         .font-semibold { font-weight: 600; }
+        
+        /* Prevent extra blank pages */
+        html, body {
+          height: 5.8in;
+          overflow: hidden;
+        }
+        
+        /* Ensure content fits within page */
+        * {
+          box-sizing: border-box;
+        }
       </style>
     </head>
     <body>
   `;
   
   // Add each packing slip to the print content
-  productionItems.value.forEach((orderItem: any) => {
+  for (const orderItem of productionItems.value) {
     const slipRef = packingSlipRefs.value[orderItem.id];
     if (slipRef) {
-      // Convert canvas to data URL for print
-      const canvas = barcodeCanvases.value[orderItem.id];
-      if (canvas) {
-        const dataURL = canvas.toDataURL();
-        const imgElement = slipRef.querySelector('.barcode-canvas');
-        if (imgElement) {
-          imgElement.outerHTML = `<img src="${dataURL}" style="width: 100%; height: auto;" alt="Barcode" />`;
+      // Generate high-resolution barcode for printing
+      const canvas = document.createElement('canvas');
+      const barcodeText = generateBarcode(orderItem);
+      const barcodeType = getBarcodeType(orderItem.id);
+      const printConfig = BarcodeGenerator.getPrintConfig();
+      
+      try {
+        if (barcodeType === 'barcode') {
+          await BarcodeGenerator.generateCode128(canvas, barcodeText, printConfig);
+        } else {
+          BarcodeGenerator.generateQRCode(canvas, barcodeText, printConfig);
         }
+        
+        const dataURL = canvas.toDataURL('image/png', 1.0);
+        let slipHTML = slipRef.outerHTML;
+        slipHTML = slipHTML.replace(
+          /<canvas[^>]*class="barcode-canvas"[^>]*>.*?<\/canvas>/s,
+          `<img src="${dataURL}" style="width: 100%; height: auto; min-width: 250px;" alt="Barcode" />`
+        );
+        printContent += slipHTML;
+      } catch (error) {
+        console.error('Error generating print barcode:', error);
+        printContent += slipRef.outerHTML;
       }
-      printContent += slipRef.outerHTML;
     }
-  });
+  }
   
   printContent += `
     </body>
@@ -602,22 +691,36 @@ function printAllPackingSlips() {
 }
 
 // Function to print a single packing slip
-function printSinglePackingSlip(orderItem: any) {
+async function printSinglePackingSlip(orderItem: any) {
   const slipRef = packingSlipRefs.value[orderItem.id];
   if (!slipRef) return;
   
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   
-  // Convert canvas to data URL for print
-  const canvas = barcodeCanvases.value[orderItem.id];
+  // Generate high-resolution barcode for printing
+  const canvas = document.createElement('canvas');
+  const barcodeText = generateBarcode(orderItem);
+  const barcodeType = getBarcodeType(orderItem.id);
+  const printConfig = BarcodeGenerator.getPrintConfig();
+  
   let slipHTML = slipRef.outerHTML;
-  if (canvas) {
-    const dataURL = canvas.toDataURL();
+  
+  try {
+    if (barcodeType === 'barcode') {
+      await BarcodeGenerator.generateCode128(canvas, barcodeText, printConfig);
+    } else {
+      BarcodeGenerator.generateQRCode(canvas, barcodeText, printConfig);
+    }
+    
+    const dataURL = canvas.toDataURL('image/png', 1.0);
     slipHTML = slipHTML.replace(
       /<canvas[^>]*class="barcode-canvas"[^>]*>.*?<\/canvas>/s,
-      `<img src="${dataURL}" style="width: 100%; height: auto;" alt="Barcode" />`
+      `<img src="${dataURL}" style="width: 100%; height: auto; min-width: 250px;" alt="Barcode" />`
     );
+  } catch (error) {
+    console.error('Error generating print barcode:', error);
+    // Keep original HTML if barcode generation fails
   }
   
   const printContent = `
@@ -645,14 +748,15 @@ function printSinglePackingSlip(orderItem: any) {
           width: 3.8in;
           height: 5.8in;
           border: 1px solid #000;
-          padding: 0.1in;
+          padding: 0.05in;
           box-sizing: border-box;
           overflow: hidden;
+          page-break-inside: avoid;
+          page-break-after: avoid;
         }
         
         .header-section {
           border-bottom: 1px solid #000;
-          padding-bottom: 0.1in;
           margin-bottom: 0.1in;
         }
         
@@ -660,7 +764,6 @@ function printSinglePackingSlip(orderItem: any) {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 0.1in;
         }
         
         .dealer-info {
@@ -723,6 +826,23 @@ function printSinglePackingSlip(orderItem: any) {
           margin: 0.1in 0;
         }
         
+        .core-specs-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 0.1in !important;
+          margin-bottom: 0.1in !important;
+        }
+        
+        .spec-column {
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        
+        .additional-specs {
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        
         .spec-row {
           display: flex;
           justify-content: space-between;
@@ -733,12 +853,10 @@ function printSinglePackingSlip(orderItem: any) {
         
         .spec-label {
           font-weight: bold;
-          min-width: 1.5in;
         }
         
         .spec-value {
-          text-align: right;
-          min-width: 1.5in;
+          text-align: right; 
         }
         
         .footer-section {
@@ -778,6 +896,17 @@ function printSinglePackingSlip(orderItem: any) {
         .text-green-600 { color: #16a34a; }
         .font-bold { font-weight: bold; }
         .font-semibold { font-weight: 600; }
+        
+        /* Prevent extra blank pages */
+        html, body {
+          height: 5.8in;
+          overflow: hidden;
+        }
+        
+        /* Ensure content fits within page */
+        * {
+          box-sizing: border-box;
+        }
       </style>
     </head>
     <body>
@@ -791,11 +920,34 @@ function printSinglePackingSlip(orderItem: any) {
   
   // Wait for content to load then print
   printWindow.onload = () => {
-    printWindow.print();
-    printWindow.close();
+    // Add a small delay to ensure content is fully rendered
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 100);
   };
 }
 </script>
+
+<style scoped>
+/* Enhanced barcode rendering for crisp display */
+.barcode-canvas {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  max-width: 100%;
+  height: auto;
+  min-width: 250px; /* Ensure minimum scannable size */
+}
+
+/* Ensure proper barcode container alignment */
+.barcode-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8px 0;
+}
+</style>
 
 <style scoped>
 .packing-slip-container {
@@ -826,17 +978,15 @@ function printSinglePackingSlip(orderItem: any) {
 
 .header-section {
   border-bottom: 1px solid #000;
-  padding-bottom: 0.1in;
   margin-bottom: 0.1in;
   position: relative;
-  min-height: 0.8in; /* Ensure enough height for barcode */
+  /* min-height: 0.8in; Ensure enough height for barcode */
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.1in;
 }
 
 .dealer-info {
@@ -903,6 +1053,23 @@ function printSinglePackingSlip(orderItem: any) {
   margin: 0.1in 0;
 }
 
+.core-specs-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0.1in !important;
+  margin-bottom: 0.1in !important;
+}
+
+.spec-column {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.additional-specs {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
 .spec-row {
   display: flex;
   justify-content: space-between;
@@ -913,12 +1080,10 @@ function printSinglePackingSlip(orderItem: any) {
 
 .spec-label {
   font-weight: bold;
-  min-width: 1.5in;
 }
 
 .spec-value {
   text-align: right;
-  min-width: 1.5in;
 }
 
 .footer-section {
