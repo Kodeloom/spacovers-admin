@@ -2,6 +2,25 @@
 
 This guide covers the complete process for deploying the Warehouse Administrator system to production.
 
+## Deployment Options
+
+Choose the deployment method that best fits your infrastructure:
+
+1. **Single Container Deployment** (Recommended for most users)
+   - Compatible with Coolify, Railway, Render, and similar platforms
+   - Requires external PostgreSQL database
+   - See [Single Container Deployment Guide](./SINGLE_CONTAINER_DEPLOYMENT.md)
+
+2. **Multi-Service Docker Compose** (Advanced users)
+   - Includes PostgreSQL, Redis, Nginx, and monitoring
+   - Requires server management
+   - Covered in this document
+
+3. **Traditional Server Deployment**
+   - Direct installation on VPS/dedicated server
+   - Maximum control and customization
+   - Covered in this document
+
 ## Prerequisites
 
 Before deploying to production, ensure:
