@@ -64,8 +64,8 @@ enum OrderItemProcessingStatus { // Renamed for clarity
   CUTTING
   SEWING
   FOAM_CUTTING
-  STUFFING
   PACKAGING
+  PRODUCT_FINISHED
   READY
 }
 
@@ -118,6 +118,7 @@ model User {
   sessions           Session[]  // Added by Better-Auth
   accounts           Account[]  // Added by Better-Auth
   quickbooksToken    QuickbooksToken?
+  barcodeScanners    BarcodeScanner[]
 
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -331,6 +332,7 @@ model Station {
 
   roles              RoleStation[]
   itemProcessingLogs ItemProcessingLog[]
+  barcodeScanners    BarcodeScanner[]
 
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -340,6 +342,31 @@ model Station {
   @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "Station"]])
   @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "Station"]])
   @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "Station"]])
+  
+  // ROLE-BASED fallback: Super Admin always has access
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+}
+
+model BarcodeScanner {
+  id           String   @id @default(cuid())
+  prefix       String   @unique // e.g., "S3A"
+  stationId    String   // FK to Station
+  userId       String   // FK to User
+  model        String?  // Scanner model
+  serialNumber String?  // Scanner serial number
+  isActive     Boolean  @default(true)
+  
+  station      Station  @relation(fields: [stationId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Access Control Policies - PERMISSION-BASED
+  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "BarcodeScanner"]])
+  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "BarcodeScanner"]])
+  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "BarcodeScanner"]])
+  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "BarcodeScanner"]])
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
@@ -408,6 +435,7 @@ model Order {
   items                OrderItem[]
   estimate             Estimate?         @relation(fields: [estimateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   statusLogs           OrderStatusLog[]
+  emailNotifications   EmailNotification[]
 
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
@@ -513,14 +541,18 @@ model ProductAttribute {
   productType               ProductType @default(SPA_COVER)
   
   // Core attributes
+  color                     String?
   size                      String?
   shape                     String?
   radiusSize                String?
+  length                    String?
+  width                     String?
   skirtLength               String?
   skirtType                 SkirtType?
   tieDownsQty               String?
   tieDownPlacement          TieDownPlacement?
   distance                  String? @default("0")
+  notes                     String?                   @db.Text
   
   // Upgrades (Yes/No with defaults)
   foamUpgrade               String? // e.g., "2#", "5-2.5", "6-4", "4-5-4", "54""
@@ -696,6 +728,24 @@ model QuickbooksToken {
   @@allow('create,update,delete', auth() != null && userId == auth().id)
 }
 
+model QuickBooksIntegration {
+  id                       String    @id @default(cuid())
+  companyId                String    @unique  // QuickBooks company ID (realmId)
+  accessToken              String    @db.Text
+  refreshToken             String    @db.Text
+  accessTokenExpiresAt     DateTime
+  refreshTokenExpiresAt    DateTime
+  isActive                 Boolean   @default(true)
+  connectedAt              DateTime  @default(now())
+  disconnectedAt           DateTime?
+  lastRefreshedAt          DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  // Access control policies - Admin-only for security
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+}
+
 model Estimate {
   id                   String         @id @default(cuid())
   quickbooksEstimateId String         @unique
@@ -713,6 +763,26 @@ model Estimate {
   updatedAt            DateTime       @updatedAt
 
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+}
+
+model EmailNotification {
+  id            String   @id @default(cuid())
+  orderId       String
+  emailType     String   // 'order_approved', 'production_started', etc.
+  recipientEmail String
+  subject       String
+  sentAt        DateTime?
+  failedAt      DateTime?
+  retryCount    Int      @default(0)
+  errorMessage  String?
+  
+  order         Order    @relation(fields: [orderId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+  @@allow('read', auth() != null && auth().roles?[role.name == "Admin"])
 }
 
 model EstimateItem {
