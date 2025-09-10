@@ -592,14 +592,14 @@ export default defineEventHandler(async (event) => {
     }
     const { syncMode } = result.data;
 
-    const { oauthClient, token } = await getQboClient(event);
-    const prisma = await getEnhancedPrismaClient(event);
-    
-    const baseUrl = oauthClient.environment === 'sandbox' 
-        ? 'https://sandbox-quickbooks.api.intuit.com' 
-        : 'https://quickbooks.api.intuit.com';
-
     try {
+        const { oauthClient, token } = await getQboClient(event);
+        const prisma = await getEnhancedPrismaClient(event);
+        
+        const baseUrl = oauthClient.environment === 'sandbox' 
+            ? 'https://sandbox-quickbooks.api.intuit.com' 
+            : 'https://quickbooks.api.intuit.com';
+
         const estimatesSynced = await syncEstimates(event, prisma, token, baseUrl, syncMode);
         const invoicesSynced = await syncInvoices(event, prisma, token, baseUrl, syncMode);
 
@@ -608,13 +608,27 @@ export default defineEventHandler(async (event) => {
             estimatesSynced,
             invoicesSynced,
         };
-    }
-    catch (error: unknown) {
-        const e = error as { Fault?: { Error: { Detail: string }[] } };
-        console.error(e);
+    } catch (error: unknown) {
+        const e = error as { 
+            Fault?: { Error: { Detail: string }[] };
+            statusCode?: number;
+            statusMessage?: string;
+            message?: string;
+        };
+        
+        // Handle token-related errors specifically
+        if (e.statusCode === 401 || e.statusCode === 404) {
+            console.error('QuickBooks authentication/connection error:', e.statusMessage || e.message);
+            throw createError({
+                statusCode: e.statusCode,
+                statusMessage: e.statusMessage || 'QuickBooks connection issue. Please check your connection status.',
+            });
+        }
+        
+        console.error('QBO sync error:', e);
         throw createError({
             statusCode: 500,
-            statusMessage: e.Fault?.Error[0]?.Detail || 'An error occurred during QBO sync.',
+            statusMessage: e.Fault?.Error[0]?.Detail || e.message || 'An error occurred during QBO sync.',
         });
     }
 }); 
