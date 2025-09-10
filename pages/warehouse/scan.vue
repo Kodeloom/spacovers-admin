@@ -112,6 +112,8 @@
                     'bg-orange-100 text-orange-800': item.itemStatus === 'CUTTING',
                     'bg-blue-100 text-blue-800': item.itemStatus === 'SEWING',
                     'bg-purple-100 text-purple-800': item.itemStatus === 'FOAM_CUTTING',
+                    'bg-yellow-100 text-yellow-800': item.itemStatus === 'PACKAGING',
+                    'bg-indigo-100 text-indigo-800': item.itemStatus === 'PRODUCT_FINISHED',
                     'bg-green-100 text-green-800': item.itemStatus === 'READY'
                   }"
                   class="px-2 py-1 text-xs font-medium rounded-full"
@@ -192,6 +194,7 @@
 
 <script setup lang="ts">
 import { useFindManyStation } from '~/lib/hooks/index';
+import { decodeBarcode, isValidStatusTransition, getNextStatus } from '~/utils/barcodeUtils';
 
 definePageMeta({
   layout: 'empty',
@@ -246,9 +249,22 @@ async function scanOrder() {
   
   isLoadingOrder.value = true;
   try {
+    // Decode the barcode to extract order and item information
+    const barcodeData = decodeBarcode(orderBarcodeInput.value.trim());
+    
+    if (!barcodeData) {
+      throw new Error('Invalid barcode format. Expected: PREFIX-ORDER-ITEM');
+    }
+    
+    const requestBody = { 
+      barcode: orderBarcodeInput.value.trim(),
+      barcodeData: barcodeData
+    };
+    console.log('Sending request body:', JSON.stringify(requestBody, null, 2));
+    
     const response = await $fetch('/api/warehouse/scan-order', {
       method: 'POST',
-      body: { barcode: orderBarcodeInput.value.trim() }
+      body: requestBody
     }) as { order: Record<string, unknown> };
     
     scannedOrder.value = response.order;
@@ -292,6 +308,29 @@ async function processItem() {
     return;
   }
   
+  // Decode the station barcode to get station information
+  const barcodeData = decodeBarcode(stationBarcodeInput.value.trim());
+  
+  if (!barcodeData) {
+    toast.error({ 
+      title: 'Invalid Barcode', 
+      message: 'Invalid station barcode format. Expected: PREFIX-ORDER-ITEM' 
+    });
+    return;
+  }
+  
+  // Validate status transition
+  const currentStatus = selectedItem.value.itemStatus as string;
+  const stationName = barcodeData.station;
+  
+  if (!isValidStatusTransition(currentStatus, stationName)) {
+    toast.error({ 
+      title: 'Invalid Transition', 
+      message: `Cannot transition from ${currentStatus.replace(/_/g, ' ')} at ${stationName} station` 
+    });
+    return;
+  }
+  
   isProcessingItem.value = true;
   try {
     const response = await $fetch('/api/warehouse/process-item', {
@@ -299,11 +338,14 @@ async function processItem() {
       body: {
         orderItemId: selectedItem.value.id,
         stationId: stationBarcodeInput.value.trim(),
-        userId: (currentUser.value as Record<string, unknown>)?.id
+        userId: (currentUser.value as Record<string, unknown>)?.id,
+        barcodeData: barcodeData,
+        currentStatus: currentStatus,
+        nextStatus: getNextStatus(currentStatus, stationName)
       }
     }) as Record<string, unknown>;
     
-    // Update the item status locally - simplify response handling
+    // Update the item status locally
     const newStatus = response.newItemStatus || response.itemStatus || 'UNKNOWN';
     if (selectedItem.value) {
       selectedItem.value.itemStatus = newStatus;
@@ -316,7 +358,7 @@ async function processItem() {
     
     toast.success({ 
       title: 'Item Processed', 
-      message: `Item processing completed successfully!` 
+      message: `Item moved to ${newStatus.replace(/_/g, ' ')} successfully!` 
     });
     
     // Clear selections

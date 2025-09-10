@@ -1,222 +1,152 @@
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center py-4">
-          <div class="flex items-center">
-            <Icon name="heroicons:building-office-2" class="h-8 w-8 text-indigo-600 mr-3" />
-            <h1 class="text-2xl font-bold text-gray-900">Warehouse Kiosk</h1>
-          </div>
-          <div class="flex items-center space-x-4">
-            <div v-if="currentUser" class="text-sm text-gray-600">
-              <span class="font-medium">{{ currentUser.name }}</span>
-              <span class="mx-2">•</span>
-              <span>{{ currentStation?.name || 'No Station' }}</span>
-            </div>
-            <!-- Debug info (remove this later) -->
-            <div v-if="currentUser" class="text-xs text-gray-500 bg-gray-100 p-2 rounded">
-              <div>Debug: {{ JSON.stringify(stationDebugInfo) }}</div>
-            </div>
-            <button
-              v-if="currentUser"
-              class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              @click="logout"
-            >
-              <Icon name="heroicons:arrow-right-on-rectangle" class="h-4 w-4 mr-2" />
-              Logout
-            </button>
-          </div>
+  <div class="min-h-screen bg-gray-900 flex items-center justify-center">
+    <!-- Login Screen -->
+    <div v-if="!isLoggedIn" class="w-full max-w-md mx-auto p-8">
+      <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <div class="text-center mb-8">
+          <Icon name="heroicons:building-office-2" class="h-12 w-12 text-blue-600 mx-auto mb-4" />
+          <h1 class="text-2xl font-bold text-gray-900 mb-2">Warehouse Kiosk</h1>
+          <p class="text-gray-600">Login to access scanning</p>
         </div>
+
+        <form @submit.prevent="login" class="space-y-6">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <input
+              id="email"
+              v-model="loginForm.email"
+              type="email"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your email"
+            >
+          </div>
+          
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <input
+              id="password"
+              v-model="loginForm.password"
+              type="password"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your password"
+            >
+          </div>
+          
+          <button
+            type="submit"
+            :disabled="isLoggingIn"
+            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <Icon v-if="isLoggingIn" name="svg-spinners:180-ring-with-bg" class="h-5 w-5 mr-2" />
+            {{ isLoggingIn ? 'Logging in...' : 'Login' }}
+          </button>
+        </form>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Login Section (if not logged in) -->
-      <div v-if="!currentUser" class="max-w-md mx-auto">
-        <div class="bg-white p-8 rounded-lg shadow">
-          <h2 class="text-xl font-semibold text-gray-900 mb-6 text-center">Employee Login</h2>
+    <!-- Main Kiosk Interface -->
+    <div v-else class="w-full max-w-4xl mx-auto p-8">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <Icon name="heroicons:building-office-2" class="h-16 w-16 text-blue-400 mx-auto mb-4" />
+        <h1 class="text-4xl font-bold text-white mb-2">Warehouse Kiosk</h1>
+        <p class="text-xl text-gray-300">Scan barcodes to process items</p>
+        <button
+          @click="logout"
+          data-logout
+          class="mt-4 px-4 py-2 text-sm text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:border-gray-400"
+        >
+          Logout
+        </button>
+      </div>
+
+      <!-- Scan Interface -->
+      <div class="bg-white rounded-2xl shadow-2xl p-12" @click="focusInput">
+        <!-- Current Scanner Info -->
+        <div v-if="currentScannerInfo" class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg" @click="focusInput">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold text-blue-900">Current Scanner</h3>
+              <p class="text-blue-700">{{ currentScannerInfo.user }} at {{ currentScannerInfo.station }}</p>
+              <p class="text-sm text-blue-600">Scanner: {{ currentScannerInfo.prefix }}</p>
+            </div>
+            <Icon name="heroicons:identification" class="h-8 w-8 text-blue-600" />
+          </div>
+        </div>
+
+        <!-- Status Display -->
+        <div v-if="lastScanResult" class="mb-8 p-6 rounded-xl" :class="lastScanResult.success ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'" @click="focusInput">
+          <div class="flex items-center">
+            <Icon 
+              :name="lastScanResult.success ? 'heroicons:check-circle' : 'heroicons:x-circle'" 
+              :class="lastScanResult.success ? 'text-green-600' : 'text-red-600'"
+              class="h-8 w-8 mr-4" 
+            />
+            <div>
+              <h3 :class="lastScanResult.success ? 'text-green-800' : 'text-red-800'" class="text-lg font-semibold">
+                {{ lastScanResult.title }}
+              </h3>
+              <p :class="lastScanResult.success ? 'text-green-700' : 'text-red-700'" class="text-sm">
+                {{ lastScanResult.message }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barcode Input -->
+        <div class="text-center" @click="focusInput">
+          <label class="block text-2xl font-semibold text-gray-900 mb-6" @click="focusInput">
+            <Icon name="heroicons:qr-code" class="h-8 w-8 inline mr-3" />
+            Scan Barcode
+          </label>
           
-          <form class="space-y-4" @submit.prevent="login">
-            <div>
-              <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                id="email"
-                v-model="loginForm.email"
-                type="email"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter your email"
-              >
-            </div>
-            
-            <div>
-              <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                id="password"
-                v-model="loginForm.password"
-                type="password"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter your password"
-              >
-            </div>
-            
-            <button
-              type="submit"
-              :disabled="isLoggingIn"
-              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              <Icon v-if="isLoggingIn" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
-              {{ isLoggingIn ? 'Logging in...' : 'Login' }}
-            </button>
-          </form>
+          <input
+            ref="barcodeInput"
+            v-model="scanForm.barcode"
+            type="text"
+            placeholder="Ready to scan..."
+            class="w-full text-center text-3xl py-6 px-8 border-4 border-gray-300 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500 focus:border-blue-500 font-mono"
+            @keyup.enter="processItem"
+            @input="onBarcodeInput"
+            @blur="focusInput"
+          >
+          
+          <!-- Processing Indicator -->
+          <div v-if="isProcessing" class="mt-6 flex items-center justify-center" @click="focusInput">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-8 w-8 text-blue-600 mr-3" />
+            <span class="text-xl text-gray-700">Processing scan...</span>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-12 text-center text-gray-600" @click="focusInput">
+          <p class="text-lg">Point the scanner at the barcode and scan</p>
+          <p class="text-sm mt-2">The scanner ID will identify the user and station automatically</p>
         </div>
       </div>
 
-      <!-- Work Interface (if logged in) -->
-      <div v-else class="space-y-6">
-        <!-- Current Work Status -->
-        <div v-if="currentWorkItem" class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Currently Working On</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p class="text-sm text-gray-600">Order</p>
-              <p class="text-lg font-medium text-gray-900">#{{ currentWorkItem.order.salesOrderNumber }}</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-600">Item</p>
-              <p class="text-lg font-medium text-gray-900">{{ currentWorkItem.item.name }}</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-600">Time Started</p>
-              <p class="text-lg font-medium text-gray-900">{{ formatTime(currentWorkItem.startTime) }}</p>
-            </div>
-          </div>
-          <div class="mt-4 flex space-x-3">
-            <button
-              :disabled="isCompletingWork"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              @click="completeCurrentWork"
-            >
-              <Icon v-if="isCompletingWork" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
-              {{ isCompletingWork ? 'Completing...' : 'Mark Complete' }}
-            </button>
-            <button
-              class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-              @click="cancelCurrentWork"
-            >
-              Cancel Work
-            </button>
-          </div>
-        </div>
-
-        <!-- Scan New Item Section -->
-        <div v-if="!currentWorkItem" class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Start New Work</h3>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Scan Packing Slip Barcode</label>
-              <div class="flex space-x-3">
-                <input
-                  v-model="scanForm.barcode"
-                  type="text"
-                  placeholder="Scan or enter barcode"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  @keyup.enter="scanBarcode"
-                >
-                <button
-                  :disabled="!scanForm.barcode || isScanning"
-                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                  @click="scanBarcode"
-                >
-                  <Icon v-if="isScanning" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
-                  {{ isScanning ? 'Scanning...' : 'Scan' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Scanned Item Details -->
-            <div v-if="scannedItem" class="bg-gray-50 p-4 rounded-md">
-              <h4 class="font-medium text-gray-900 mb-3">Item Details</h4>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p class="text-gray-600">Order:</p>
-                  <p class="font-medium">#{{ scannedItem.order.salesOrderNumber }}</p>
-                </div>
-                <div>
-                  <p class="text-gray-600">Customer:</p>
-                  <p class="font-medium">{{ scannedItem.order.customer.name }}</p>
-                </div>
-                <div>
-                  <p class="text-gray-600">Item:</p>
-                  <p class="font-medium">{{ scannedItem.item.name }}</p>
-                </div>
-                <div>
-                  <p class="text-gray-600">Quantity:</p>
-                  <p class="font-medium">{{ scannedItem.quantity }}</p>
-                </div>
-              </div>
-              
-              <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Scan Station QR Code</label>
-                <div class="flex space-x-3">
-                  <input
-                    v-model="scanForm.stationCode"
-                    type="text"
-                    placeholder="Scan station QR code"
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    @keyup.enter="startWork"
-                  >
-                  <button
-                    :disabled="!scanForm.stationCode || isStartingWork"
-                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                    @click="startWork"
-                  >
-                    <Icon v-if="isStartingWork" name="svg-spinners:180-ring-with-bg" class="h-4 w-4 mr-2" />
-                    {{ isStartingWork ? 'Starting...' : 'Start Work' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Work Queue -->
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Work Queue - {{ currentStation?.name || 'All Stations' }}</h3>
-          
-          <div v-if="workQueue.length === 0" class="text-center py-8 text-gray-500">
-            <Icon name="heroicons:check-circle" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <p class="text-lg">No pending work items</p>
-            <p class="text-sm">All items are either completed or being worked on</p>
-          </div>
-          
-          <div v-else class="space-y-3">
-            <div
-              v-for="item in workQueue"
-              :key="item.id"
-              class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-            >
-              <div class="flex justify-between items-start">
-                <div class="flex-1">
-                  <div class="flex items-center space-x-3 mb-2">
-                    <span class="text-sm font-medium text-gray-900">Order #{{ item.order.salesOrderNumber }}</span>
-                    <span class="text-sm text-gray-500">•</span>
-                    <span class="text-sm text-gray-600">{{ item.order.customer.name }}</span>
-                  </div>
-                  <p class="text-sm text-gray-700">{{ item.item.name }}</p>
-                  <p class="text-xs text-gray-500">Quantity: {{ item.quantity }}</p>
-                </div>
-                <div class="text-right">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Pending
-                  </span>
-                </div>
-              </div>
-            </div>
+      <!-- Recent Activity -->
+      <div v-if="recentActivity.length > 0" class="mt-8 bg-gray-800 rounded-xl p-6" @click="focusInput">
+        <h3 class="text-white text-lg font-semibold mb-4">Recent Activity</h3>
+        <div class="space-y-2">
+          <div 
+            v-for="activity in recentActivity.slice(0, 5)" 
+            :key="activity.id"
+            class="flex items-center justify-between text-sm"
+            @click="focusInput"
+          >
+            <span class="text-gray-300">
+              {{ activity.orderNumber }} - {{ activity.itemName }}
+            </span>
+            <span class="text-gray-400">{{ activity.user }} @ {{ activity.station }}</span>
+            <span :class="activity.success ? 'text-green-400' : 'text-red-400'">
+              {{ activity.status }}
+            </span>
+            <span class="text-gray-500">
+              {{ formatTime(activity.timestamp) }}
+            </span>
           </div>
         </div>
       </div>
@@ -225,22 +155,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { authClient } from '~/lib/auth-client';
-import { useFindManyOrderItem, useFindManyStation, useFindManyItemProcessingLog } from '~/lib/hooks';
+import { decodeBarcode, isValidStatusTransition, getNextStatus, getStatusDisplayName } from '~/utils/barcodeUtils';
+import { parseScannerPrefix, getScannerInfo } from '~/utils/scannerUtils';
+import { formatErrorForUI } from '~/utils/errorHandling';
 
 definePageMeta({
   layout: 'empty',
-  middleware: 'auth-warehouse-only',
 });
-
-const router = useRouter();
-const toast = useToast();
 
 // Auth state
 const session = authClient.useSession();
-const currentUser = computed(() => session.value?.data?.user);
+const isLoggedIn = computed(() => !!session.value?.data?.user);
 
 // Login form
 const loginForm = ref({
@@ -249,186 +176,80 @@ const loginForm = ref({
 });
 const isLoggingIn = ref(false);
 
-// Station and work state
-const currentStation = ref(null);
-const currentWorkItem = ref(null);
-const scannedItem = ref(null);
-
-// Scan form
+// Scan form and state
 const scanForm = ref({
-  barcode: '',
-  stationCode: ''
+  barcode: ''
 });
 
-// Loading states
-const isScanning = ref(false);
-const isStartingWork = ref(false);
-const isCompletingWork = ref(false);
+const isProcessing = ref(false);
+const lastScanResult = ref(null);
+const recentActivity = ref([]);
+const barcodeInput = ref(null);
+const currentScannerInfo = ref(null);
 
-// Fetch stations
-const { data: stations } = useFindManyStation({
-  orderBy: { name: 'asc' }
-});
-
-// Fetch work queue
-const { data: orderItems, refetch: refetchWorkQueue } = useFindManyOrderItem({
-  where: {
-    order: {
-      orderStatus: 'APPROVED'
-    },
-    itemStatus: {
-      in: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING']
-    }
-  },
-  include: {
-    order: {
-      include: {
-        customer: true
-      }
-    },
-    item: true
-  },
-  orderBy: {
-    order: {
-      createdAt: 'asc'
-    }
+// Auto-focus the input and keep it focused when logged in
+onMounted(() => {
+  if (isLoggedIn.value) {
+    focusInput();
   }
-});
-
-// Fetch current work item
-const { data: processingLogs, refetch: refetchProcessingLogs } = useFindManyItemProcessingLog({
-  where: {
-    userId: currentUser.value?.id,
-    endTime: null
-  },
-  include: {
-    orderItem: {
-      include: {
-        order: {
-          include: {
-            customer: true
-          }
-        },
-        item: true
-      }
-    },
-    station: true
-  }
-});
-
-// Set current work item when processing logs change
-watch(processingLogs, (logs) => {
-  if (logs && logs.length > 0) {
-    const activeLog = logs[0]; // Should only be one active log per user
-    currentWorkItem.value = {
-      ...activeLog,
-      order: activeLog.orderItem.order,
-      item: activeLog.orderItem.item,
-      startTime: activeLog.startTime
-    };
-  } else {
-    currentWorkItem.value = null;
-  }
-}, { immediate: true });
-
-// Computed properties
-const filteredWorkQueue = computed(() => {
-  if (!orderItems.value || !currentStation.value) return [];
   
-  // Filter items based on current station and production flow
-  return orderItems.value.filter(item => {
-    // Station 1 (Cutting): Show items that haven't started production
-    if (currentStation.value.name === 'Cutting') {
-      return item.itemStatus === 'NOT_STARTED_PRODUCTION';
+  // Keep input focused at all times - more aggressive
+  setInterval(() => {
+    if (isLoggedIn.value && document.activeElement !== barcodeInput.value) {
+      focusInput();
     }
-    
-    // Station 2 (Sewing): Show items completed at Cutting
-    if (currentStation.value.name === 'Sewing') {
-      return item.itemStatus === 'CUTTING';
+  }, 500); // Check every 500ms
+  
+  // Add global click handler to focus input on any click (except logout)
+  document.addEventListener('click', (event) => {
+    if (isLoggedIn.value) {
+      const target = event.target as HTMLElement;
+      // Don't focus if clicking on logout button
+      if (!target.closest('button[data-logout]')) {
+        focusInput();
+      }
     }
-    
-    // Station 3 (Foam Cutting): Show items completed at Sewing
-    if (currentStation.value.name === 'Foam Cutting') {
-      return item.itemStatus === 'SEWING';
-    }
-    
-    return false;
   });
 });
 
-// Use filtered work queue
-const workQueue = computed(() => filteredWorkQueue.value);
-
-// Debug: Show station info
-const stationDebugInfo = computed(() => {
-  if (!currentUser.value) return 'No user';
-  
-  const userRoles = currentUser.value.roles;
-  if (!userRoles || !Array.isArray(userRoles)) return 'No roles';
-  
-  return userRoles.map(userRole => ({
-    roleName: userRole.role?.name,
-    roleType: userRole.role?.roleType?.name,
-    stations: userRole.role?.stations,
-    hasStations: userRole.role?.stations && userRole.role.stations.length > 0
-  }));
+// Watch for login state changes
+watch(isLoggedIn, (newValue) => {
+  if (newValue) {
+    nextTick(() => {
+      focusInput();
+    });
+  }
 });
 
-// Methods
+function focusInput() {
+  nextTick(() => {
+    if (barcodeInput.value && isLoggedIn.value) {
+      barcodeInput.value.focus();
+    }
+  });
+}
+
 async function login() {
   try {
     isLoggingIn.value = true;
     
-    // For now, we'll use the existing session
-    // In a real implementation, you might want to implement a separate kiosk login
-    if (session.value?.data?.user) {
-      // Set the current station based on user's roles
-      const userRoles = session.value.data.user.roles;
-      console.log('Kiosk Login - User roles:', userRoles);
+    const response = await authClient.signIn.email({
+      email: loginForm.value.email,
+      password: loginForm.value.password
+    });
+    
+    if (response.data) {
+      // Clear form
+      loginForm.value = { email: '', password: '' };
       
-      if (userRoles && Array.isArray(userRoles)) {
-        for (const userRole of userRoles) {
-          console.log('Kiosk Login - Checking role:', userRole.role);
-          console.log('Kiosk Login - Role stations:', userRole.role.stations);
-          
-          // Check if this role has stations assigned
-          if (userRole.role.stations && userRole.role.stations.length > 0) {
-            currentStation.value = userRole.role.stations[0].station;
-            console.log('Kiosk Login - Set current station:', currentStation.value);
-            break;
-          }
-          
-          // Fallback: Check if role name matches a station name
-          if (userRole.role.name && ['Cutting', 'Sewing', 'Foam Cutting (Shop)', 'Foam Cutting', 'Stuffing', 'Packaging'].includes(userRole.role.name)) {
-            // Find the station by name
-            const station = stations.value?.find(s => s.name === userRole.role.name);
-            if (station) {
-              currentStation.value = station;
-              console.log('Kiosk Login - Set current station by name:', currentStation.value);
-              break;
-            }
-          }
-        }
-      }
-      
-      if (!currentStation.value) {
-        console.warn('Kiosk Login - No station found for user');
-      }
-      
-      toast.add({
-        title: 'Login successful',
-        description: `Welcome to the ${currentStation.value?.name || 'warehouse'} kiosk`,
-        color: 'green'
-      });
-    } else {
-      throw new Error('No active session found');
+      // Focus input after login
+      setTimeout(() => {
+        focusInput();
+      }, 100);
     }
   } catch (error) {
-    toast.add({
-      title: 'Login failed',
-      description: error.message,
-      color: 'red'
-    });
+    console.error('Login failed:', error);
+    // You might want to show an error message here
   } finally {
     isLoggingIn.value = false;
   }
@@ -436,149 +257,254 @@ async function login() {
 
 async function logout() {
   try {
-    // Actually sign out the user
     await authClient.signOut();
-    
-    // Clear local state
-    currentStation.value = null;
-    currentWorkItem.value = null;
-    scannedItem.value = null;
-    
-    // Redirect to login
-    router.push('/login');
+    currentScannerInfo.value = null;
+    lastScanResult.value = null;
+    recentActivity.value = [];
   } catch (error) {
     console.error('Logout failed:', error);
-    // Even if logout fails, redirect to login
-    router.push('/login');
   }
 }
 
-async function scanBarcode() {
+// Debounce variables
+let processTimeout = null;
+let lastProcessedBarcode = '';
+let lastProcessTime = 0;
+
+function onBarcodeInput() {
+  // Clear any existing timeout
+  if (processTimeout) {
+    clearTimeout(processTimeout);
+  }
+  
+  // Auto-process when barcode looks complete (typical barcode length)
+  if (scanForm.value.barcode.length >= 10 && scanForm.value.barcode.includes('-')) {
+    // Small delay to ensure full barcode is captured
+    processTimeout = setTimeout(() => {
+      const currentBarcode = scanForm.value.barcode;
+      const currentTime = Date.now();
+      
+      // Prevent duplicate processing of same barcode within 2 seconds
+      if (currentBarcode === lastProcessedBarcode && (currentTime - lastProcessTime) < 2000) {
+        console.log('Ignoring duplicate barcode scan');
+        scanForm.value.barcode = '';
+        focusInput();
+        return;
+      }
+      
+      if (currentBarcode.length >= 10 && !isProcessing.value) {
+        lastProcessedBarcode = currentBarcode;
+        lastProcessTime = currentTime;
+        processItem();
+      }
+    }, 150);
+  }
+}
+
+async function processItem() {
+  if (!scanForm.value.barcode.trim() || isProcessing.value) return;
+  
+  let barcodeData = null;
+  let orderItem = null;
+  
   try {
-    isScanning.value = true;
+    isProcessing.value = true;
     
-    const response = await $fetch('/api/warehouse/scan-barcode', {
-      method: 'POST',
-      body: { barcode: scanForm.value.barcode }
-    });
+    // Decode the barcode
+    barcodeData = decodeBarcode(scanForm.value.barcode);
     
-    if (response.success) {
-      scannedItem.value = response.data;
-      toast.add({
-        title: 'Barcode scanned successfully',
-        description: `Order #${response.data.order.salesOrderNumber} - ${response.data.item.name}`,
-        color: 'green'
-      });
+    if (!barcodeData) {
+      throw new Error('Invalid barcode format');
     }
-  } catch (error) {
-    toast.add({
-      title: 'Scan failed',
-      description: error.data?.statusMessage || error.message || 'Failed to scan barcode',
-      color: 'red'
-    });
-    scannedItem.value = null;
-  } finally {
-    isScanning.value = false;
-  }
-}
-
-async function startWork() {
-  try {
-    isStartingWork.value = true;
     
-    const response = await $fetch('/api/warehouse/start-work', {
+    // Look up scanner information from the prefix
+    const scannerResponse = await $fetch('/api/warehouse/scanner-lookup', {
       method: 'POST',
       body: { 
-        orderItemId: scannedItem.value.id,
-        stationCode: scanForm.value.stationCode
+        prefix: barcodeData.prefix
       }
     });
     
-    if (response.success) {
-      // Set the current work item
-      currentWorkItem.value = {
-        ...response.data.processingLog,
-        order: scannedItem.value.order,
-        item: scannedItem.value.item,
-        startTime: response.data.processingLog.startTime
+    if (!scannerResponse.scanner) {
+      throw new Error(`Scanner with prefix "${barcodeData.prefix}" not found or not assigned`);
+    }
+    
+    // Update current scanner info display
+    currentScannerInfo.value = {
+      prefix: scannerResponse.scanner.prefix,
+      user: scannerResponse.scanner.user.name,
+      station: scannerResponse.scanner.station.name,
+      userId: scannerResponse.scanner.user.id,
+      stationId: scannerResponse.scanner.station.id
+    };
+    
+    // Get the order and item
+    const orderResponse = await $fetch('/api/warehouse/scan-order', {
+      method: 'POST',
+      body: { 
+        barcode: scanForm.value.barcode,
+        barcodeData: barcodeData
+      }
+    });
+    
+    if (!orderResponse.order) {
+      throw new Error('Order not found');
+    }
+    
+    // Find the specific item
+    orderItem = orderResponse.order.items.find(item => item.id === barcodeData.itemId);
+    if (!orderItem) {
+      throw new Error('Item not found in this order');
+    }
+    
+    // Handle office scanners differently - they can view status but not process items
+    if (currentScannerInfo.value.station === 'Office') {
+      const currentStatusDisplay = getStatusDisplayName(orderItem.itemStatus);
+      
+      // Show status information for office scanners
+      lastScanResult.value = {
+        success: true,
+        title: 'Item Status',
+        message: `This item is currently "${currentStatusDisplay}". Office scanners can view status but cannot process workflow transitions.`
       };
       
-      // Clear the scan form
-      scanForm.value = { barcode: '', stationCode: '' };
-      scannedItem.value = null;
-      
-      // Refresh the work queue
-      await refetchWorkQueue();
-      
-      toast.add({
-        title: 'Work started successfully',
-        description: `Started working on ${response.data.orderItem.item.name}`,
-        color: 'green'
+      // Add to recent activity
+      addToRecentActivity({
+        orderNumber: orderResponse.order.orderNumber,
+        itemName: orderItem.itemName,
+        user: currentScannerInfo.value.user,
+        station: currentScannerInfo.value.station,
+        status: `Status Check: ${currentStatusDisplay}`,
+        success: true,
+        timestamp: new Date()
       });
+      
+      // Clear the barcode input
+      scanForm.value.barcode = '';
+      focusInput();
+      
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        lastScanResult.value = null;
+      }, 5000);
+      
+      return; // Exit early for office scanners
     }
-  } catch (error) {
-    toast.add({
-      title: 'Failed to start work',
-      description: error.data?.statusMessage || error.message || 'Failed to start work',
-      color: 'red'
-    });
-  } finally {
-    isStartingWork.value = false;
-  }
-}
-
-async function completeCurrentWork() {
-  try {
-    isCompletingWork.value = true;
     
-    const response = await $fetch('/api/warehouse/complete-work', {
+    // Validate status transition using the scanner's station (for production stations)
+    if (!isValidStatusTransition(orderItem.itemStatus, currentScannerInfo.value.station)) {
+      const currentStatusDisplay = getStatusDisplayName(orderItem.itemStatus);
+      const errorMessage = `This item is currently "${currentStatusDisplay}" and cannot be processed at the ${currentScannerInfo.value.station} station. Please check the workflow order.`;
+      console.log('Throwing workflow error:', errorMessage);
+      const error = new Error(errorMessage);
+      error.code = 'INVALID_STATUS_TRANSITION';
+      error.itemStatus = orderItem.itemStatus;
+      error.station = currentScannerInfo.value.station;
+      throw error;
+    }
+    
+    // Get next status
+    const nextStatus = getNextStatus(orderItem.itemStatus, currentScannerInfo.value.station);
+    
+    // Process the item using the scanner's user and station
+    const response = await $fetch('/api/warehouse/process-item', {
       method: 'POST',
       body: { 
-        processingLogId: currentWorkItem.value.id
+        orderItemId: orderItem.id,
+        stationId: currentScannerInfo.value.stationId,
+        userId: currentScannerInfo.value.userId,
+        scannerPrefix: barcodeData.prefix,
+        barcodeData: barcodeData,
+        currentStatus: orderItem.itemStatus,
+        nextStatus: nextStatus
       }
     });
     
-    if (response.success) {
-      const duration = Math.floor(response.data.duration / 60); // Convert to minutes
+    if (response.success && response.newItemStatus) {
+      // Show success result
+      const stepInfo = response.workflowStep;
+      lastScanResult.value = {
+        success: true,
+        title: `Step ${stepInfo?.step || ''} Complete`,
+        message: `${currentScannerInfo.value.user} completed: ${stepInfo?.description || response.newItemStatus.replace(/_/g, ' ')}`
+      };
       
-      toast.add({
-        title: 'Work completed successfully',
-        description: `Completed in ${duration} minutes. ${response.data.isFinalStep ? 'Item is ready!' : 'Moving to next station.'}`,
-        color: 'green'
+      // Add to recent activity
+      addToRecentActivity({
+        orderNumber: orderResponse.order.orderNumber,
+        itemName: orderItem.itemName,
+        user: currentScannerInfo.value.user,
+        station: currentScannerInfo.value.station,
+        status: response.newItemStatus.replace(/_/g, ' '),
+        success: true,
+        timestamp: new Date()
       });
       
-      // Clear current work item
-      currentWorkItem.value = null;
+      // Clear the barcode input
+      scanForm.value.barcode = '';
       
-      // Refresh data
-      await refetchWorkQueue();
-      await refetchProcessingLogs();
+      // Auto-focus back to barcode input for next scan
+      focusInput();
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        lastScanResult.value = null;
+      }, 5000);
     }
   } catch (error) {
-    toast.add({
-      title: 'Failed to complete work',
-      description: error.data?.statusMessage || error.message || 'Failed to complete work',
-      color: 'red'
+    const errorInfo = formatErrorForUI(error);
+    
+    // Show error result
+    lastScanResult.value = {
+      success: false,
+      title: errorInfo.title,
+      message: errorInfo.message
+    };
+    
+    // Add to recent activity
+    addToRecentActivity({
+      orderNumber: barcodeData?.orderNumber || scanForm.value.barcode.split('-')[1] || 'Unknown',
+      itemName: orderItem?.itemName || 'Unknown Item',
+      user: currentScannerInfo.value?.user || 'Unknown',
+      station: currentScannerInfo.value?.station || 'Unknown',
+      status: 'Error: ' + errorInfo.title,
+      success: false,
+      timestamp: new Date()
     });
+    
+    // Clear the barcode input
+    scanForm.value.barcode = '';
+    
+    // Auto-focus back to barcode input
+    focusInput();
+    
+    // Clear error message after 8 seconds
+    setTimeout(() => {
+      lastScanResult.value = null;
+    }, 8000);
   } finally {
-    isCompletingWork.value = false;
+    isProcessing.value = false;
   }
 }
 
-function cancelCurrentWork() {
-  // Cancel work logic
-  currentWorkItem.value = null;
+function addToRecentActivity(activity) {
+  recentActivity.value.unshift({
+    ...activity,
+    id: Date.now()
+  });
+  
+  // Keep only last 10 activities
+  if (recentActivity.value.length > 10) {
+    recentActivity.value = recentActivity.value.slice(0, 10);
+  }
 }
 
 function formatTime(timestamp) {
   if (!timestamp) return 'N/A';
-  return new Date(timestamp).toLocaleTimeString();
+  return new Date(timestamp).toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 }
-
-// Lifecycle
-onMounted(async () => {
-  // Initialize kiosk state
-  await refetchWorkQueue();
-  await refetchProcessingLogs();
-});
 </script>
+
