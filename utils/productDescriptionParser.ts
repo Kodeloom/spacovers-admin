@@ -1,8 +1,11 @@
 export interface ParsedProductAttributes {
   productType: string;
+  color: string;
   size: string;
   shape: string;
   radiusSize: string;
+  length: string;
+  width: string;
   skirtLength: string;
   skirtType: string;
   tieDownsQty: string;
@@ -17,6 +20,7 @@ export interface ParsedProductAttributes {
   extraHandleQty: string;
   extraLongSkirt: string;
   packaging: boolean;
+  notes: string;
 }
 
 export interface ParsedProductDescription {
@@ -32,9 +36,12 @@ export class ProductDescriptionParser {
   static parseDescription(description: string): ParsedProductDescription {
     const attributes: ParsedProductAttributes = {
       productType: 'SPA_COVER',
+      color: '',
       size: '',
       shape: '',
       radiusSize: '',
+      length: '',
+      width: '',
       skirtLength: '',
       skirtType: 'CONN',
       tieDownsQty: '',
@@ -48,7 +55,8 @@ export class ProductDescriptionParser {
       fabricUpgrade: 'No',
       extraHandleQty: '0',
       extraLongSkirt: '',
-      packaging: false
+      packaging: false,
+      notes: ''
     };
     const errors: string[] = [];
 
@@ -59,13 +67,22 @@ export class ProductDescriptionParser {
 
       console.log(`🔍 Parsing description: "${description}"`);
 
-      // Parse Size: First number in the description (e.g., "87" from "87, Square, R: 8...")
-      const sizeMatch = description.match(/^(\d+)/);
+      // Parse Color: First part before comma (e.g., "Dark Gray" from "Dark Gray, 87, Square, R: 8...")
+      const colorMatch = description.match(/^([^,]+?)(?=,\s*\d+)/);
+      if (colorMatch) {
+        attributes.color = colorMatch[1].trim();
+        console.log(`✅ Parsed color: ${attributes.color}`);
+      } else {
+        console.log(`ℹ️ No color found at start of description`);
+      }
+
+      // Parse Size: First number in the description (e.g., "87" from "Dark Gray, 87, Square, R: 8...")
+      const sizeMatch = description.match(/(\d+)/);
       if (sizeMatch) {
         attributes.size = sizeMatch[1];
         console.log(`✅ Parsed size: ${attributes.size}`);
       } else {
-        console.log(`ℹ️ No size found at start of description`);
+        console.log(`ℹ️ No size found in description`);
       }
 
       // Parse Shape: Look for common shapes after the size (e.g., "Square", "Round", "Oval")
@@ -270,6 +287,7 @@ export class ProductDescriptionParser {
       
       // Summary of what was parsed
       console.log(`📊 Parsing Summary:`);
+      console.log(`   Color: ${attributes.color || 'NOT FOUND'}`);
       console.log(`   Size: ${attributes.size || 'NOT FOUND'}`);
       console.log(`   Shape: ${attributes.shape || 'NOT FOUND'}`);
       console.log(`   Radius: ${attributes.radiusSize || 'NOT FOUND'}`);
