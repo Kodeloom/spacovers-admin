@@ -26,6 +26,49 @@
             <button v-if="order.estimate" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200" @click="goToEstimate">
                 View Linked Estimate
             </button>
+            <button
+              :disabled="!order.trackingNumber"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="openTrackingEmailModal"
+            >
+              <Icon name="heroicons:envelope" class="mr-2 h-4 w-4" />
+              Send Tracking
+            </button>
+          </div>
+        </div>
+
+        <!-- Tracking Number Section -->
+        <div class="bg-white p-4 rounded-lg shadow border border-gray-200 mt-4">
+          <div class="flex items-center space-x-6">
+            <div class="flex-1">
+              <label for="trackingNumber" class="block text-sm font-medium text-gray-700 mb-2">Tracking Number</label>
+              <div class="flex items-center space-x-3">
+                <input
+                  id="trackingNumber"
+                  v-model="form.trackingNumber"
+                  type="text"
+                  placeholder="Enter tracking number (e.g., 1Z999AA1234567890)"
+                  class="flex-1 block px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <button
+                  type="button"
+                  :disabled="isSavingTracking || form.trackingNumber === order?.trackingNumber"
+                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="saveTrackingNumber"
+                >
+                  <Icon v-if="isSavingTracking" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4" />
+                  {{ isSavingTracking ? 'Saving...' : 'Save Tracking' }}
+                </button>
+                <button
+                  v-if="form.trackingNumber !== order?.trackingNumber"
+                  type="button"
+                  class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  @click="form.trackingNumber = order?.trackingNumber"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -131,7 +174,7 @@
 
           <!-- Financial & Address Details -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="bg-white p-6 rounded-lg shadow">
+          <div class="bg-white p-6 rounded-lg shadow">
                   <h3 class="text-lg font-semibold text-gray-800 mb-4">Financials</h3>
                   <dl class="space-y-2">
                       <div class="flex justify-between"><dt>Total Amount:</dt><dd class="font-mono">${{ Number(order.totalAmount).toFixed(2) }}</dd></div>
@@ -173,11 +216,14 @@
             <div v-if="order.items && order.items.length > 0" class="overflow-x-auto">
               <div class="min-w-full inline-block align-middle">
                 <div class="overflow-hidden border border-gray-200 rounded-lg">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                      <tr>
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Product
+                        </th>
+                        <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Description
                         </th>
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Qty
@@ -194,9 +240,9 @@
                         <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
-                      </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
                       <tr v-for="orderItem in order.items" :key="orderItem.id" class="hover:bg-gray-50">
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <div>
@@ -205,6 +251,16 @@
                             </div>
                             <div v-if="orderItem.quickbooksOrderLineId" class="text-xs text-gray-500">
                               QBO Line: {{ orderItem.quickbooksOrderLineId }}
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-3 sm:px-6 py-4">
+                          <div class="text-sm text-gray-900 max-w-xs">
+                            <div v-if="orderItem.lineDescription" class="break-words">
+                              {{ orderItem.lineDescription }}
+                            </div>
+                            <div v-else class="text-gray-400 italic">
+                              No description
                             </div>
                           </div>
                         </td>
@@ -226,7 +282,7 @@
                             <span class="hidden sm:inline ml-2 text-sm text-gray-700">Production Item</span>
                             <span class="sm:hidden ml-2 text-sm text-gray-700">Product</span>
                           </label>
-                        </td>
+                    </td>
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <span
                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -242,7 +298,7 @@
                           <div class="flex items-center space-x-2">
                             <!-- Mobile-friendly Actions Dropdown -->
                             <div class="relative md:hidden">
-                              <button
+                        <button
                                 @click="openActionsMenu(orderItem.id)"
                                 class="inline-flex items-center px-2 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                               >
@@ -273,8 +329,8 @@
                                     @click="startEditItem(orderItem); closeActionsMenu()"
                                   >
                                     <Icon name="heroicons:pencil" class="mr-3 h-4 w-4" />
-                                    Edit Status
-                                  </button>
+                          Edit Status
+                        </button>
 
                                   <!-- Verify Product -->
                                   <button
@@ -293,24 +349,24 @@
                                     <Icon name="heroicons:check" class="mr-3 h-4 w-4" />
                                     Verified ✓
                                   </button>
-                                </div>
+                      </div>
                               </div>
                             </div>
                             
                             <!-- Desktop Actions (hidden on mobile) -->
                             <div class="hidden md:flex items-center space-x-2">
                               <!-- View/Edit Product Attributes Button -->
-                              <button
+                        <button
                                 v-if="isItemMarkedAsProduct(orderItem)"
                                 class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                 @click="openProductAttributesModal(orderItem)"
                               >
                                 <Icon name="heroicons:eye" class="mr-1 h-3 w-3" />
                                 View Attributes
-                              </button>
+                        </button>
                               
                               <!-- Verify Product Button -->
-                              <button
+                        <button
                                 v-if="isItemMarkedAsProduct(orderItem) && orderItem.productAttributes && !orderItem.productAttributes.verified"
                                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 @click="verifyProduct(orderItem)"
@@ -335,21 +391,21 @@
                               >
                                 <Icon name="heroicons:pencil" class="mr-1 h-3 w-3" />
                                 Edit Status
-                              </button>
+                        </button>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
                 </div>
-              </div>
             </div>
-            
+          </div>
+
             <div v-else class="text-center py-8 text-gray-500">
               <Icon name="heroicons:cube" class="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p>No items found for this order</p>
-            </div>
+              </div>
           </div>
 
           <!-- Order Activity Log -->
@@ -495,18 +551,33 @@
         <div v-if="productionItems && productionItems.length > 0" class="bg-white p-6 rounded-lg shadow mt-6">
           <div class="mb-4">
             <h2 class="text-xl font-semibold text-gray-800 mb-2">Packing Slips</h2>
-            <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+            
+            <!-- Show approval message if order is pending -->
+            <div v-if="order.orderStatus === 'PENDING'" class="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
               <div class="flex">
-                <Icon name="heroicons:information-circle" class="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
-                <div class="text-sm text-blue-800">
-                  <p class="font-medium mb-1">Barcode Information:</p>
-                  <p>Each production item generates a unique barcode in the format: <code class="bg-blue-100 px-1 rounded">OrderNumber-ItemId</code></p>
-                  <p class="mt-1">These barcodes can be scanned at the warehouse kiosk to quickly pull up order and item details.</p>
+                <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 text-yellow-400 mr-2 mt-0.5" />
+                <div class="text-sm text-yellow-800">
+                  <p class="font-medium mb-1">Order Approval Required</p>
+                  <p>This order needs to be approved before packing slips can be generated. Please change the order status to "APPROVED" to enable packing slip printing.</p>
                 </div>
               </div>
             </div>
+            
+            <!-- Show packing slip component only if order is approved -->
+            <div v-else>
+              <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                <div class="flex">
+                  <Icon name="heroicons:information-circle" class="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
+                  <div class="text-sm text-blue-800">
+                    <p class="font-medium mb-1">Barcode Information:</p>
+                    <p>Each production item generates a unique barcode in the format: <code class="bg-blue-100 px-1 rounded">OrderNumber-ItemId</code></p>
+                    <p class="mt-1">These barcodes can be scanned at the warehouse kiosk to quickly pull up order and item details.</p>
+                  </div>
+                </div>
+              </div>
+              <PackingSlip :order="order" @print-confirmation="handlePrintConfirmation" />
+            </div>
           </div>
-          <PackingSlip :order="order" />
         </div>
     </div>
     <div v-else class="p-4">
@@ -525,7 +596,7 @@
           <p class="text-sm text-gray-600 font-mono bg-white p-3 rounded border">
             {{ selectedOrderItem.lineDescription || 'No description available' }}
           </p>
-        </div>
+  </div>
 
         <!-- Product Type Selection -->
         <div>
@@ -545,6 +616,16 @@
         <!-- Core Attributes -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <input
+              v-model="productAttributes.color"
+              type="text"
+              placeholder="e.g., Dark Gray, Navy Blue"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Size</label>
             <input
               v-model="productAttributes.size"
@@ -555,19 +636,56 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Shape</label>
-            <input
+            <select
               v-model="productAttributes.shape"
-              type="text"
-              placeholder="e.g., Round"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
+              <option value="">Select Shape</option>
+              <option value="Round">Round</option>
+              <option value="Octagon">Octagon</option>
+              <option value="Square">Square</option>
+              <option value="Rectangle">Rectangle</option>
+              <option value="custom">Custom (specify below)</option>
+            </select>
+            
+            <!-- Show current value -->
+            <div v-if="productAttributes.shape" class="mt-1 text-sm text-gray-600">
+              <span class="font-medium">Current:</span> {{ currentShapeValue }}
+            </div>
+            
+            <input
+              v-if="productAttributes.shape === 'custom'"
+              ref="customShapeInput"
+              v-model="customShape"
+              type="text"
+              placeholder="Enter custom shape"
+              class="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Radius Size</label>
+          <div v-if="showRadiusField">
+            <label class="block text-sm font-medium text-gray-700 mb-2">{{ radiusFieldLabel }}</label>
             <input
               v-model="productAttributes.radiusSize"
               type="text"
+              :placeholder="productAttributes.shape === 'Octagon' ? 'e.g., 8' : 'e.g., 12'"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+          <div v-if="showLengthWidthFields">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Length</label>
+            <input
+              v-model="productAttributes.length"
+              type="text"
               placeholder="e.g., 12"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+          <div v-if="showLengthWidthFields">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Width</label>
+            <input
+              v-model="productAttributes.width"
+              type="text"
+              placeholder="e.g., 8"
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
           </div>
@@ -752,6 +870,20 @@
           </div>
         </div>
 
+        <!-- Notes Section -->
+        <div class="mt-6">
+          <h4 class="text-md font-medium text-gray-900 mb-3">Notes</h4>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Product Notes</label>
+            <textarea
+              v-model="productAttributes.notes"
+              rows="3"
+              placeholder="Enter any additional notes for this product..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            ></textarea>
+          </div>
+        </div>
+
         <!-- Parsing Errors (if any) -->
         <div v-if="parsingErrors.length > 0" class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
           <h4 class="text-sm font-medium text-yellow-800 mb-2">Parsing Warnings</h4>
@@ -869,6 +1001,83 @@
         </div>
       </div>
     </AppModal>
+
+    <!-- Tracking Email Modal -->
+    <AppModal
+      :isOpen="isTrackingEmailModalOpen"
+      title="Send Tracking Information"
+      @close="closeTrackingEmailModal"
+    >
+      <div class="space-y-4">
+        <div>
+          <label for="trackingEmail" class="block text-sm font-medium text-gray-700 mb-2">
+            Customer Email
+          </label>
+          <input
+            id="trackingEmail"
+            v-model="trackingEmailForm.email"
+            type="email"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="customer@example.com"
+          />
+        </div>
+        
+        <div>
+          <label for="trackingSubject" class="block text-sm font-medium text-gray-700 mb-2">
+            Subject
+          </label>
+          <input
+            id="trackingSubject"
+            v-model="trackingEmailForm.subject"
+            type="text"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Your order tracking information"
+          />
+        </div>
+        
+        <div>
+          <label for="trackingMessage" class="block text-sm font-medium text-gray-700 mb-2">
+            Message
+          </label>
+          <textarea
+            id="trackingMessage"
+            v-model="trackingEmailForm.message"
+            rows="6"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Dear Customer,&#10;&#10;Your order has been shipped!&#10;&#10;Tracking Number: {{ order.trackingNumber }}&#10;&#10;You can track your package at: [carrier website]&#10;&#10;Thank you for your business!"
+          />
+        </div>
+        
+        <div class="bg-blue-50 p-3 rounded-md">
+          <p class="text-sm text-blue-800">
+            <strong>Note:</strong> Email functionality will be implemented in a future update. 
+            For now, this will just log the tracking information.
+          </p>
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button
+            type="button"
+            @click="closeTrackingEmailModal"
+            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            :disabled="isSendingTrackingEmail"
+            @click="sendTrackingEmail"
+            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+          >
+            <Icon v-if="isSendingTrackingEmail" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4" />
+            {{ isSendingTrackingEmail ? 'Sending...' : 'Send Email' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
   </div>
   
 
@@ -876,7 +1085,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
-import { useFindUniqueOrder, useUpdateOrder, useFindManyOrderStatusLog, useFindManyItemStatusLog, useFindManyAuditLog } from '~/lib/hooks';
+import { useFindUniqueOrder, useUpdateOrder, useFindManyOrderStatusLog, useFindManyItemStatusLog, useFindManyAuditLog, useUpdateOrderItem } from '~/lib/hooks';
 import { OrderSystemStatus, OrderItemProcessingStatus, OrderPriority } from '@prisma-app/client';
 import { useRouter } from 'vue-router';
 import PackingSlip from '~/components/admin/PackingSlip.vue';
@@ -1032,9 +1241,12 @@ const parsingErrors = ref<string[]>([]);
 // Product Attributes Form
 const productAttributes = ref({
   productType: '',
+  color: '',
   size: '',
   shape: '',
   radiusSize: '',
+  length: '',
+  width: '',
   skirtLength: '',
   skirtType: '',
   tieDownsQty: '',
@@ -1049,11 +1261,16 @@ const productAttributes = ref({
   extraHandleQty: '',
   extraLongSkirt: '',
   packaging: false,
+  notes: '',
 });
 
 // Custom foam upgrade input (separate from the select)
 const customFoamUpgrade = ref('');
 const customFoamUpgradeInput = ref<HTMLInputElement | null>(null);
+
+// Custom shape input (separate from the select)
+const customShape = ref('');
+const customShapeInput = ref<HTMLInputElement | null>(null);
 
 // Computed property to show the current foam upgrade value
 const currentFoamUpgradeValue = computed(() => {
@@ -1061,6 +1278,32 @@ const currentFoamUpgradeValue = computed(() => {
     return customFoamUpgrade.value || 'Custom';
   }
   return productAttributes.value.foamUpgrade;
+});
+
+// Computed property to show the current shape value
+const currentShapeValue = computed(() => {
+  if (productAttributes.value.shape === 'custom') {
+    return customShape.value || 'Custom';
+  }
+  return productAttributes.value.shape || 'No Shape Selected';
+});
+
+// Computed property for radius/side length label
+const radiusFieldLabel = computed(() => {
+  if (productAttributes.value.shape === 'Octagon') {
+    return 'Side Length';
+  }
+  return 'Radius Size';
+});
+
+// Computed property to show length/width fields for square and rectangle
+const showLengthWidthFields = computed(() => {
+  return productAttributes.value.shape === 'Square' || productAttributes.value.shape === 'Rectangle';
+});
+
+// Computed property to show radius field for round and octagon
+const showRadiusField = computed(() => {
+  return productAttributes.value.shape === 'Round' || productAttributes.value.shape === 'Octagon';
 });
 
 // Function to get the appropriate status display for an order item
@@ -1139,10 +1382,20 @@ const form = ref({
   orderStatus: order.value?.orderStatus,
   priority: order.value?.priority,
   notes: order.value?.notes,
+  trackingNumber: order.value?.trackingNumber,
 });
 
 const orderSystemStatusOptions = Object.values(OrderSystemStatus);
 const orderPriorityOptions = Object.values(OrderPriority);
+
+// Tracking email modal state
+const isTrackingEmailModalOpen = ref(false);
+const isSendingTrackingEmail = ref(false);
+const trackingEmailForm = ref({
+  email: '',
+  subject: '',
+  message: ''
+});
 
 // Initialize markedAsProducts from existing productAttributes
 watch(order, (newOrder) => {
@@ -1157,6 +1410,7 @@ watch(order, (newOrder) => {
     form.value.orderStatus = newOrder.orderStatus;
     form.value.priority = newOrder.priority;
     form.value.notes = newOrder.notes;
+    form.value.trackingNumber = newOrder.trackingNumber;
   }
 }, { immediate: true });
 
@@ -1192,10 +1446,12 @@ async function logOrderChange(changeType: string, oldValue: any, newValue: any, 
 
 // Update logic
 const updateOrderMutation = useUpdateOrder();
+const { mutateAsync: updateOrderItemMutation } = useUpdateOrderItem();
 const isSaving = ref(false);
 const isSavingStatus = ref(false);
 const isSavingPriority = ref(false);
 const isSavingNotes = ref(false);
+const isSavingTracking = ref(false);
 
 async function saveOrderStatus() {
   if (!order.value || !form.value.orderStatus) return;
@@ -1284,6 +1540,35 @@ async function saveOrderNotes() {
   }
 }
 
+async function saveTrackingNumber() {
+  if (!order.value) return;
+  
+  const oldTrackingNumber = order.value.trackingNumber;
+  const newTrackingNumber = form.value.trackingNumber;
+  
+  isSavingTracking.value = true;
+  try {
+    await updateOrderMutation.mutateAsync({
+      where: { id: orderId },
+      data: {
+        trackingNumber: newTrackingNumber,
+      },
+    });
+    
+    // Log the tracking number change
+    await logOrderChange('TRACKING_NUMBER', oldTrackingNumber, newTrackingNumber);
+    
+    toast.success({ title: 'Tracking Number Updated', message: 'Tracking number has been updated successfully.' });
+    refetchOrder();
+    refreshActivityLogs();
+  } catch (error) {
+    const e = error as Error;
+    toast.error({ title: 'Update Failed', message: e.message || 'Could not update tracking number.' });
+  } finally {
+    isSavingTracking.value = false;
+  }
+}
+
 // Legacy function for backward compatibility (can be removed if not needed elsewhere)
 async function saveChanges() {
   if (!order.value) return;
@@ -1352,6 +1637,7 @@ function resetForm() {
     form.value.orderStatus = order.value.orderStatus;
     form.value.priority = order.value.priority;
     form.value.notes = order.value.notes;
+    form.value.trackingNumber = order.value.trackingNumber;
   }
 }
 
@@ -1368,10 +1654,94 @@ function closeStatusEditModal() {
   editingItemStatus.value = '';
 }
 
+// Tracking email modal functions
+function openTrackingEmailModal() {
+  if (!order.value) return;
+  
+  // Pre-populate the email form with customer email and default values
+  trackingEmailForm.value.email = order.value.customer?.email || order.value.contactEmail || '';
+  trackingEmailForm.value.subject = `Your order #${order.value.salesOrderNumber} tracking information`;
+  trackingEmailForm.value.message = `Dear ${order.value.customer?.name || 'Valued Customer'},
+
+Your order has been shipped!
+
+Order Number: ${order.value.salesOrderNumber}
+Tracking Number: ${order.value.trackingNumber}
+
+You can track your package using the tracking number above at your carrier's website.
+
+Thank you for your business!
+
+Best regards,
+The Team`;
+  
+  isTrackingEmailModalOpen.value = true;
+}
+
+function closeTrackingEmailModal() {
+  isTrackingEmailModalOpen.value = false;
+  trackingEmailForm.value = {
+    email: '',
+    subject: '',
+    message: ''
+  };
+}
+
+async function sendTrackingEmail() {
+  if (!order.value || !trackingEmailForm.value.email || !trackingEmailForm.value.subject || !trackingEmailForm.value.message) {
+    toast.error({ title: 'Validation Error', message: 'Please fill in all required fields.' });
+    return;
+  }
+  
+  isSendingTrackingEmail.value = true;
+  try {
+    // For now, just log the tracking email (actual email functionality will be implemented later)
+    await logOrderChange('TRACKING_EMAIL_SENT', null, {
+      email: trackingEmailForm.value.email,
+      subject: trackingEmailForm.value.subject,
+      message: trackingEmailForm.value.message,
+      trackingNumber: order.value.trackingNumber
+    });
+    
+    toast.success({ 
+      title: 'Tracking Email Logged', 
+      message: 'Tracking information has been logged. Email functionality will be implemented soon.' 
+    });
+    
+    closeTrackingEmailModal();
+    refreshActivityLogs();
+  } catch (error) {
+    const e = error as Error;
+    toast.error({ title: 'Error', message: e.message || 'Could not log tracking email.' });
+  } finally {
+    isSendingTrackingEmail.value = false;
+  }
+}
+
 // Item activity filtering functions
 function filterItemLogs() {
   // The filtering is handled by the computed property
   // This function is called when filters change
+}
+
+// Packing slip print confirmation handler
+function handlePrintConfirmation(orderItem: any, printFunction: () => void) {
+  // Check if the item is already in production (not NOT_STARTED_PRODUCTION)
+  if (orderItem.itemStatus !== 'NOT_STARTED_PRODUCTION') {
+    const statusText = orderItem.itemStatus.replace(/_/g, ' ');
+    const confirmed = confirm(
+      `This product (${orderItem.item?.name}) is already in production (Status: ${statusText}). ` +
+      `This means a packing slip has been previously printed. ` +
+      `Are you sure you want to print the packing slip again?`
+    );
+    
+    if (confirmed) {
+      printFunction();
+    }
+  } else {
+    // Item is not in production yet, proceed with printing
+    printFunction();
+  }
 }
 
 function clearItemFilters() {
@@ -1415,9 +1785,12 @@ async function openProductAttributesModal(orderItem: any) {
       // Use parsed attributes as defaults
       attrs = {
         productType: parsed.attributes.productType || 'SPA_COVER',
+        color: parsed.attributes.color || '',
         size: parsed.attributes.size || '',
         shape: parsed.attributes.shape || '',
         radiusSize: parsed.attributes.radiusSize || '',
+        length: parsed.attributes.length || '',
+        width: parsed.attributes.width || '',
         skirtLength: parsed.attributes.skirtLength || '',
         skirtType: parsed.attributes.skirtType || 'CONN',
         tieDownsQty: parsed.attributes.tieDownsQty || '',
@@ -1432,6 +1805,7 @@ async function openProductAttributesModal(orderItem: any) {
         extraHandleQty: parsed.attributes.extraHandleQty || '0',
         extraLongSkirt: parsed.attributes.extraLongSkirt || '',
         packaging: parsed.attributes.packaging || false,
+        notes: parsed.attributes.notes || '',
       };
       
       // Store parsing errors for display
@@ -1449,9 +1823,12 @@ async function openProductAttributesModal(orderItem: any) {
   // Set the form values
   productAttributes.value = {
     productType: attrs.productType || 'SPA_COVER',
+    color: attrs.color || '',
     size: attrs.size || '',
     shape: attrs.shape || '',
     radiusSize: attrs.radiusSize || '',
+    length: attrs.length || '',
+    width: attrs.width || '',
     skirtLength: attrs.skirtLength || '',
     skirtType: attrs.skirtType || 'CONN',
     tieDownsQty: attrs.tieDownsQty || '',
@@ -1466,6 +1843,7 @@ async function openProductAttributesModal(orderItem: any) {
     extraHandleQty: attrs.extraHandleQty || '0',
     extraLongSkirt: attrs.extraLongSkirt || '',
     packaging: attrs.packaging !== undefined ? attrs.packaging : (attrs.productType === 'COVER_FOR_COVER'),
+    notes: attrs.notes || '',
   };
   
   // Handle custom foam upgrade field
@@ -1479,6 +1857,17 @@ async function openProductAttributesModal(orderItem: any) {
     customFoamUpgrade.value = '';
   }
   
+  // Handle custom shape field
+  if (attrs.shape && attrs.shape !== 'custom' && !['Round', 'Octagon', 'Square', 'Rectangle'].includes(attrs.shape)) {
+    // If it's a custom value (not from predefined options), set it in the custom input
+    customShape.value = attrs.shape;
+    productAttributes.value.shape = 'custom'; // Set select to "custom"
+  } else if (attrs.shape === 'custom') {
+    customShape.value = '';
+  } else {
+    customShape.value = '';
+  }
+  
   showProductAttributesModal.value = true;
 }
 
@@ -1487,9 +1876,12 @@ function closeProductAttributesModal() {
   selectedOrderItem.value = null;
   productAttributes.value = {
     productType: '',
+    color: '',
     size: '',
     shape: '',
     radiusSize: '',
+    length: '',
+    width: '',
     skirtLength: '',
     skirtType: '',
     tieDownsQty: '',
@@ -1504,8 +1896,10 @@ function closeProductAttributesModal() {
     extraHandleQty: '',
     extraLongSkirt: '',
     packaging: false,
+    notes: '',
   };
   customFoamUpgrade.value = '';
+  customShape.value = '';
   parsingErrors.value = [];
 }
 
@@ -1518,9 +1912,12 @@ async function saveProductAttributes() {
     // Prepare the data to save
     const dataToSave = {
       productType: productAttributes.value.productType,
+      color: productAttributes.value.color,
       size: productAttributes.value.size,
-      shape: productAttributes.value.shape,
+      shape: productAttributes.value.shape === 'custom' ? customShape.value : productAttributes.value.shape,
       radiusSize: productAttributes.value.radiusSize,
+      length: productAttributes.value.length,
+      width: productAttributes.value.width,
       skirtLength: productAttributes.value.skirtLength,
       skirtType: productAttributes.value.skirtType,
       tieDownsQty: productAttributes.value.tieDownsQty,
@@ -1535,6 +1932,7 @@ async function saveProductAttributes() {
       extraHandleQty: productAttributes.value.extraHandleQty,
       extraLongSkirt: productAttributes.value.extraLongSkirt,
       packaging: productAttributes.value.packaging,
+      notes: productAttributes.value.notes,
     };
 
     if (selectedOrderItem.value.productAttributes) {
@@ -1714,10 +2112,10 @@ async function saveItemStatusFromModal() {
   
   isSavingItem.value = true;
   try {
-    // Update the order item status
-    await $fetch(`/api/model/OrderItem/${editingItem.value.id}`, {
-      method: 'PUT',
-      body: {
+    // Update the order item status using ZenStack hook
+    await updateOrderItemMutation({
+      where: { id: editingItem.value.id },
+      data: {
         itemStatus: editingItemStatus.value,
       },
     });
