@@ -6,7 +6,7 @@
 export default defineEventHandler(async (event) => {
   try {
     // Import Prisma client dynamically to avoid initialization issues
-    const { PrismaClient } = await import('@prisma/client');
+    const { PrismaClient } = await import('@prisma-app/client');
     
     // Check database connection with proper error handling
     const prisma = new PrismaClient();

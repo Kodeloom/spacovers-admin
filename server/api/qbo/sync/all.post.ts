@@ -2,7 +2,8 @@ import { getQboClient } from '~/server/lib/qbo-client';
 import { getEnhancedPrismaClient, unenhancedPrisma } from '~/server/lib/db';
 import { recordAuditLog } from '~/server/utils/auditLog';
 import { z } from 'zod';
-import type { PrismaClient } from '@prisma/client';
+// TODO: MAYBE CHANGE TO @PRISMA/CLIENT
+import type { PrismaClient } from '@prisma-app/client';
 import type { H3Event } from 'h3';
 import { QBO_API_CONFIG } from '~/server/lib/qbo-client';
 

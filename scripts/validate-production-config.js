@@ -213,7 +213,7 @@ async function testDatabaseConnection() {
   
   try {
     // Dynamic import to avoid initialization issues
-    const { PrismaClient } = await import('@prisma/client');
+    const { PrismaClient } = await import('@prisma-app/client');
     const prisma = new PrismaClient();
     
     try {

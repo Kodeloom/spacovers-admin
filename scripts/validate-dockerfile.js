@@ -128,7 +128,7 @@ function validatePackageJson() {
   });
   
   // Check for required dependencies
-  const requiredDeps = ['@prisma/client', 'nuxt'];
+  const requiredDeps = ['@prisma-app/client', 'nuxt'];
   requiredDeps.forEach(dep => {
     if (!packageJson.dependencies[dep]) {
       console.error(`❌ Missing required dependency: ${dep}`);
