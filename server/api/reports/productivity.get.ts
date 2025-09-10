@@ -1,3 +1,4 @@
+import { auth } from '~/server/lib/auth';
 import { unenhancedPrisma as prisma } from '~/server/lib/db';
 
 export default defineEventHandler(async (event) => {
@@ -5,14 +6,43 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const { startDate, endDate, stationId, userId } = query;
 
+    // Get the current user session
+    const sessionData = await auth.api.getSession({ headers: event.headers });
+    if (!sessionData?.user?.id) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized'
+      });
+    }
+
     // Build where clause for filtering
-    const whereClause = {
+    const whereClause: any = {
       endTime: { not: null }, // Only completed tasks
-      ...(startDate && { startTime: { gte: new Date(startDate as string) } }),
-      ...(endDate && { endTime: { lte: new Date(endDate as string) } }),
-      ...(stationId && { stationId: stationId as string }),
-      ...(userId && { userId: userId as string }),
     };
+
+    if (startDate) {
+      whereClause.startTime = { 
+        ...whereClause.startTime,
+        gte: new Date(startDate as string) 
+      };
+    }
+
+    if (endDate) {
+      const endDateTime = new Date(endDate as string);
+      endDateTime.setHours(23, 59, 59, 999); // End of day
+      whereClause.endTime = { 
+        ...whereClause.endTime,
+        lte: endDateTime
+      };
+    }
+
+    if (stationId) {
+      whereClause.stationId = stationId as string;
+    }
+
+    if (userId) {
+      whereClause.userId = userId as string;
+    }
 
     // Fetch processing logs with related data
     const processingLogs = await prisma.itemProcessingLog.findMany({
@@ -22,7 +52,8 @@ export default defineEventHandler(async (event) => {
         station: true,
         orderItem: {
           include: {
-            item: true
+            item: true,
+            order: true
           }
         }
       }
@@ -76,19 +107,36 @@ export default defineEventHandler(async (event) => {
       ...data,
       avgDuration: data.durations.length > 0 
         ? Math.round(data.totalDuration / data.durations.length)
+        : 0,
+      efficiency: data.itemsProcessed > 0 && data.totalDuration > 0
+        ? Math.round((data.itemsProcessed * 3600) / data.totalDuration * 100) / 100 // Items per hour
         : 0
     }));
 
     // Sort by total cost descending
     result.sort((a, b) => b.totalCost - a.totalCost);
 
-    return result;
+    return {
+      success: true,
+      data: result,
+      summary: {
+        totalEmployees: new Set(result.map(r => r.userId)).size,
+        totalItemsProcessed: result.reduce((sum, r) => sum + r.itemsProcessed, 0),
+        totalLaborCost: result.reduce((sum, r) => sum + r.totalCost, 0),
+        totalProductionTime: result.reduce((sum, r) => sum + r.totalDuration, 0)
+      }
+    };
 
   } catch (error) {
     console.error('Error generating productivity report:', error);
+    
+    if (error.statusCode) {
+      throw error;
+    }
+    
     throw createError({
       statusCode: 500,
       statusMessage: 'Error generating productivity report'
     });
   }
-}); 
+});
