@@ -75,6 +75,7 @@ const menuItems = computed(() => {
       { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
       { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
       { name: 'Stations', path: '/admin/stations', icon: 'heroicons:building-office-2' },
+      { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qrcode' },
       { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
       { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
