@@ -29,18 +29,17 @@ interface QboCustomerType {
 }
 
 export default defineEventHandler(async (event) => {
-    const { oauthClient, token } = await getQboClient(event);
-    const prisma = await getEnhancedPrismaClient(event);
-    
-    const companyId = token.realmId;
-    if (!companyId) {
-        throw createError({ statusCode: 400, statusMessage: 'QuickBooks Realm ID not found.' });
-    }
-    const companyInfoUrl = oauthClient.environment === 'sandbox' 
-        ? 'https://sandbox-quickbooks.api.intuit.com' 
-        : 'https://quickbooks.api.intuit.com';
-
     try {
+        const { oauthClient, token } = await getQboClient(event);
+        const prisma = await getEnhancedPrismaClient(event);
+        
+        const companyId = token.realmId;
+        if (!companyId) {
+            throw createError({ statusCode: 400, statusMessage: 'QuickBooks Realm ID not found.' });
+        }
+        const companyInfoUrl = oauthClient.environment === 'sandbox' 
+            ? 'https://sandbox-quickbooks.api.intuit.com' 
+            : 'https://quickbooks.api.intuit.com';
         // Step 1: Fetch all CustomerTypes
         const customerTypeQuery = "SELECT * FROM CustomerType";
         const customerTypeQueryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(customerTypeQuery)}`;
@@ -123,8 +122,20 @@ export default defineEventHandler(async (event) => {
                 };
             };
             message?: string;
+            statusCode?: number;
+            statusMessage?: string;
         };
         const err = error as QboError;
+        
+        // Handle token-related errors specifically
+        if (err.statusCode === 401 || err.statusCode === 404) {
+            console.error('QuickBooks authentication/connection error:', err.statusMessage || err.message);
+            throw createError({
+                statusCode: err.statusCode,
+                statusMessage: err.statusMessage || 'QuickBooks connection issue. Please check your connection status.',
+            });
+        }
+        
         if (err.data) {
             console.error('--- QuickBooks API Error Details ---', JSON.stringify(err.data, null, 2));
         }
