@@ -1,0 +1,52 @@
+# Docker Compose for LOCAL DEVELOPMENT ONLY
+# This file is NOT required for production deployment
+# Production deployments should use the Dockerfile directly
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: warehouse-admin-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://warehouse_user:warehouse_pass@postgres:5432/warehouse_admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Mount source code for development (optional)
+      - .:/app
+      - /app/node_modules
+      - /app/.nuxt
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: warehouse-admin-db-dev
+    environment:
+      - POSTGRES_DB=warehouse_admin
+      - POSTGRES_USER=warehouse_user
+      - POSTGRES_PASSWORD=warehouse_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse_user -d warehouse_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  default:
+    name: warehouse-admin-dev

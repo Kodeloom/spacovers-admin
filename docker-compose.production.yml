@@ -1,25 +1,35 @@
+# OPTIONAL: Docker Compose for Production Multi-Service Setup
+# This file is NOT REQUIRED for single-container deployments (like Coolify)
+# For single-container deployment, use the Dockerfile directly
+# This compose file is provided for complex multi-service production setups
+
 version: '3.8'
 
 services:
-  # Main application
+  # Main application - can run independently without other services
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: warehouse-admin-app
     restart: unless-stopped
+    ports:
+      - "3000:3000"  # Expose port for direct access
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://warehouse_user:${DB_PASSWORD}@postgres:5432/warehouse_admin
+      # Use external database URL if postgres service is not used
+      - DATABASE_URL=${DATABASE_URL:-postgresql://warehouse_user:${DB_PASSWORD}@postgres:5432/warehouse_admin}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_SES_REGION=${AWS_SES_REGION}
       - FROM_EMAIL=${FROM_EMAIL}
+    # Optional dependency - app can run without local postgres if external DB is used
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
     networks:
       - warehouse-network
     volumes:
