@@ -735,6 +735,7 @@ const metadata = {
                 }, stationId: {
                     name: "stationId",
                     type: "String",
+                    isOptional: true,
                     isForeignKey: true,
                     relationField: 'station',
                 }, userId: {
@@ -758,6 +759,7 @@ const metadata = {
                     name: "station",
                     type: "Station",
                     isDataModel: true,
+                    isOptional: true,
                     backLink: 'barcodeScanners',
                     isRelationOwner: true,
                     foreignKeyMapping: { "id": "stationId" },
