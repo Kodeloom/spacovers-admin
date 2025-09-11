@@ -58,13 +58,19 @@
 
 ## Phase 2: Database and Scanner Fixes
 
-- [ ] 5. Database Schema Update for Office Scanners
+- [x] 5. Database Schema Update for Office Scanners
+
   - Create Prisma migration to make BarcodeScanner.stationId nullable
   - Update schema.zmodel to reflect nullable stationId field
   - Test migration with existing scanner data
   - _Requirements: 14.1, 14.2, 14.6_
 
-- [ ] 6. Update Scanner Creation API for Office Support
+- [x] 6. Update Scanner Creation API for Office Support
+
+
+
+
+
   - Modify barcode scanner creation validation to accept null stationId
   - Update scanner lookup API to handle null station gracefully
   - Test office scanner creation and lookup functionality
