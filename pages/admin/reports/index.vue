@@ -101,7 +101,7 @@
           class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           <Icon v-if="isLoading" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4 inline" />
-          {{ isLoading ? 'Loading...' : 'Generate Reports' }}
+          {{ isLoading ? 'Loading...' : 'Refresh Reports' }}
         </button>
         <button
           @click="clearFilters"
@@ -117,11 +117,35 @@
           <Icon v-if="isExporting" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4 inline" />
           {{ isExporting ? 'Exporting...' : 'Export CSV' }}
         </button>
+
       </div>
     </div>
 
-    <!-- Summary Statistics -->
-    <div v-if="summaryStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Error Boundary -->
+    <ReportErrorBoundary
+      :error="reportError"
+      :retryable="true"
+      :show-contact-support="true"
+      :show-technical-details="true"
+      @retry="retryLoadReports"
+      @clear="clearReportError"
+      @contact-support="contactSupport"
+    >
+      <!-- Loading State -->
+      <ReportLoadingState
+        v-if="isLoading"
+        :loading-title="`Generating ${activeTab === 'productivity' ? 'Productivity' : 'Lead Time'} Report`"
+        :loading-message="loadingMessage"
+        :progress="loadingProgress"
+        :show-summary-skeletons="true"
+        :show-table-skeleton="true"
+        :show-tips="true"
+      />
+
+      <!-- Report Content (when not loading and no error) -->
+      <template v-else>
+        <!-- Summary Statistics -->
+        <div v-if="summaryStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <div class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -179,27 +203,39 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">
-              {{ activeTab === 'productivity' ? 'Total Labor Cost' : 'Production Hours' }}
+              {{ activeTab === 'productivity' ? 'Total Labor Cost' : 'Total Revenue' }}
             </p>
             <p class="text-2xl font-semibold text-gray-900">
               {{ activeTab === 'productivity' 
                 ? '$' + (summaryStats.totalLaborCost || 0).toFixed(2) 
-                : (summaryStats.totalProductionHours || 0).toFixed(1) + 'h' }}
+                : '$' + (summaryStats.totalRevenue || 0).toFixed(2) }}
             </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
 
-    <!-- Employee Productivity Report -->
-    <div v-if="activeTab === 'productivity' && reportData" class="bg-white shadow rounded-lg p-6 mb-8">
-      <h2 class="text-xl font-semibold text-gray-700 mb-6">Employee Productivity</h2>
-      
-      <div v-if="reportData.length === 0" class="text-gray-500 text-center py-8">
-        No productivity data found for the selected filters.
-      </div>
-      
-      <div v-else class="overflow-x-auto">
+        <!-- Employee Productivity Report -->
+        <div v-if="activeTab === 'productivity'" class="bg-white shadow rounded-lg p-6 mb-8">
+          <h2 class="text-xl font-semibold text-gray-700 mb-6">Employee Productivity</h2>
+          
+          <div v-if="reportData && reportData.length === 0" class="text-center py-12">
+            <Icon name="heroicons:chart-bar" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+            <p class="text-gray-500 mb-4">
+              No productivity data found for the selected filters and date range.
+            </p>
+            <div class="text-sm text-gray-400">
+              <p>Try:</p>
+              <ul class="list-disc list-inside mt-2 space-y-1">
+                <li>Expanding your date range</li>
+                <li>Removing station or employee filters</li>
+                <li>Checking if there was any production activity during this period</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div v-else-if="reportData && reportData.length > 0" class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -216,7 +252,20 @@
             <tr v-for="row in reportData" :key="`${row.userId}-${row.stationId}`">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ row.userName || 'N/A' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.stationName || 'N/A' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.itemsProcessed || 0 }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <button
+                  @click="openEmployeeItemsModal(row.userId, row.userName, row.itemsProcessed)"
+                  :disabled="!row.itemsProcessed || row.itemsProcessed === 0"
+                  :class="[
+                    'font-medium',
+                    row.itemsProcessed > 0 
+                      ? 'text-indigo-600 hover:text-indigo-900 cursor-pointer underline' 
+                      : 'text-gray-500 cursor-default'
+                  ]"
+                >
+                  {{ row.itemsProcessed || 0 }}
+                </button>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.totalDuration) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.avgDuration) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.efficiency || 0 }} items/hr</td>
@@ -228,14 +277,33 @@
     </div>
 
     <!-- Order Lead Time Report -->
-    <div v-if="activeTab === 'lead-time' && reportData" class="bg-white shadow rounded-lg p-6 mb-8">
+    <div v-if="activeTab === 'lead-time'" class="bg-white shadow rounded-lg p-6 mb-8">
       <h2 class="text-xl font-semibold text-gray-700 mb-6">Order Lead Time Analysis</h2>
       
-      <div v-if="reportData.length === 0" class="text-gray-500 text-center py-8">
-        No lead time data found for the selected filters.
+      <div v-if="isLoading" class="animate-pulse">
+        <div class="h-4 bg-gray-300 rounded mb-4"></div>
+        <div class="space-y-3">
+          <div v-for="i in 5" :key="i" class="h-12 bg-gray-300 rounded"></div>
+        </div>
       </div>
       
-      <div v-else class="overflow-x-auto">
+      <div v-if="reportData && reportData.length === 0" class="text-center py-12">
+        <Icon name="heroicons:clock" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
+        <p class="text-gray-500 mb-4">
+          No orders found for the selected filters and date range.
+        </p>
+        <div class="text-sm text-gray-400">
+          <p>Try:</p>
+          <ul class="list-disc list-inside mt-2 space-y-1">
+            <li>Expanding your date range</li>
+            <li>Removing customer filters</li>
+            <li>Checking if there were any orders created during this period</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div v-else-if="reportData && reportData.length > 0" class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -269,7 +337,7 @@
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A' }}
+                {{ order.createdAt ? TimezoneService.formatUTCForLocalDisplay(new Date(order.createdAt), undefined, { year: 'numeric', month: '2-digit', day: '2-digit' }) : 'N/A' }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ order.daysInProduction || 0 }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -294,6 +362,19 @@
         </table>
       </div>
     </div>
+      </template>
+    </ReportErrorBoundary>
+
+    <!-- Employee Item Details Modal -->
+    <EmployeeItemDetailsModal
+      :is-open="employeeItemsModal.isOpen"
+      :employee-id="employeeItemsModal.employeeId"
+      :employee-name="employeeItemsModal.employeeName"
+      :start-date="filters.startDate"
+      :end-date="filters.endDate"
+      :station-id="filters.stationId"
+      @close="closeEmployeeItemsModal"
+    />
   </div>
 </template>
 
@@ -301,6 +382,7 @@
 import { useFindManyStation } from '~/lib/hooks/station';
 import { useFindManyUser } from '~/lib/hooks/user';
 import { useFindManyCustomer } from '~/lib/hooks/customer';
+import { TimezoneService } from '~/utils/timezoneService';
 
 definePageMeta({
   layout: 'default',
@@ -323,6 +405,16 @@ const reportData = ref<any[]>([]);
 const summaryStats = ref<any>(null);
 const isLoading = ref(false);
 const isExporting = ref(false);
+const reportError = ref<any>(null);
+const loadingProgress = ref<number | undefined>(undefined);
+const loadingMessage = ref('Please wait while we process your request...');
+
+// Employee items modal state
+const employeeItemsModal = reactive({
+  isOpen: false,
+  employeeId: null as string | null,
+  employeeName: null as string | null,
+});
 
 // Fetch filter options
 const { data: stations } = useFindManyStation({
@@ -341,15 +433,127 @@ const { data: customers } = useFindManyCustomer({
 
 // Set default date range (last 30 days)
 onMounted(() => {
+  setDefaultDateRange();
+  loadReports();
+});
+
+/**
+ * Convert any date format to YYYY-MM-DD format
+ */
+function convertToYYYYMMDD(dateInput: string): string {
+  if (!dateInput) return '';
+  
+  // If it's already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    return dateInput;
+  }
+  
+  // Handle MM/DD/YYYY format (most common issue)
+  const mmddyyyyMatch = dateInput.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyyyyMatch) {
+    const [, month, day, year] = mmddyyyyMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Try to parse as a date and format properly
+  try {
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date');
+    }
+    
+    // Format as YYYY-MM-DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Could not convert date:', dateInput, error);
+    return '';
+  }
+}
+
+/**
+ * Set default date range to last 30 days
+ */
+function setDefaultDateRange() {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - 30);
   
-  filters.endDate = endDate.toISOString().split('T')[0];
-  filters.startDate = startDate.toISOString().split('T')[0];
+  // Force YYYY-MM-DD format
+  const endDateStr = endDate.getFullYear() + '-' + 
+    String(endDate.getMonth() + 1).padStart(2, '0') + '-' + 
+    String(endDate.getDate()).padStart(2, '0');
   
-  loadReports();
-});
+  const startDateStr = startDate.getFullYear() + '-' + 
+    String(startDate.getMonth() + 1).padStart(2, '0') + '-' + 
+    String(startDate.getDate()).padStart(2, '0');
+  
+  filters.endDate = endDateStr;
+  filters.startDate = startDateStr;
+  
+  console.log('🔍 Set default dates:', { startDateStr, endDateStr });
+}
+
+/**
+ * Validate date range inputs
+ */
+function validateDateRange(): boolean {
+  if (!filters.startDate || !filters.endDate) {
+    toast.error({ title: 'Error', message: 'Please select both start and end dates.' });
+    return false;
+  }
+
+  // Automatically convert dates to correct format
+  filters.startDate = convertToYYYYMMDD(filters.startDate);
+  filters.endDate = convertToYYYYMMDD(filters.endDate);
+
+  // Validate that conversion was successful
+  if (!filters.startDate || !filters.endDate) {
+    toast.error({ 
+      title: 'Invalid Date Format', 
+      message: 'Please select valid dates using the date picker.' 
+    });
+    return false;
+  }
+
+  const startDate = new Date(filters.startDate);
+  const endDate = new Date(filters.endDate);
+  
+  // Check if dates are valid
+  if (isNaN(startDate.getTime())) {
+    toast.error({ title: 'Invalid Date', message: 'Start date is not a valid date.' });
+    return false;
+  }
+  
+  if (isNaN(endDate.getTime())) {
+    toast.error({ title: 'Invalid Date', message: 'End date is not a valid date.' });
+    return false;
+  }
+  
+  if (startDate > endDate) {
+    toast.error({ title: 'Error', message: 'Start date must be before or equal to end date.' });
+    return false;
+  }
+
+  // Check if date range is too large (more than 1 year)
+  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysDiff > 365) {
+    toast.error({ title: 'Error', message: 'Date range cannot exceed 365 days.' });
+    return false;
+  }
+
+  // Check if dates are in the future
+  const now = new Date();
+  if (startDate > now) {
+    toast.error({ title: 'Error', message: 'Start date cannot be in the future.' });
+    return false;
+  }
+
+  return true;
+}
 
 // Watch for tab changes
 watch(activeTab, () => {
@@ -357,37 +561,185 @@ watch(activeTab, () => {
   loadReports();
 });
 
+// Watch for date changes and auto-refresh (with debounce)
+const debouncedLoadReports = debounce(loadReports, 1000);
+
+// Watch for date changes and auto-refresh (with debounce)
+watch([() => filters.startDate, () => filters.endDate], () => {
+  if (filters.startDate && filters.endDate) {
+    debouncedLoadReports();
+  }
+});
+
+/**
+ * Simple debounce function to prevent excessive API calls
+ */
+function debounce(func: Function, wait: number) {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 async function loadReports() {
   isLoading.value = true;
+  reportError.value = null;
+  loadingProgress.value = undefined;
   
   try {
+    // Validate date range before making API call
+    if (!validateDateRange()) {
+      return;
+    }
+
+    loadingMessage.value = 'Validating date range...';
+    loadingProgress.value = 10;
+
+    // Automatically convert dates to YYYY-MM-DD format
+    const normalizedStartDate = convertToYYYYMMDD(filters.startDate);
+    const normalizedEndDate = convertToYYYYMMDD(filters.endDate);
+    
+    // Validate that we have valid dates
+    if (!normalizedStartDate || !normalizedEndDate) {
+      reportError.value = {
+        statusMessage: 'Invalid date format',
+        message: 'Please select valid start and end dates',
+        data: {
+          suggestions: [
+            'Use the date picker to select dates',
+            'Ensure both start and end dates are selected',
+            'Try refreshing the page if dates appear incorrect'
+          ]
+        }
+      };
+      return;
+    }
+    
+    // Update the filters with normalized dates (this fixes the display)
+    if (normalizedStartDate !== filters.startDate) {
+      filters.startDate = normalizedStartDate;
+    }
+    if (normalizedEndDate !== filters.endDate) {
+      filters.endDate = normalizedEndDate;
+    }
+
+    // Create UTC date range directly (bypass TimezoneService issues)
+    let utcDateRange;
+    try {
+      // Create dates and convert to ISO strings for API
+      const startDate = new Date(normalizedStartDate + 'T00:00:00.000Z');
+      const endDate = new Date(normalizedEndDate + 'T23:59:59.999Z');
+      
+      // Validate the dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date values');
+      }
+      
+      utcDateRange = {
+        start: startDate,
+        end: endDate
+      };
+    } catch (dateError: any) {
+      console.error('Date creation error:', dateError);
+      reportError.value = {
+        statusMessage: 'Invalid date values provided',
+        message: 'Please select valid dates',
+        data: {
+          suggestions: [
+            'Use the date picker to select dates',
+            'Ensure dates are not too far in the future',
+            'Try refreshing the page and selecting different dates'
+          ]
+        }
+      };
+      return;
+    }
+
+    loadingMessage.value = 'Fetching report data...';
+    loadingProgress.value = 30;
+
     if (activeTab.value === 'productivity') {
+      // Fetch productivity data
+      loadingMessage.value = 'Calculating productivity metrics...';
+      loadingProgress.value = 50;
+
       const response = await $fetch('/api/reports/productivity', {
         query: {
-          startDate: filters.startDate,
-          endDate: filters.endDate,
+          startDate: utcDateRange.start.toISOString(),
+          endDate: utcDateRange.end.toISOString(),
           stationId: filters.stationId || undefined,
           userId: filters.userId || undefined,
         }
       });
-      reportData.value = response.data || [];
-      summaryStats.value = response.summary || {};
+
+      loadingProgress.value = 80;
+
+      if (response.success && response.data) {
+        reportData.value = response.data;
+        summaryStats.value = response.summary;
+        
+        // Show warnings if any
+        if (response.warnings && response.warnings.length > 0) {
+          console.warn('Report warnings:', response.warnings);
+          toast.warning({ 
+            title: 'Data Quality Notice', 
+            message: `Report generated with ${response.warnings.length} data quality warnings. Check console for details.` 
+          });
+        }
+      } else {
+        throw new Error('Invalid response from productivity API');
+      }
     } else {
-      const response = await $fetch('/api/reports/lead-time', {
+      // Fetch lead-time data
+      loadingMessage.value = 'Calculating lead time metrics...';
+      loadingProgress.value = 50;
+
+      const ordersResponse = await $fetch('/api/reports/lead-time', {
         query: {
-          startDate: filters.startDate,
-          endDate: filters.endDate,
+          startDate: utcDateRange.start.toISOString(),
+          endDate: utcDateRange.end.toISOString(),
           customerId: filters.customerId || undefined,
         }
       });
-      reportData.value = response.data || [];
-      summaryStats.value = response.summary || {};
+
+      loadingProgress.value = 80;
+      
+      if (ordersResponse.success && ordersResponse.data) {
+        reportData.value = ordersResponse.data;
+        summaryStats.value = ordersResponse.summary;
+      } else {
+        throw new Error('Invalid response from lead-time API');
+      }
     }
-  } catch (error) {
+
+    loadingMessage.value = 'Finalizing report...';
+    loadingProgress.value = 100;
+
+    // Clear any previous errors
+    reportError.value = null;
+
+  } catch (error: any) {
     console.error('Error loading reports:', error);
-    toast.error({ title: 'Error', message: 'Failed to load reports. Please try again.' });
+    reportError.value = error;
+    
+    // Set empty data on error
+    reportData.value = [];
+    summaryStats.value = null;
+
+    // Show user-friendly error message
+    const errorMessage = error.statusMessage || error.message || 'Failed to load reports. Please try again.';
+    toast.error({ 
+      title: 'Report Generation Failed', 
+      message: errorMessage 
+    });
   } finally {
     isLoading.value = false;
+    loadingProgress.value = undefined;
   }
 }
 
@@ -395,16 +747,62 @@ function clearFilters() {
   filters.stationId = '';
   filters.userId = '';
   filters.customerId = '';
+  setDefaultDateRange();
 }
 
 async function exportCSV() {
   isExporting.value = true;
   
   try {
+    // Validate that we have data to export
+    if (!reportData.value || reportData.value.length === 0) {
+      toast.error({ 
+        title: 'Export Error', 
+        message: 'No data available to export. Please generate a report first.' 
+      });
+      return;
+    }
+
+    // Validate date range before exporting
+    if (!filters.startDate || !filters.endDate) {
+      toast.error({ 
+        title: 'Export Error', 
+        message: 'Please select both start and end dates before exporting.' 
+      });
+      return;
+    }
+
+    // Convert dates for export API
+    let utcDateRange;
+    try {
+      const normalizedStartDate = convertToYYYYMMDD(filters.startDate);
+      const normalizedEndDate = convertToYYYYMMDD(filters.endDate);
+      
+      const startDate = new Date(normalizedStartDate + 'T00:00:00.000Z');
+      const endDate = new Date(normalizedEndDate + 'T23:59:59.999Z');
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date values');
+      }
+      
+      utcDateRange = {
+        start: startDate,
+        end: endDate
+      };
+    } catch (dateError: any) {
+      console.error('Date conversion error during export:', dateError);
+      toast.error({ 
+        title: 'Export Failed', 
+        message: 'Invalid date format. Please ensure dates are properly selected using the date picker.',
+        timeout: 5000
+      });
+      return;
+    }
+
     const queryParams = new URLSearchParams({
       reportType: activeTab.value,
-      startDate: filters.startDate,
-      endDate: filters.endDate,
+      startDate: utcDateRange.start.toISOString(),
+      endDate: utcDateRange.end.toISOString(),
     });
 
     if (activeTab.value === 'productivity') {
@@ -414,6 +812,12 @@ async function exportCSV() {
       if (filters.customerId) queryParams.set('customerId', filters.customerId);
     }
 
+    // Show progress toast
+    toast.info({ 
+      title: 'Exporting Report', 
+      message: 'Preparing your CSV file for download...' 
+    });
+
     // Create a temporary link to download the CSV
     const link = document.createElement('a');
     link.href = `/api/reports/export-csv?${queryParams.toString()}`;
@@ -422,10 +826,19 @@ async function exportCSV() {
     link.click();
     document.body.removeChild(link);
 
-    toast.success({ title: 'Success', message: 'Report exported successfully!' });
-  } catch (error) {
+    toast.success({ 
+      title: 'Export Successful', 
+      message: 'Your report has been downloaded successfully!' 
+    });
+  } catch (error: any) {
     console.error('Error exporting CSV:', error);
-    toast.error({ title: 'Error', message: 'Failed to export report. Please try again.' });
+    
+    const errorMessage = error.statusMessage || error.message || 'Failed to export report. Please try again.';
+    toast.error({ 
+      title: 'Export Failed', 
+      message: errorMessage,
+      timeout: 5000
+    });
   } finally {
     isExporting.value = false;
   }
@@ -442,4 +855,130 @@ function formatDuration(seconds: number): string {
   }
   return `${minutes}m`;
 }
+
+/**
+ * Transform productivity data from metrics service to match UI expectations
+ * Applies filtering and flattens station breakdown data
+ */
+function transformProductivityData(productivityData: any[], filters: any) {
+  const result: any[] = [];
+  
+  productivityData.forEach(employee => {
+    employee.stationBreakdown.forEach((station: any) => {
+      // Apply station filter if specified
+      if (filters.stationId && station.stationId !== filters.stationId) {
+        return;
+      }
+      
+      // Apply user filter if specified
+      if (filters.userId && employee.userId !== filters.userId) {
+        return;
+      }
+      
+      result.push({
+        userId: employee.userId,
+        userName: employee.userName,
+        stationId: station.stationId,
+        stationName: station.stationName,
+        itemsProcessed: station.itemsProcessed,
+        totalDuration: station.hoursWorked * 3600, // Convert hours to seconds
+        avgDuration: station.averageTimePerItem,
+        efficiency: station.hoursWorked > 0 ? Math.round((station.itemsProcessed / station.hoursWorked) * 100) / 100 : 0,
+        totalCost: calculateStationLaborCost(station.hoursWorked, employee.userId)
+      });
+    });
+  });
+  
+  return result.sort((a, b) => b.totalCost - a.totalCost);
+}
+
+/**
+ * Calculate total labor cost from productivity data
+ */
+function calculateTotalLaborCost(productivityData: any[]): number {
+  return productivityData.reduce((total, employee) => {
+    return total + employee.stationBreakdown.reduce((stationTotal: number, station: any) => {
+      return stationTotal + calculateStationLaborCost(station.hoursWorked, employee.userId);
+    }, 0);
+  }, 0);
+}
+
+/**
+ * Calculate labor cost for a station (placeholder - would need user hourly rate data)
+ * For now, using a default rate since we don't have access to user hourly rates in the metrics service
+ */
+function calculateStationLaborCost(hoursWorked: number, userId: string): number {
+  const defaultHourlyRate = 25; // Default hourly rate - should be fetched from user data
+  return hoursWorked * defaultHourlyRate;
+}
+
+/**
+ * Calculate total revenue from revenue periods data
+ */
+function calculateRevenueFromPeriods(revenueByPeriod: any[]): number {
+  if (!revenueByPeriod || revenueByPeriod.length === 0) {
+    return 0;
+  }
+  
+  return revenueByPeriod.reduce((total, period) => total + (period.revenue || 0), 0);
+}
+
+/**
+ * Open the employee items modal for drill-down details
+ */
+function openEmployeeItemsModal(employeeId: string, employeeName: string, itemCount: number) {
+  if (!itemCount || itemCount === 0) {
+    return; // Don't open modal if no items
+  }
+
+  employeeItemsModal.employeeId = employeeId;
+  employeeItemsModal.employeeName = employeeName;
+  employeeItemsModal.isOpen = true;
+}
+
+/**
+ * Close the employee items modal
+ */
+function closeEmployeeItemsModal() {
+  employeeItemsModal.isOpen = false;
+  employeeItemsModal.employeeId = null;
+  employeeItemsModal.employeeName = null;
+}
+
+/**
+ * Clear the current error state
+ */
+function clearReportError() {
+  reportError.value = null;
+}
+
+/**
+ * Retry loading reports after an error
+ */
+function retryLoadReports() {
+  clearReportError();
+  loadReports();
+}
+
+/**
+ * Handle contact support action
+ */
+function contactSupport() {
+  // In a real application, this might open a support ticket system
+  // or mailto link with pre-filled error information
+  const subject = encodeURIComponent('Report Generation Error');
+  const body = encodeURIComponent(`
+I encountered an error while generating reports:
+
+Report Type: ${activeTab.value}
+Date Range: ${filters.startDate} to ${filters.endDate}
+Error: ${reportError.value?.statusMessage || reportError.value?.message || 'Unknown error'}
+
+Please help me resolve this issue.
+  `);
+  
+  window.open(`mailto:support@company.com?subject=${subject}&body=${body}`, '_blank');
+}
+
+
 </script>
