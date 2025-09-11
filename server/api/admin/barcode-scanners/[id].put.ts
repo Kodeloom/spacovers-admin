@@ -4,7 +4,7 @@ import { getEnhancedPrismaClient } from '~/server/lib/db';
 
 const UpdateBarcodeScannerSchema = z.object({
   prefix: z.string().min(1, 'Prefix is required').optional(),
-  stationId: z.string().min(1, 'Station is required').optional(),
+  stationId: z.string().nullable().optional().transform(val => val === '' ? null : val), // Convert empty string to null for office scanners
   userId: z.string().min(1, 'User is required').optional(),
   model: z.string().optional(),
   serialNumber: z.string().optional(),
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
       where: { id: scannerId },
       data: {
         ...(data.prefix && { prefix: data.prefix }),
-        ...(data.stationId && { stationId: data.stationId }),
+        ...(data.stationId !== undefined && { stationId: data.stationId }), // Already transformed by Zod (empty string -> null)
         ...(data.userId && { userId: data.userId }),
         ...(data.model !== undefined && { model: data.model }),
         ...(data.serialNumber !== undefined && { serialNumber: data.serialNumber }),
