@@ -29,7 +29,7 @@
       </template>
       
       <template #station-data="{ row }">
-        <span class="text-sm">{{ row.station?.name || 'N/A' }}</span>
+        <span class="text-sm">{{ row.station?.name || 'Office' }}</span>
       </template>
       
       <template #user-data="{ row }">
