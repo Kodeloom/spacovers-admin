@@ -5,6 +5,29 @@
       <p class="mt-2 text-lg text-gray-600">
         Welcome back, {{ session?.data?.user?.name }}! Here's your warehouse overview.
       </p>
+      
+      <!-- Loading indicator -->
+      <div v-if="isLoading" class="mt-4 flex items-center text-blue-600">
+        <Icon name="heroicons:arrow-path" class="h-5 w-5 animate-spin mr-2" />
+        <span class="text-sm">Loading dashboard metrics...</span>
+      </div>
+      
+      <!-- Error message -->
+      <div v-if="error" class="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
+        <div class="flex">
+          <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 text-red-400 mr-2" />
+          <div>
+            <h3 class="text-sm font-medium text-red-800">Error Loading Metrics</h3>
+            <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+            <button 
+              @click="fetchDashboardMetrics"
+              class="mt-2 text-sm text-red-600 hover:text-red-500 underline"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Average Lead Time (Always Last 60 Days) -->
@@ -21,26 +44,26 @@
       </div>
     </div>
 
-    <!-- Time Filter for Dashboard Metrics -->
+    <!-- Dashboard Refresh Button -->
     <div class="mb-6 bg-white p-4 rounded-lg shadow">
       <div class="flex items-center justify-between">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Dashboard Time Period</label>
-          <p class="text-xs text-gray-500">Select the time period for dashboard metrics</p>
+          <h3 class="text-sm font-medium text-gray-700 mb-1">Real-time Dashboard Metrics</h3>
+          <p class="text-xs text-gray-500">Dashboard shows current status and real-time calculations</p>
         </div>
         <div class="flex items-center space-x-2">
-          <select
-            v-model="timeFilter"
-            class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            @change="updateDashboardMetrics"
+          <button
+            @click="fetchDashboardMetrics"
+            :disabled="isLoading"
+            class="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            <option value="30">Last 30 Days</option>
-            <option value="60">Last 60 Days</option>
-            <option value="90">Last 90 Days</option>
-            <option value="ytd">Year To Date</option>
-            <option value="365">Last 365 Days</option>
-            <option value="lifetime">Lifetime</option>
-          </select>
+            <Icon 
+              name="heroicons:arrow-path" 
+              class="h-4 w-4 mr-1"
+              :class="{ 'animate-spin': isLoading }"
+            />
+            Refresh
+          </button>
         </div>
       </div>
     </div>
@@ -55,8 +78,11 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Total Orders</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.totalOrders || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.totalOrders || '0' }}</span>
+            </p>
+            <p class="text-xs text-gray-400">All time</p>
           </div>
         </div>
       </div>
@@ -69,8 +95,11 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Orders Pending</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.ordersPending || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.pendingOrders || '0' }}</span>
+            </p>
+            <p class="text-xs text-gray-400">Current status</p>
           </div>
         </div>
       </div> 
@@ -83,39 +112,48 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Ready to Ship</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.ordersReadyToShip || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.readyToShip || '0' }}</span>
+            </p>
+            <p class="text-xs text-gray-400">Current status</p>
           </div>
         </div>
       </div>
 
-      <!-- Orders Completed -->
-      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+      <!-- Revenue This Month -->
+      <!-- <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
         <div class="flex items-center">
           <div class="flex-shrink-0">
-            <Icon name="heroicons:check-circle" class="h-8 w-8 text-green-600" />
+            <Icon name="heroicons:currency-dollar" class="h-8 w-8 text-green-600" />
           </div>
           <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Orders Completed</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.ordersCompleted || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            <p class="text-sm font-medium text-gray-500">Revenue This Month</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>${{ (dashboardMetrics.revenueThisMonth || 0).toLocaleString() }}</span>
+            </p>
+            <p class="text-xs text-gray-400">Current month</p>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
 
     <!-- Secondary KPI Cards Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-<!-- Orders In Progress -->
+<!-- Orders This Week -->
       <div class="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500">
         <div class="flex items-center">
           <div class="flex-shrink-0">
-            <Icon name="heroicons:cog" class="h-8 w-8 text-indigo-600" />
+            <Icon name="heroicons:calendar-days" class="h-8 w-8 text-indigo-600" />
           </div>
           <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Orders In Progress</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.ordersInProgress || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            <p class="text-sm font-medium text-gray-500">Orders This Week</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.ordersThisWeek || '0' }}</span>
+            </p>
+            <p class="text-xs text-gray-400">Current week</p>
           </div>
         </div>
       </div> 
@@ -128,7 +166,10 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Cutting</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.cuttingItems || '0' }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.cuttingItems || '0' }}</span>
+            </p>
             <p class="text-xs text-gray-400">Currently in production</p>
           </div>
         </div>
@@ -142,7 +183,10 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Sewing</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.sewingItems || '0' }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.sewingItems || '0' }}</span>
+            </p>
             <p class="text-xs text-gray-400">Currently in production</p>
           </div>
         </div>
@@ -156,7 +200,10 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Foam Cutting</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.foamCuttingItems || '0' }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.foamCuttingItems || '0' }}</span>
+            </p>
             <p class="text-xs text-gray-400">Currently in production</p>
           </div>
         </div>
@@ -170,7 +217,10 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Stuffing</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.stuffingItems || '0' }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.stuffingItems || '0' }}</span>
+            </p>
             <p class="text-xs text-gray-400">Currently in production</p>
           </div>
         </div>
@@ -184,7 +234,10 @@
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Packaging</p>
-            <p class="text-3xl font-bold text-gray-900">{{ dashboardMetrics.packagingItems || '0' }}</p>
+            <p class="text-3xl font-bold text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
+              <span v-else>{{ dashboardMetrics.packagingItems || '0' }}</span>
+            </p>
             <p class="text-xs text-gray-400">Currently in production</p>
           </div>
         </div>
@@ -199,15 +252,24 @@
         <div class="space-y-3">
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Items in Production:</span>
-            <span class="text-sm font-medium text-gray-900">{{ dashboardMetrics.itemsInProduction || '0' }}</span>
+            <span class="text-sm font-medium text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-1">--</span>
+              <span v-else>{{ dashboardMetrics.itemsInProduction || '0' }}</span>
+            </span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Items Completed Today:</span>
-            <span class="text-sm font-medium text-gray-900">{{ dashboardMetrics.itemsCompletedToday || '0' }}</span>
+            <span class="text-sm font-medium text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-1">--</span>
+              <span v-else>{{ dashboardMetrics.itemsCompletedToday || '0' }}</span>
+            </span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Avg Items/Day:</span>
-            <span class="text-sm font-medium text-gray-900">{{ dashboardMetrics.avgItemsPerDay || '0' }}</span>
+            <span class="text-sm font-medium text-gray-900">
+              <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-1">--</span>
+              <span v-else>{{ dashboardMetrics.avgItemsPerDay || '0' }}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -287,9 +349,10 @@ class="px-2 py-1 rounded-full text-xs font-medium"
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { authClient } from '~/lib/auth-client';
 import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
+import type { DashboardMetrics } from '~/utils/metricsService';
 
 // Define a minimal type for what we expect in user.roles for display
 interface UserRoleForDisplay {
@@ -302,13 +365,28 @@ const session = authClient.useSession();
 const { isAdmin: isAdminRole, isWarehouseStaff, getDefaultRoute } = useRoleBasedRouting();
 
 // Dashboard state
-const timeFilter = ref('30'); // Default to last 30 days
-const dashboardMetrics = ref({
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+const dashboardMetrics = ref<DashboardMetrics & {
+  avgLeadTime: number;
+  ordersCompleted: number;
+  cuttingItems: number;
+  sewingItems: number;
+  foamCuttingItems: number;
+  stuffingItems: number;
+  packagingItems: number;
+  itemsInProduction: number;
+  itemsCompletedToday: number;
+  avgItemsPerDay: number;
+  recentOrders: any[];
+}>({
   totalOrders: 0,
+  revenueThisMonth: 0,
+  ordersThisWeek: 0,
+  pendingOrders: 0,
+  inProduction: 0,
+  readyToShip: 0,
   avgLeadTime: 0,
-  ordersPending: 0,
-  ordersInProgress: 0,
-  ordersReadyToShip: 0,
   ordersCompleted: 0,
   cuttingItems: 0,
   sewingItems: 0,
@@ -321,18 +399,7 @@ const dashboardMetrics = ref({
   recentOrders: []
 });
 
-// Computed property for time filter label
-const timeFilterLabel = computed(() => {
-  switch (timeFilter.value) {
-    case '30': return 'Last 30 days';
-    case '60': return 'Last 60 days';
-    case '90': return 'Last 90 days';
-    case 'ytd': return 'Year to date';
-    case '365': return 'Last 365 days';
-    case 'lifetime': return 'Lifetime';
-    default: return 'Last 30 days';
-  }
-});
+
 
 const userRolesDisplay = computed(() => {
   const user = session.value?.data?.user;
@@ -360,45 +427,67 @@ const isAdmin = computed(() => {
 
 // Fetch dashboard metrics function
 async function fetchDashboardMetrics() {
+  isLoading.value = true;
+  error.value = null;
+  
   try {
-    // Fetch order counts
-    const orderCountsResponse = await $fetch('/api/reports/order-counts', {
-      query: { timeFilter: timeFilter.value }
-    });
+    // Fetch core metrics from new metrics API
+    const metricsResponse = await $fetch('/api/metrics/dashboard');
     
-    // Fetch average lead time (always last 60 days)
-    const leadTimeResponse = await $fetch('/api/reports/lead-time', {
-      query: { days: 60 }
-    });
+    if (!metricsResponse.success) {
+      throw new Error('Failed to fetch dashboard metrics');
+    }
     
-    // Fetch station items data
-    const stationItemsResponse = await $fetch('/api/reports/station-items');
+    const coreMetrics = metricsResponse.data;
     
-    // Fetch recent orders
-    const recentOrdersResponse = await $fetch('/api/model/Order', {
-      query: { 
-        take: 5, 
-        orderBy: { createdAt: 'desc' },
-        include: { customer: true }
-      }
-    });
+    // Fetch additional data that's not yet in the metrics service
+    // Calculate date range for last 60 days
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 60);
+    
+    const [leadTimeResponse, stationItemsResponse, recentOrdersResponse] = await Promise.allSettled([
+      $fetch('/api/reports/lead-time', { 
+        query: { 
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        } 
+      }),
+      $fetch('/api/reports/station-items'),
+      $fetch('/api/model/Order', {
+        query: { 
+          take: 5, 
+          orderBy: { createdAt: 'desc' },
+          include: { customer: true }
+        }
+      })
+    ]);
+    
+    // Extract values with fallbacks
+    const leadTime = leadTimeResponse.status === 'fulfilled' ? leadTimeResponse.value?.avgLeadTime || 0 : 0;
+    const stationItems = stationItemsResponse.status === 'fulfilled' ? stationItemsResponse.value || [] : [];
+    const recentOrders = recentOrdersResponse.status === 'fulfilled' ? recentOrdersResponse.value?.data || [] : [];
     
     // Process station items data
-    const cuttingItems = stationItemsResponse.find((s: any) => s.stationName === 'Cutting')?.itemsCount || 0;
-    const sewingItems = stationItemsResponse.find((s: any) => s.stationName === 'Sewing')?.itemsCount || 0;
-    const foamCuttingItems = stationItemsResponse.find((s: any) => s.stationName === 'Foam Cutting')?.itemsCount || 0;
-    const stuffingItems = stationItemsResponse.find((s: any) => s.stationName === 'Stuffing')?.itemsCount || 0;
-    const packagingItems = stationItemsResponse.find((s: any) => s.stationName === 'Packaging')?.itemsCount || 0;
+    const cuttingItems = stationItems.find((s: any) => s.stationName === 'Cutting')?.itemsCount || 0;
+    const sewingItems = stationItems.find((s: any) => s.stationName === 'Sewing')?.itemsCount || 0;
+    const foamCuttingItems = stationItems.find((s: any) => s.stationName === 'Foam Cutting')?.itemsCount || 0;
+    const stuffingItems = stationItems.find((s: any) => s.stationName === 'Stuffing')?.itemsCount || 0;
+    const packagingItems = stationItems.find((s: any) => s.stationName === 'Packaging')?.itemsCount || 0;
     
-    // Update metrics
+    // Update metrics with real data from metrics API
     dashboardMetrics.value = {
-      totalOrders: orderCountsResponse.pending + orderCountsResponse.inProgress + 
-                   orderCountsResponse.readyToShip + orderCountsResponse.completed,
-      avgLeadTime: leadTimeResponse.avgLeadTime || 0,
-      ordersPending: orderCountsResponse.pending || 0,
-      ordersInProgress: orderCountsResponse.inProgress || 0,
-      ordersReadyToShip: orderCountsResponse.readyToShip || 0,
-      ordersCompleted: orderCountsResponse.completed || 0,
+      // Core metrics from new API
+      totalOrders: coreMetrics.totalOrders,
+      revenueThisMonth: coreMetrics.revenueThisMonth,
+      ordersThisWeek: coreMetrics.ordersThisWeek,
+      pendingOrders: coreMetrics.pendingOrders,
+      inProduction: coreMetrics.inProduction,
+      readyToShip: coreMetrics.readyToShip,
+      
+      // Legacy metrics (to be migrated later)
+      avgLeadTime: leadTime,
+      ordersCompleted: 0, // Will be calculated from order status counts
       cuttingItems,
       sewingItems,
       foamCuttingItems,
@@ -407,18 +496,39 @@ async function fetchDashboardMetrics() {
       itemsInProduction: cuttingItems + sewingItems + foamCuttingItems + stuffingItems + packagingItems,
       itemsCompletedToday: 0, // TODO: Implement when ItemProcessingLog is available
       avgItemsPerDay: 0, // TODO: Implement when ItemProcessingLog is available
-      recentOrders: recentOrdersResponse?.data || []
+      recentOrders
     };
-  } catch (error) {
-    console.error('Failed to fetch dashboard metrics:', error);
-    // Keep existing metrics on error
+    
+  } catch (fetchError) {
+    console.error('Failed to fetch dashboard metrics:', fetchError);
+    error.value = 'Failed to load dashboard metrics. Please try refreshing the page.';
+    
+    // Use fallback values on error
+    dashboardMetrics.value = {
+      totalOrders: 0,
+      revenueThisMonth: 0,
+      ordersThisWeek: 0,
+      pendingOrders: 0,
+      inProduction: 0,
+      readyToShip: 0,
+      avgLeadTime: 0,
+      ordersCompleted: 0,
+      cuttingItems: 0,
+      sewingItems: 0,
+      foamCuttingItems: 0,
+      stuffingItems: 0,
+      packagingItems: 0,
+      itemsInProduction: 0,
+      itemsCompletedToday: 0,
+      avgItemsPerDay: 0,
+      recentOrders: []
+    };
+  } finally {
+    isLoading.value = false;
   }
 }
 
-// Update metrics when time filter changes
-async function updateDashboardMetrics() {
-  await fetchDashboardMetrics();
-}
+
 
 // Role-based routing
 watch(session, (newSession) => {
@@ -435,9 +545,26 @@ watch(session, (newSession) => {
   }
 }, { immediate: true });
 
-// Initial metrics fetch
+// Auto-refresh interval
+const refreshInterval = ref<NodeJS.Timeout | null>(null);
+
+// Start auto-refresh when component mounts
 onMounted(() => {
   fetchDashboardMetrics();
+  
+  // Set up auto-refresh every 30 seconds
+  refreshInterval.value = setInterval(() => {
+    if (!isLoading.value) {
+      fetchDashboardMetrics();
+    }
+  }, 30000);
+});
+
+// Clean up interval when component unmounts
+onUnmounted(() => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value);
+  }
 });
 
 definePageMeta({
