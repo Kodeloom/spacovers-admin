@@ -350,13 +350,13 @@ model Station {
 model BarcodeScanner {
   id           String   @id @default(cuid())
   prefix       String   @unique // e.g., "S3A"
-  stationId    String   // FK to Station
+  stationId    String?  // FK to Station - nullable for office scanners
   userId       String   // FK to User
   model        String?  // Scanner model
   serialNumber String?  // Scanner serial number
   isActive     Boolean  @default(true)
   
-  station      Station  @relation(fields: [stationId], references: [id])
+  station      Station? @relation(fields: [stationId], references: [id])
   user         User     @relation(fields: [userId], references: [id])
   
   createdAt    DateTime @default(now())
