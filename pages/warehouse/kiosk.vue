@@ -357,38 +357,52 @@ async function processItem() {
       throw new Error('Item not found in this order');
     }
     
-    // Handle office scanners differently - they can view status but not process items
+    // Office scanners handle specific critical transitions:
+    // 1. NOT_STARTED_PRODUCTION → CUTTING (starting production)
+    // 2. PRODUCT_FINISHED → READY (finalizing for delivery)
     if (currentScannerInfo.value.station === 'Office') {
       const currentStatusDisplay = getStatusDisplayName(orderItem.itemStatus);
       
-      // Show status information for office scanners
-      lastScanResult.value = {
-        success: true,
-        title: 'Item Status',
-        message: `This item is currently "${currentStatusDisplay}". Office scanners can view status but cannot process workflow transitions.`
-      };
-      
-      // Add to recent activity
-      addToRecentActivity({
-        orderNumber: orderResponse.order.orderNumber,
-        itemName: orderItem.itemName,
-        user: currentScannerInfo.value.user,
-        station: currentScannerInfo.value.station,
-        status: `Status Check: ${currentStatusDisplay}`,
-        success: true,
-        timestamp: new Date()
+      // Check if this is a valid office transition
+      const canTransition = isValidStatusTransition(orderItem.itemStatus, 'Office');
+      console.log('🔍 Office transition check:', {
+        currentStatus: orderItem.itemStatus,
+        station: 'Office',
+        canTransition: canTransition
       });
       
-      // Clear the barcode input
-      scanForm.value.barcode = '';
-      focusInput();
+      if (!canTransition) {
+        // Office scanner viewing status of item they can't process
+        lastScanResult.value = {
+          success: false, // Changed to false to show as warning/info instead of success
+          title: 'Status Check',
+          message: `This item is currently "${currentStatusDisplay}". Office scanners can only start production (from "Not Started") or finalize items (from "Item Done").`
+        };
+        
+        // Add to recent activity
+        addToRecentActivity({
+          orderNumber: orderResponse.order.orderNumber,
+          itemName: orderItem.itemName,
+          user: currentScannerInfo.value.user,
+          station: currentScannerInfo.value.station,
+          status: `Status Check: ${currentStatusDisplay}`,
+          success: true,
+          timestamp: new Date()
+        });
+        
+        // Clear the barcode input
+        scanForm.value.barcode = '';
+        focusInput();
+        
+        // Clear message after 8 seconds (longer for reading)
+        setTimeout(() => {
+          lastScanResult.value = null;
+        }, 20000);
+        
+        return; // Exit early - office can't process this transition
+      }
       
-      // Clear message after 5 seconds
-      setTimeout(() => {
-        lastScanResult.value = null;
-      }, 5000);
-      
-      return; // Exit early for office scanners
+      // Office scanner can process this transition - continue with normal workflow
     }
     
     // Validate status transition using the scanner's station (for production stations)
@@ -407,6 +421,15 @@ async function processItem() {
     const nextStatus = getNextStatus(orderItem.itemStatus, currentScannerInfo.value.station);
     
     // Process the item using the scanner's user and station
+    console.log('🚀 Calling process-item API with:', {
+      orderItemId: orderItem.id,
+      stationId: currentScannerInfo.value.stationId,
+      userId: currentScannerInfo.value.userId,
+      scannerPrefix: barcodeData.prefix,
+      currentStatus: orderItem.itemStatus,
+      nextStatus: nextStatus
+    });
+    
     const response = await $fetch('/api/warehouse/process-item', {
       method: 'POST',
       body: { 
@@ -420,7 +443,10 @@ async function processItem() {
       }
     });
     
+    console.log('✅ Process-item API response:', response);
+    
     if (response.success && response.newItemStatus) {
+      console.log('🎉 API call successful - showing success message');
       // Show success result
       const stepInfo = response.workflowStep;
       lastScanResult.value = {
@@ -446,12 +472,13 @@ async function processItem() {
       // Auto-focus back to barcode input for next scan
       focusInput();
       
-      // Clear success message after 5 seconds
+      // Clear success message after 8 seconds (longer for reading)
       setTimeout(() => {
         lastScanResult.value = null;
-      }, 5000);
+      }, 8000);
     }
   } catch (error) {
+    console.error('❌ API call failed:', error);
     const errorInfo = formatErrorForUI(error);
     
     // Show error result
