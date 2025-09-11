@@ -45,7 +45,7 @@ export default defineEventHandler(async (event: H3Event) => {
     console.log('🔍 API Debug - Model:', model, 'Method:', event.method);
     
     // Special handling for Role updates to manage many-to-many with permissions
-    if (model === 'role' && event.method === 'PUT') {
+    if (model?.toLowerCase() === 'role' && event.method === 'PUT') {
         const roleId = parts.length > 4 ? parts[4] : null;
         if (!roleId) {
             throw createError({ statusCode: 400, statusMessage: 'Role ID is required for update.' });
@@ -105,7 +105,7 @@ export default defineEventHandler(async (event: H3Event) => {
         }
     }
 
-    if (model === 'role' && event.method === 'POST') {
+    if (model?.toLowerCase() === 'role' && event.method === 'POST') {
         const result = await readValidatedBody(event, (body: any) => CreateRoleInputSchema.safeParse(body.data));
         if (!result.success) {
             throw createError({ statusCode: 422, statusMessage: 'Validation failed.', data: result.error.flatten().fieldErrors });
@@ -154,7 +154,7 @@ export default defineEventHandler(async (event: H3Event) => {
     }
 
     // Special handling for Station creation to manage many-to-many with roles
-    if (model === 'station' && event.method === 'POST') {
+    if (model?.toLowerCase() === 'station' && event.method === 'POST') {
         const result = await readValidatedBody(event, (body: any) => CreateStationInputSchema.safeParse(body.data));
         if (!result.success) {
             throw createError({ statusCode: 422, statusMessage: 'Validation failed.', data: result.error.flatten().fieldErrors });
