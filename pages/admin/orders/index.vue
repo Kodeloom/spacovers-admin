@@ -33,73 +33,215 @@
     </div>
 
     <!-- Metrics Cards -->
-    <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      <!-- Average Lead Time (Always Last 60 Days) -->
-      <div class="bg-white p-4 rounded-lg shadow">
+    <div class="mb-6">
+      <!-- Error State -->
+      <div v-if="metricsError" class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
         <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:clock" class="h-8 w-8 text-blue-600" />
-          </div>
-          <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Avg Lead Time</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ metrics.avgLeadTime || '0' }} days</p>
-            <p class="text-xs text-gray-400">Last 60 days</p>
-          </div>
+          <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 text-red-600 mr-2" />
+          <p class="text-sm text-red-700">{{ metricsError }}</p>
+          <button
+            class="ml-auto text-sm text-red-600 hover:text-red-800 underline"
+            @click="fetchMetrics"
+          >
+            Retry
+          </button>
         </div>
       </div>
 
-      <!-- Orders Pending -->
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:clock" class="h-8 w-8 text-yellow-600" />
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Average Lead Time (Always Last 60 Days) -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-blue-600" />
           </div>
-          <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Orders Pending</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersPending || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Orders In Progress -->
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:cog" class="h-8 w-8 text-indigo-600" />
-          </div>
-          <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Orders In Progress</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersInProgress || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:clock" class="h-8 w-8 text-blue-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Avg Lead Time</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.avgLeadTime || '0' }} days</p>
+              <p class="text-xs text-gray-400">Last 60 days</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Orders Ready to Ship -->
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:truck" class="h-8 w-8 text-green-600" />
+        <!-- Total Orders -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-gray-600" />
           </div>
-          <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Ready to Ship</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersReadyToShip || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:document-text" class="h-8 w-8 text-gray-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Total Orders</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.totalOrders || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
           </div>
         </div>
+
+        <!-- Orders Pending -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-yellow-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:clock" class="h-8 w-8 text-yellow-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Orders Pending</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersPending || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders In Progress -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-indigo-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:cog" class="h-8 w-8 text-indigo-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Orders In Progress</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersInProgress || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+
+        
       </div>
 
-      <!-- Orders Completed -->
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:check-circle" class="h-8 w-8 text-green-600" />
+      <!-- Additional Metrics Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        <!-- Total Value -->
+        <!-- <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-emerald-600" />
           </div>
-          <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Orders Completed</p>
-            <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersCompleted || '0' }}</p>
-            <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:currency-dollar" class="h-8 w-8 text-emerald-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Total Value</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(metrics.totalValue || 0) }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div> -->
+
+        <!-- Average Order Value -->
+        <!-- <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-purple-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:calculator" class="h-8 w-8 text-purple-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Avg Order Value</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(metrics.averageOrderValue || 0) }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div> -->
+
+        <!-- Orders Ready to Ship -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-green-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:truck" class="h-8 w-8 text-green-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Orders Ready to Ship</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersReadyToShip || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Completed -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-green-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:check-circle" class="h-8 w-8 text-green-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Orders Completed</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.ordersCompleted || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+        <!-- Items in Production -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-orange-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:wrench-screwdriver" class="h-8 w-8 text-orange-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Items in Production</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ 
+                (metrics.productionMetrics?.cutting || 0) + 
+                (metrics.productionMetrics?.sewing || 0) + 
+                (metrics.productionMetrics?.foamCutting || 0) + 
+                (metrics.productionMetrics?.packaging || 0) 
+              }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Not Started -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-gray-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:pause-circle" class="h-8 w-8 text-gray-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Items Not Started</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.productionMetrics?.notStarted || '0' }}</p>
+              <p class="text-xs text-gray-400">{{ timeFilterLabel }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Items Ready -->
+        <div class="bg-white p-4 rounded-lg shadow relative">
+          <div v-if="isMetricsLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+            <Icon name="svg-spinners:180-ring-with-bg" class="h-6 w-6 text-emerald-600" />
+          </div>
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <Icon name="heroicons:check-badge" class="h-8 w-8 text-emerald-600" />
+            </div>
+            <div class="ml-4 flex-1">
+              <p class="text-sm font-medium text-gray-500">Items Completed</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ metrics.totalItemsReady || '0' }}</p>
+              <p class="text-xs text-gray-400">Production finished</p>
+            </div>
           </div>
         </div>
       </div>
@@ -416,8 +558,24 @@ const metrics = ref({
   ordersPending: 0,
   ordersInProgress: 0,
   ordersReadyToShip: 0,
-  ordersCompleted: 0
+  ordersCompleted: 0,
+  totalValue: 0,
+  averageOrderValue: 0,
+  totalOrders: 0,
+  totalItemsReady: 0,  // Total items with READY or PRODUCT_FINISHED status
+  productionMetrics: {
+    notStarted: 0,
+    cutting: 0,
+    sewing: 0,
+    foamCutting: 0,
+    packaging: 0,
+    finished: 0,
+    ready: 0
+  }
 });
+
+const isMetricsLoading = ref(false);
+const metricsError = ref<string | null>(null);
 
 // Computed property for time filter label
 const timeFilterLabel = computed(() => {
@@ -497,29 +655,134 @@ watch(() => route.fullPath, (fullPath) => {
   }
 });
 
-// Fetch metrics function
+// Watch for filter changes and automatically refresh metrics
+watch([customerFilter, statusFilter, customerIdFromQuery], () => {
+  // Debounce the metrics refresh to avoid too many API calls
+  clearTimeout(metricsRefreshTimeout);
+  metricsRefreshTimeout = setTimeout(() => {
+    fetchMetrics();
+  }, 500);
+}, { deep: true });
+
+// Watch for time filter changes and refresh metrics immediately
+watch(timeFilter, () => {
+  fetchMetrics();
+});
+
+// Timeout for debouncing metrics refresh
+let metricsRefreshTimeout: NodeJS.Timeout;
+
+// Fetch metrics function using the new metrics API
 async function fetchMetrics() {
+  isMetricsLoading.value = true;
+  metricsError.value = null;
+  
   try {
-    // Always fetch average lead time for last 60 days
-    const leadTimeResponse = await $fetch('/api/reports/lead-time', {
-      query: { days: 60 }
-    });
+    // Build filters based on current page filters and time filter
+    const filters: Record<string, any> = {};
     
-    // Fetch order counts based on current time filter
-    const orderCountsResponse = await $fetch('/api/reports/order-counts', {
-      query: { timeFilter: timeFilter.value }
-    });
+    // Apply time filter
+    if (timeFilter.value !== 'lifetime') {
+      const now = new Date();
+      let dateFrom: Date;
+      
+      switch (timeFilter.value) {
+        case '30':
+          dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '60':
+          dateFrom = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+          break;
+        case '90':
+          dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'ytd':
+          dateFrom = new Date(now.getFullYear(), 0, 1);
+          break;
+        case '365':
+          dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      filters.dateFrom = dateFrom.toISOString();
+    }
     
-    metrics.value = {
-      avgLeadTime: leadTimeResponse.avgLeadTime || 0,
-      ordersPending: orderCountsResponse.pending || 0,
-      ordersInProgress: orderCountsResponse.inProgress || 0,
-      ordersReadyToShip: orderCountsResponse.readyToShip || 0,
-      ordersCompleted: orderCountsResponse.completed || 0
-    };
+    // Apply current page filters to metrics
+    if (customerIdFromQuery.value) {
+      filters.customerId = customerIdFromQuery.value;
+    } else if (customerFilter.value) {
+      // Note: The API doesn't support customer name filtering directly,
+      // so we'll fetch all metrics when filtering by customer name
+    }
+    
+    if (statusFilter.value) {
+      filters.status = statusFilter.value;
+    }
+
+    // Fetch metrics from the new orders metrics API
+    const response = await $fetch('/api/metrics/orders', {
+      query: filters
+    });
+
+    if (response.success && response.data) {
+      const data = response.data;
+      
+      // Always fetch average lead time for last 60 days (separate from filtered metrics)
+      let avgLeadTime = 0;
+      try {
+        // Calculate date range for last 60 days
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 60);
+        
+        const leadTimeResponse = await $fetch('/api/reports/lead-time', {
+          query: { 
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          }
+        });
+        avgLeadTime = leadTimeResponse.avgLeadTime || 0;
+      } catch (leadTimeError) {
+        console.warn('Failed to fetch lead time:', leadTimeError);
+      }
+      
+      // Update metrics with new data
+      metrics.value = {
+        avgLeadTime,
+        ordersPending: data.statusCounts?.PENDING || 0,
+        ordersInProgress: data.statusCounts?.ORDER_PROCESSING || 0,
+        ordersReadyToShip: data.statusCounts?.READY_TO_SHIP || 0,
+        ordersCompleted: data.statusCounts?.COMPLETED || 0,
+        totalValue: data.totalValue || 0,
+        averageOrderValue: data.averageOrderValue || 0,
+        totalOrders: data.totalOrders || 0,
+        totalItemsReady: data.totalItemsReady || 0,  // Include total items ready count
+        productionMetrics: data.productionMetrics || {
+          notStarted: 0,
+          cutting: 0,
+          sewing: 0,
+          foamCutting: 0,
+          packaging: 0,
+          finished: 0,
+          ready: 0
+        }
+      };
+    } else {
+      throw new Error('Invalid response from metrics API');
+    }
   } catch (error) {
     console.error('Failed to fetch metrics:', error);
-    // Keep existing metrics on error
+    metricsError.value = 'Failed to load metrics. Please try again.';
+    
+    // Keep existing metrics on error, but show error state
+    toast.error({
+      title: 'Metrics Error',
+      message: 'Failed to load order metrics. Some data may be outdated.'
+    });
+  } finally {
+    isMetricsLoading.value = false;
   }
 }
 
@@ -542,6 +805,9 @@ function clearFilters() {
   if (customerIdFromQuery.value) {
     router.push({ query: { ...route.query, customerId: undefined } });
   }
+  
+  // Refresh metrics after clearing filters
+  fetchMetrics();
 }
 
 function openVerifyModal(order: Record<string, any>) {
@@ -601,6 +867,7 @@ const { mutate: updateOrder } = useUpdateOrder({
   onSuccess: () => {
     refreshOrders();
     refreshCount();
+    fetchMetrics(); // Refresh metrics when orders are updated
   },
   onError: (error: any) => {
     const err = error as { data?: { data?: { message?: string } } };
@@ -655,6 +922,7 @@ async function handleSync(syncMode: 'UPSERT' | 'CREATE_NEW') {
     toast.success({ title: 'QBO Sync Successful', message: message });
     refreshOrders();
     refreshCount();
+    fetchMetrics(); // Refresh metrics after sync
   } catch (e) {
     const error = e as { data?: { data?: { message?: string } } };
     toast.error({ title: 'Error', message: error.data?.data?.message || 'Failed to sync with QBO.' });
