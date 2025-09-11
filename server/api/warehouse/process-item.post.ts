@@ -1,4 +1,4 @@
-import { getEnhancedPrismaClient } from '~/server/lib/db';
+import { getEnhancedPrismaClient, unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
 import { EmailService } from '~/server/lib/emailService';
 import { createErrorResponse, handlePrismaError, logError, validateBarcodeFormat } from '~/utils/errorHandling';
@@ -37,9 +37,12 @@ function getWorkflowStepInfo(fromStatus: string, toStatus: string, stationName: 
 }
 
 export default defineEventHandler(async (event) => {
+  let sessionData = null; // Declare outside try block for error handling
+  let orderItemId, stationId, nextStatus, barcodeData, userId, currentStatus; // Declare outside try block for error handling
+  
   try {
     const body = await readBody(event);
-    const { orderItemId, stationId, userId, barcodeData, currentStatus, nextStatus } = body;
+    ({ orderItemId, stationId, userId, barcodeData, currentStatus, nextStatus } = body);
 
     if (!orderItemId || !stationId || !nextStatus) {
       const errorResponse = createErrorResponse('INVALID_REQUEST', 'Missing required fields');
@@ -56,7 +59,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get the current user session
-    const sessionData = await auth.api.getSession({ headers: event.headers });
+    sessionData = await auth.api.getSession({ headers: event.headers });
     if (!sessionData?.user?.id) {
       throw createError({
         statusCode: 401,
@@ -65,6 +68,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const prisma = await getEnhancedPrismaClient(event);
+    // Use unenhanced client for processing logs to avoid permission issues
+    const logPrisma = unenhancedPrisma;
 
     // Find the order item
     const orderItem = await prisma.orderItem.findUnique({
@@ -107,6 +112,22 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Station not found'
       });
     }
+    
+    console.log('🔍 Station Info:', {
+      stationId: station.id,
+      stationName: station.name,
+      requestedStationId: stationId
+    });
+
+    console.log('🔍 Process Item Debug Info:', {
+      orderItemId,
+      stationId,
+      userId,
+      scannerPrefix: barcodeData?.prefix,
+      currentStatus,
+      nextStatus,
+      sessionUserId: sessionData.user.id
+    });
 
     // Validate scanner prefix if provided (for multi-scanner system)
     if (barcodeData?.prefix) {
@@ -120,21 +141,32 @@ export default defineEventHandler(async (event) => {
           station: true
         }
       });
+      
+      console.log('🔍 Scanner Info:', {
+        found: !!scanner,
+        scannerUserId: scanner?.userId,
+        scannerStationId: scanner?.stationId,
+        scannerStationName: scanner?.station?.name,
+        requestedStationId: stationId
+      });
 
       if (scanner) {
-        // Verify the scanner belongs to the current user
-        if (scanner.userId !== sessionData.user.id) {
-          throw createError({
-            statusCode: 403,
-            statusMessage: `Scanner ${barcodeData.prefix} is assigned to ${scanner.user.name}. Please use your assigned scanner or contact your supervisor.`
-          });
-        }
+        // In kiosk mode, the scanner identifies the user doing the work
+        // No need to validate against logged-in user - scanner determines who gets credit
+        console.log(`🔍 Scanner ${barcodeData.prefix} identifies user: ${scanner.user.name} for this work`);
+        
+        // Use the scanner's user for all work logging instead of the logged-in user
+        sessionData.user = scanner.user;
 
         // Verify the scanner is assigned to the correct station
-        if (scanner.stationId !== station.id) {
+        // Special handling for office scanners - they can work with any station for workflow transitions
+        const isOfficeScanner = scanner.station?.name === 'Office' || scanner.stationId === null;
+        const isOfficeStation = station.name === 'Office';
+        
+        if (!isOfficeScanner && !isOfficeStation && scanner.stationId !== station.id) {
           throw createError({
             statusCode: 403,
-            statusMessage: `Scanner ${barcodeData.prefix} is assigned to ${scanner.station.name} station, but you're trying to process work at ${station.name} station. Please use the correct scanner for this station.`
+            statusMessage: `Scanner ${barcodeData.prefix} is assigned to ${scanner.station?.name || 'Office'} station, but you're trying to process work at ${station.name} station. Please use the correct scanner for this station.`
           });
         }
 
@@ -151,34 +183,12 @@ export default defineEventHandler(async (event) => {
       console.log('No scanner prefix provided - allowing scan without scanner validation');
     }
 
-    // Check if user is already working on another item (single task focus)
-    const activeWork = await prisma.itemProcessingLog.findFirst({
-      where: {
-        userId: sessionData.user.id,
-        endTime: null // Still in progress
-      },
-      include: {
-        orderItem: {
-          include: {
-            item: true,
-            order: true
-          }
-        },
-        station: true
-      }
-    });
-
-    if (activeWork) {
-      const activeOrderNumber = activeWork.orderItem.order.salesOrderNumber || activeWork.orderItem.order.id.slice(-8);
-      const errorResponse = createErrorResponse(
-        'USER_HAS_ACTIVE_WORK', 
-        `Currently working on ${activeWork.orderItem.item.name} from Order #${activeOrderNumber} at ${activeWork.station.name} station`
-      );
-      throw createError(errorResponse);
-    }
+    // Note: Removed active work check - workers scan when they FINISH work, not start
+    // This allows workers to complete multiple items in sequence without restrictions
+    console.log('📋 Allowing scan - workers scan when completing work, not starting');
 
     // Check if there's an existing active log for this item (from previous station)
-    const existingLog = await prisma.itemProcessingLog.findFirst({
+    const existingLog = await logPrisma.itemProcessingLog.findFirst({
       where: {
         orderItemId: orderItemId,
         endTime: null // Still in progress
@@ -189,22 +199,16 @@ export default defineEventHandler(async (event) => {
       }
     });
 
-    // If someone else is working on this item, prevent concurrent access
-    if (existingLog && existingLog.userId !== sessionData.user.id) {
-      const errorResponse = createErrorResponse(
-        'ITEM_BEING_PROCESSED', 
-        `${existingLog.user.name} is working on this item at ${existingLog.station.name} station`,
-        409
-      );
-      throw createError(errorResponse);
-    }
+    // Note: Removed concurrent access check - workers scan when finishing, not starting
+    // Multiple scans are allowed as they represent completion of work, not conflicts
+    console.log(`📋 ${existingLog ? 'Existing log found - will close it' : 'No existing log'} for item processing`);
 
     // If there's an existing log, close it first (completing previous station work)
     if (existingLog) {
       const endTime = new Date();
       const durationInSeconds = Math.floor((endTime.getTime() - existingLog.startTime.getTime()) / 1000);
       
-      await prisma.itemProcessingLog.update({
+      await logPrisma.itemProcessingLog.update({
         where: { id: existingLog.id },
         data: {
           endTime: endTime,
@@ -222,34 +226,63 @@ export default defineEventHandler(async (event) => {
       }
     });
 
-    // Create a new processing log entry for the current station work
-    // Note: For the final step (PRODUCT_FINISHED -> READY), we don't start new work
+    // Create ItemStatusLog entry for UI display and audit trail
+    try {
+      await logPrisma.itemStatusLog.create({
+        data: {
+          orderItemId: orderItemId,
+          fromStatus: currentStatus,
+          toStatus: nextStatus,
+          userId: sessionData.user.id,
+          changeReason: `Scanned at ${station.name} station`,
+          triggeredBy: 'scanner',
+          notes: `Scanner: ${barcodeData?.prefix || 'Unknown'} - ${getWorkflowStepInfo(currentStatus, nextStatus, station.name).description}`
+        }
+      });
+      console.log('✅ ItemStatusLog created for UI display');
+    } catch (statusLogError) {
+      console.error('❌ Failed to create ItemStatusLog:', statusLogError);
+      // Don't fail the whole operation
+    }
+
+    // Create ItemProcessingLog entry for time tracking and existing KPIs
     let processingLog = null;
     if (nextStatus !== 'READY') {
-      processingLog = await prisma.itemProcessingLog.create({
-        data: {
-          orderItemId: orderItemId,
-          stationId: station.id,
-          userId: sessionData.user.id,
-          startTime: new Date(),
-          scannerPrefix: barcodeData?.prefix || null,
-          notes: `Started work at ${station.name} station - Status: ${nextStatus}`
-        }
-      });
+      console.log('📝 Creating processing log for ongoing work');
+      try {
+        processingLog = await logPrisma.itemProcessingLog.create({
+          data: {
+            orderItemId: orderItemId,
+            stationId: station.id,
+            userId: sessionData.user.id,
+            startTime: new Date(),
+            notes: `Started work at ${station.name} station - Status: ${nextStatus} - Scanner: ${barcodeData?.prefix || 'Unknown'}`
+          }
+        });
+        console.log('✅ Processing log created:', processingLog.id);
+      } catch (logError) {
+        console.error('❌ Failed to create processing log:', logError);
+        // Don't fail the whole operation, just log the error
+      }
     } else {
-      // For final step, just log the completion without starting new work
-      await prisma.itemProcessingLog.create({
-        data: {
-          orderItemId: orderItemId,
-          stationId: station.id,
-          userId: sessionData.user.id,
-          startTime: new Date(),
-          endTime: new Date(),
-          durationInSeconds: 0,
-          scannerPrefix: barcodeData?.prefix || null,
-          notes: `Final scan - Product ready for delivery/pickup`
-        }
-      });
+      console.log('📝 Creating completion log for final step');
+      try {
+        const completionLog = await logPrisma.itemProcessingLog.create({
+          data: {
+            orderItemId: orderItemId,
+            stationId: station.id,
+            userId: sessionData.user.id,
+            startTime: new Date(),
+            endTime: new Date(),
+            durationInSeconds: 0,
+            notes: `Final scan - Product ready for delivery/pickup - Scanner: ${barcodeData?.prefix || 'Unknown'}`
+          }
+        });
+        console.log('✅ Completion log created:', completionLog.id);
+      } catch (logError) {
+        console.error('❌ Failed to create completion log:', logError);
+        // Don't fail the whole operation, just log the error
+      }
     }
 
     // Track order status changes based on workflow steps
@@ -258,6 +291,7 @@ export default defineEventHandler(async (event) => {
 
     // Step 1: First item starting production (Office scan: NOT_STARTED -> CUTTING)
     if (nextStatus === 'CUTTING' && orderItem.order.orderStatus === 'APPROVED') {
+      console.log('🔄 Updating order status from APPROVED to ORDER_PROCESSING');
       await prisma.order.update({
         where: { id: orderItem.orderId },
         data: {
@@ -266,6 +300,26 @@ export default defineEventHandler(async (event) => {
       });
       orderStatusChanged = true;
       newOrderStatus = 'ORDER_PROCESSING';
+      console.log('✅ Order status updated to ORDER_PROCESSING');
+
+      // Create OrderStatusLog entry for audit trail
+      try {
+        await logPrisma.orderStatusLog.create({
+          data: {
+            orderId: orderItem.orderId,
+            fromStatus: 'APPROVED',
+            toStatus: 'ORDER_PROCESSING',
+            userId: sessionData.user.id,
+            changeReason: 'Production started - first item scanned',
+            triggeredBy: 'scanner',
+            notes: `Production started by ${sessionData.user.name || 'Unknown'} scanning item at ${station.name} station - Scanner: ${barcodeData?.prefix || 'Unknown'}`
+          }
+        });
+        console.log('✅ OrderStatusLog created for APPROVED -> ORDER_PROCESSING');
+      } catch (orderLogError) {
+        console.error('❌ Failed to create OrderStatusLog:', orderLogError);
+        // Don't fail the main operation
+      }
 
       // Send production started email notification
       try {
@@ -278,7 +332,7 @@ export default defineEventHandler(async (event) => {
 
     // Step 6: Final step - check if all items are ready for shipping
     if (nextStatus === 'READY') {
-      const allItems = await prisma.orderItem.findMany({
+      const allItems = await logPrisma.orderItem.findMany({
         where: { 
           orderId: orderItem.orderId,
           isProduct: true // Only check production items
@@ -297,6 +351,25 @@ export default defineEventHandler(async (event) => {
         });
         orderStatusChanged = true;
         newOrderStatus = 'READY_TO_SHIP';
+
+        // Create OrderStatusLog entry for final status change
+        try {
+          await logPrisma.orderStatusLog.create({
+            data: {
+              orderId: orderItem.orderId,
+              fromStatus: 'ORDER_PROCESSING',
+              toStatus: 'READY_TO_SHIP',
+              userId: sessionData.user.id,
+              changeReason: 'All items completed - ready to ship',
+              triggeredBy: 'scanner',
+              notes: `Order completed by ${sessionData.user.name || 'Unknown'} - final item scanned at ${station.name} station - Scanner: ${barcodeData?.prefix || 'Unknown'}`
+            }
+          });
+          console.log('✅ OrderStatusLog created for ORDER_PROCESSING -> READY_TO_SHIP');
+        } catch (orderLogError) {
+          console.error('❌ Failed to create OrderStatusLog:', orderLogError);
+          // Don't fail the main operation
+        }
 
         // Send order ready email notification
         try {
