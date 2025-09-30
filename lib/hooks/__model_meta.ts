@@ -1227,9 +1227,9 @@ const metadata = {
                 id: {
                     name: "id",
                     fields: ["id"]
-                }, quickbooksOrderLineId: {
-                    name: "quickbooksOrderLineId",
-                    fields: ["quickbooksOrderLineId"]
+                }, orderId_quickbooksOrderLineId: {
+                    name: "orderId_quickbooksOrderLineId",
+                    fields: ["orderId", "quickbooksOrderLineId"]
                 },
             },
         },
