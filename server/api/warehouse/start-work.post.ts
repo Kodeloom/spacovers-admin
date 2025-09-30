@@ -1,5 +1,7 @@
 import { unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
+import { logOrderItemStatusChange } from '~/server/utils/orderItemValidation';
+import { getClientIP } from 'h3';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -138,6 +140,32 @@ export default defineEventHandler(async (event) => {
         data: { itemStatus: newItemStatus }
       });
 
+      // Log the status change with enhanced audit context
+      const { logOrderItemStatusChangeWithContext } = await import('~/server/utils/orderItemAuditLogger');
+      await logOrderItemStatusChangeWithContext(
+        {
+          orderItemId,
+          fromStatus: orderItem.itemStatus,
+          toStatus: newItemStatus,
+          changeReason: `Started work at ${station.name} station`,
+          triggeredBy: 'manual',
+          stationId: station.id,
+          stationName: station.name,
+          workStartTime: new Date()
+        },
+        {
+          orderId: orderItem.order.id,
+          orderNumber: orderItem.order.salesOrderNumber,
+          itemId: orderItem.itemId,
+          itemName: orderItem.item.name,
+          userId: session.user.id,
+          operation: 'status_change',
+          source: 'warehouse_scan',
+          ipAddress: getClientIP(event),
+          userAgent: getHeader(event, 'user-agent')
+        }
+      );
+
       // Create the processing log entry
       const processingLog = await tx.itemProcessingLog.create({
         data: {
@@ -160,14 +188,8 @@ export default defineEventHandler(async (event) => {
       return { updatedOrderItem, processingLog };
     });
 
-    // Log the status change for audit purposes
-    await unenhancedPrisma.itemStatusLog.create({
-      data: {
-        orderItemId: orderItemId,
-        fromStatus: orderItem.itemStatus,
-        toStatus: newItemStatus,
-        userId: session.user.id,
-        reason: `Started work at ${station.name} station`,
+    // Enhanced ItemStatusLog entry is created by logOrderItemStatusChangeWithContext above
+    // This creates the database record with full audit context
         timestamp: new Date()
       }
     });

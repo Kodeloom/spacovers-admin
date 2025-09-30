@@ -36,13 +36,22 @@ export default defineEventHandler(async (event) => {
 
     // Check if product is being used in any order items
     const orderItemsUsingProduct = await prisma.orderItem.findFirst({
-      where: { productId }
+      where: { productId },
+      include: {
+        order: {
+          select: {
+            id: true,
+            salesOrderNumber: true
+          }
+        }
+      }
     })
 
     if (orderItemsUsingProduct) {
+      const orderNumber = orderItemsUsingProduct.order.salesOrderNumber || orderItemsUsingProduct.order.id;
       throw createError({
         statusCode: 400,
-        statusMessage: 'Cannot delete product that is being used in order items'
+        statusMessage: `Cannot delete product that is being used in order ${orderNumber}. Please remove the product from all orders first.`
       })
     }
 

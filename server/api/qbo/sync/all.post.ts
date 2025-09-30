@@ -156,10 +156,30 @@ async function processInvoiceLineItems(invoice: QboInvoice, orderId: string, eve
             
             console.log(`📝 Creating/updating OrderItem:`, orderItemData);
             
+            // Use upsert with compound unique constraint (orderId + quickbooksOrderLineId)
+            // This ensures OrderItems are properly scoped to their specific order
             const orderItem = await prisma.orderItem.upsert({
-                where: { quickbooksOrderLineId: line.Id },
-                update: orderItemData,
-                create: orderItemData
+                where: { 
+                    orderId_quickbooksOrderLineId: {
+                        orderId: orderId,
+                        quickbooksOrderLineId: line.Id
+                    }
+                },
+                update: {
+                    quantity: quantity,
+                    pricePerItem: pricePerItem,
+                    lineDescription: line.Description,
+                    notes: line.Description
+                },
+                create: {
+                    orderId: orderId,
+                    itemId: localItem.id,
+                    quickbooksOrderLineId: line.Id,
+                    quantity: quantity,
+                    pricePerItem: pricePerItem,
+                    lineDescription: line.Description,
+                    notes: line.Description
+                }
             });
             
             console.log(`✅ OrderItem processed: ${detail.ItemRef.name} x${quantity} @ $${pricePerItem} (ID: ${orderItem.id})`);

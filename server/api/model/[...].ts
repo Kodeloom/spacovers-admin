@@ -12,9 +12,9 @@ const CreateRoleInputSchema = z.object({
 });
 
 const UpdateRoleInputSchema = z.object({
-  name: z.string().min(1, 'Role name is required.'),
-  description: z.string().nullable(),
-  permissionIds: z.array(z.string().cuid2({ message: 'Invalid permission ID format.' })).optional(),
+    name: z.string().min(1, 'Role name is required.'),
+    description: z.string().nullable(),
+    permissionIds: z.array(z.string().cuid2({ message: 'Invalid permission ID format.' })).optional(),
 });
 
 const CreateStationInputSchema = z.object({
@@ -25,10 +25,10 @@ const CreateStationInputSchema = z.object({
 });
 
 const UpdateStationInputSchema = z.object({
-  name: z.string().min(1, 'Station name is required.'),
-  barcode: z.string().nullable(),
-  description: z.string().nullable(),
-  roleIds: z.array(z.string().cuid2({ message: 'Invalid role ID format.' })).optional(),
+    name: z.string().min(1, 'Station name is required.'),
+    barcode: z.string().nullable(),
+    description: z.string().nullable(),
+    roleIds: z.array(z.string().cuid2({ message: 'Invalid role ID format.' })).optional(),
 });
 
 const defaultHandler = createEventHandler({
@@ -39,11 +39,11 @@ export default defineEventHandler(async (event: H3Event) => {
     const path = event.path;
     const parts = path.split('/');
     console.log('🔍 API Debug - Path:', path, 'Parts:', parts);
-    
+
     // Fix: The path structure is /api/model/Station, so parts[3] should be the model
     const model = (parts.length >= 4 && parts[2] === 'model') ? parts[3] : null;
     console.log('🔍 API Debug - Model:', model, 'Method:', event.method);
-    
+
     // Special handling for Role updates to manage many-to-many with permissions
     if (model?.toLowerCase() === 'role' && event.method === 'PUT') {
         const roleId = parts.length > 4 ? parts[4] : null;
@@ -55,9 +55,9 @@ export default defineEventHandler(async (event: H3Event) => {
         if (!result.success) {
             throw createError({ statusCode: 422, statusMessage: 'Validation failed.', data: result.error.flatten().fieldErrors });
         }
-        
+
         const { name, description, permissionIds } = result.data;
-        
+
         try {
             const sessionData = await auth.api.getSession({ headers: event.headers });
             const actorId = sessionData?.user?.id || null;
@@ -95,13 +95,13 @@ export default defineEventHandler(async (event: H3Event) => {
                 oldValue,
                 newValue: updatedRole,
             }, actorId);
-            
+
             // Mimic the structure of a standard ZenStack response
             return { data: updatedRole };
 
         } catch (error) {
             console.error(`Error during special role update for role ${roleId}:`, error);
-            throw createError({ statusCode: 500, statusMessage: 'Failed to update role.'});
+            throw createError({ statusCode: 500, statusMessage: 'Failed to update role.' });
         }
     }
 
@@ -149,7 +149,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
         } catch (error) {
             console.error(`Error during special role creation:`, error);
-            throw createError({ statusCode: 500, statusMessage: 'Failed to create role.'});
+            throw createError({ statusCode: 500, statusMessage: 'Failed to create role.' });
         }
     }
 
@@ -199,7 +199,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
         } catch (error) {
             console.error(`Error during special station creation:`, error);
-            throw createError({ statusCode: 500, statusMessage: 'Failed to create station.'});
+            throw createError({ statusCode: 500, statusMessage: 'Failed to create station.' });
         }
     }
 
@@ -209,9 +209,9 @@ export default defineEventHandler(async (event: H3Event) => {
         return defaultHandler(event);
     } else {
         console.log('🔍 API Debug - No model found, path:', path);
-        throw createError({ 
-            statusCode: 400, 
-            statusMessage: `Invalid request path: ${path}. Expected format: /api/model/{ModelName}` 
+        throw createError({
+            statusCode: 400,
+            statusMessage: `Invalid request path: ${path}. Expected format: /api/model/{ModelName}`
         });
     }
 }); 

@@ -55,6 +55,8 @@ export class QuickBooksTokenManager {
    */
   static async getValidAccessToken(event?: H3Event): Promise<string | null> {
     return safeQuickBooksOperation(async () => {
+      QuickBooksLogger.debug('TokenManager', 'Starting token retrieval process');
+      
       const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
       
       // Find the active QuickBooks integration
@@ -64,6 +66,7 @@ export class QuickBooksTokenManager {
       });
 
       if (!integration) {
+        QuickBooksLogger.error('TokenManager', 'No active QuickBooks integration found in database');
         const error = QuickBooksErrorHandler.createError(
           new Error('No active QuickBooks integration found'),
           'getValidAccessToken'
@@ -71,11 +74,56 @@ export class QuickBooksTokenManager {
         throw error;
       }
 
+      QuickBooksLogger.debug('TokenManager', 'Active integration found', {
+        integrationId: integration.id,
+        companyId: integration.companyId,
+        connectedAt: integration.connectedAt,
+        accessTokenExpiresAt: integration.accessTokenExpiresAt,
+        refreshTokenExpiresAt: integration.refreshTokenExpiresAt,
+        lastRefreshedAt: integration.lastRefreshedAt
+      });
+
       const now = new Date();
       const tokenExpiresAt = integration.accessTokenExpiresAt;
       
+      // Validate token format
+      if (!integration.accessToken || typeof integration.accessToken !== 'string' || integration.accessToken.length < 10) {
+        QuickBooksLogger.error('TokenManager', 'Invalid access token format in database', {
+          hasToken: !!integration.accessToken,
+          tokenType: typeof integration.accessToken,
+          tokenLength: integration.accessToken?.length || 0
+        });
+        const error = QuickBooksErrorHandler.createError(
+          new Error('Invalid access token format stored in database'),
+          'getValidAccessToken'
+        );
+        throw error;
+      }
+
+      // Validate refresh token format
+      if (!integration.refreshToken || typeof integration.refreshToken !== 'string' || integration.refreshToken.length < 10) {
+        QuickBooksLogger.error('TokenManager', 'Invalid refresh token format in database', {
+          hasRefreshToken: !!integration.refreshToken,
+          refreshTokenType: typeof integration.refreshToken,
+          refreshTokenLength: integration.refreshToken?.length || 0
+        });
+        const error = QuickBooksErrorHandler.createError(
+          new Error('Invalid refresh token format stored in database'),
+          'getValidAccessToken'
+        );
+        throw error;
+      }
+      
       // Check if refresh token is expired first
       if (integration.refreshTokenExpiresAt <= now) {
+        const hoursExpired = Math.round((now.getTime() - integration.refreshTokenExpiresAt.getTime()) / 3600000);
+        QuickBooksLogger.error('TokenManager', 'Refresh token has expired', {
+          refreshTokenExpiresAt: integration.refreshTokenExpiresAt,
+          currentTime: now,
+          hoursExpired,
+          companyId: integration.companyId
+        });
+        
         const error = QuickBooksErrorHandler.createError(
           new Error('Refresh token has expired'),
           'getValidAccessToken'
@@ -89,12 +137,41 @@ export class QuickBooksTokenManager {
       
       // Check if token needs refresh (5 minutes before expiry)
       const refreshThreshold = 5 * 60 * 1000; // 5 minutes in milliseconds
-      const needsRefresh = tokenExpiresAt.getTime() - now.getTime() < refreshThreshold;
+      const timeUntilExpiry = tokenExpiresAt.getTime() - now.getTime();
+      const minutesUntilExpiry = Math.round(timeUntilExpiry / 60000);
+      const needsRefresh = timeUntilExpiry < refreshThreshold;
+
+      QuickBooksLogger.debug('TokenManager', 'Token expiry check completed', {
+        accessTokenExpiresAt: tokenExpiresAt,
+        currentTime: now,
+        minutesUntilExpiry,
+        needsRefresh,
+        refreshThresholdMinutes: refreshThreshold / 60000
+      });
 
       if (needsRefresh) {
+        QuickBooksLogger.info('TokenManager', `Access token expires in ${minutesUntilExpiry} minutes, refreshing now`, {
+          companyId: integration.companyId,
+          minutesUntilExpiry
+        });
+        
         const refreshedToken = await this.refreshAccessToken(integration);
+        
+        if (refreshedToken) {
+          QuickBooksLogger.info('TokenManager', 'Token refresh completed successfully', {
+            companyId: integration.companyId,
+            newTokenLength: refreshedToken.length
+          });
+        }
+        
         return refreshedToken;
       }
+
+      QuickBooksLogger.debug('TokenManager', 'Returning existing valid token', {
+        companyId: integration.companyId,
+        tokenLength: integration.accessToken.length,
+        minutesUntilExpiry
+      });
 
       return integration.accessToken;
     }, 'getValidAccessToken', null);

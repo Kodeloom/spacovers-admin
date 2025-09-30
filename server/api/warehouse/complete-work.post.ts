@@ -1,5 +1,7 @@
 import { unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
+import { logOrderItemStatusChange } from '~/server/utils/orderItemValidation';
+import { getClientIP } from 'h3';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -103,6 +105,37 @@ export default defineEventHandler(async (event) => {
         data: { itemStatus: nextItemStatus }
       });
 
+      // Log the status change with enhanced audit context
+      const { logOrderItemStatusChangeWithContext } = await import('~/server/utils/orderItemAuditLogger');
+      const workDuration = processingLog.startTime ? 
+        Math.floor((new Date().getTime() - processingLog.startTime.getTime()) / 1000) : undefined;
+      
+      await logOrderItemStatusChangeWithContext(
+        {
+          orderItemId: processingLog.orderItemId,
+          fromStatus: processingLog.orderItem.itemStatus,
+          toStatus: nextItemStatus,
+          changeReason: `Completed work at ${processingLog.station.name} station`,
+          triggeredBy: 'manual',
+          stationId: processingLog.stationId,
+          stationName: processingLog.station.name,
+          workStartTime: processingLog.startTime,
+          workEndTime: new Date(),
+          durationSeconds: workDuration
+        },
+        {
+          orderId: processingLog.orderItem.order.id,
+          orderNumber: processingLog.orderItem.order.salesOrderNumber,
+          itemId: processingLog.orderItem.itemId,
+          itemName: processingLog.orderItem.item.name,
+          userId: session.user.id,
+          operation: 'status_change',
+          source: 'warehouse_scan',
+          ipAddress: getClientIP(event),
+          userAgent: getHeader(event, 'user-agent')
+        }
+      );
+
       // If this was the final step, check if all items in the order are ready
       if (isFinalStep) {
         const allOrderItems = await tx.orderItem.findMany({
@@ -126,17 +159,8 @@ export default defineEventHandler(async (event) => {
       return { updatedProcessingLog, updatedOrderItem };
     });
 
-    // Log the status change for audit purposes
-    await unenhancedPrisma.itemStatusLog.create({
-      data: {
-        orderItemId: processingLog.orderItemId,
-        fromStatus: processingLog.orderItem.itemStatus,
-        toStatus: nextItemStatus,
-        userId: session.user.id,
-        reason: `Completed work at ${processingLog.station.name} station`,
-        timestamp: new Date()
-      }
-    });
+    // Enhanced ItemStatusLog entry is created by logOrderItemStatusChangeWithContext above
+    // This provides comprehensive audit trail with work duration and station context
 
     return {
       success: true,

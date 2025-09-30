@@ -2,6 +2,7 @@ import { getEnhancedPrismaClient, unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
 import { EmailService } from '~/server/lib/emailService';
 import { createErrorResponse, handlePrismaError, logError, validateBarcodeFormat } from '~/utils/errorHandling';
+import { logOrderItemStatusChange } from '~/server/utils/orderItemValidation';
 
 // Helper function to get workflow step information
 function getWorkflowStepInfo(fromStatus: string, toStatus: string, stationName: string) {
@@ -225,6 +226,15 @@ export default defineEventHandler(async (event) => {
         itemStatus: nextStatus
       }
     });
+
+    // Log the status change with order context for audit trails
+    await logOrderItemStatusChange(
+      orderItemId,
+      currentStatus,
+      nextStatus,
+      sessionData.user.id,
+      `Scanned at ${station.name} station`
+    );
 
     // Create ItemStatusLog entry for UI display and audit trail
     try {
