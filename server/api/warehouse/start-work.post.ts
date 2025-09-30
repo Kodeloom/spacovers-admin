@@ -1,7 +1,7 @@
 import { unenhancedPrisma } from '~/server/lib/db';
 import { auth } from '~/server/lib/auth';
 import { logOrderItemStatusChange } from '~/server/utils/orderItemValidation';
-import { getClientIP } from 'h3';
+import { getRequestIP } from 'h3';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -161,7 +161,7 @@ export default defineEventHandler(async (event) => {
           userId: session.user.id,
           operation: 'status_change',
           source: 'warehouse_scan',
-          ipAddress: getClientIP(event),
+          ipAddress: getRequestIP(event),
           userAgent: getHeader(event, 'user-agent')
         }
       );
