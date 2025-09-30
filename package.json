@@ -22,7 +22,14 @@
     "verify:standalone": "node scripts/test-standalone-deployment.js",
     "verify:startup": "node scripts/verify-standalone-startup.js",
     "verify:production": "node scripts/validate-production-config.js",
-    "verify:coolify": "node scripts/verify-coolify-deployment.js"
+    "verify:coolify": "node scripts/verify-coolify-deployment.js",
+    "fix-orderitem-isolation": "tsx scripts/fix-orderitem-isolation.ts",
+    "create-superadmin": "tsx scripts/create-superadmin.ts",
+    "emergency-recovery": "tsx scripts/emergency-recovery.ts",
+    "check-admin-status": "tsx scripts/check-admin-status.ts",
+    "validate:staging": "tsx scripts/validate-staging-deployment.ts",
+    "test:webhook": "tsx scripts/test-webhook-integration.ts",
+    "test:staging": "vitest --run tests/staging-validation.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.848.0",
