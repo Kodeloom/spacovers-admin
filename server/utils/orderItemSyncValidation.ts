@@ -55,15 +55,15 @@ export async function validateOrderItemSync(
 }
 
 /**
- * Logs OrderItem sync operations for audit purposes
+ * Logs OrderItem sync operations for validation and debugging
  * @param operation The sync operation details
  */
-export async function logOrderItemSyncOperation(operation: {
+export async function logOrderItemSyncValidation(operation: {
     orderId: string;
     quickbooksOrderLineId: string;
     itemId: string;
     operation: 'create' | 'update';
-    source: 'webhook' | 'manual_sync' | 'bulk_sync';
+    source: 'webhook' | 'manual_sync' | 'bulk_sync' | 'staging_test';
     success: boolean;
     error?: string;
 }): Promise<void> {

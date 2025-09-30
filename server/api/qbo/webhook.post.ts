@@ -1127,12 +1127,12 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                 };
                 
                 // Validate sync operation before proceeding
-                const { validateOrderItemSync, logOrderItemSyncOperation } = await import('~/server/utils/orderItemSyncValidation');
+                const { validateOrderItemSync, logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
                 const validation = await validateOrderItemSync(order.id, lineItem.Id, 'create');
                 
                 if (!validation.isValid) {
                     console.warn(`[WebhookSync] OrderItem validation failed: ${validation.message}`);
-                    await logOrderItemSyncOperation({
+                    await logOrderItemSyncValidation({
                         orderId: order.id,
                         quickbooksOrderLineId: lineItem.Id,
                         itemId: localItem.id,
@@ -1158,7 +1158,7 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                 });
                 
                 // Log successful sync operation
-                await logOrderItemSyncOperation({
+                await logOrderItemSyncValidation({
                     orderId: order.id,
                     quickbooksOrderLineId: lineItem.Id,
                     itemId: localItem.id,

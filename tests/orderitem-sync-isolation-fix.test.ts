@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { unenhancedPrisma as prisma } from '~/server/lib/db';
-import { validateOrderItemSync, validateOrderItemIsolation, logOrderItemSyncOperation, fixOrderItemRelationships } from '~/server/utils/orderItemSyncValidation';
+import { validateOrderItemSync, validateOrderItemIsolation, logOrderItemSyncValidation, fixOrderItemRelationships } from '~/server/utils/orderItemSyncValidation';
 
 describe('OrderItem Sync Isolation Fixes', () => {
     let testCustomer: any;
@@ -241,10 +241,10 @@ describe('OrderItem Sync Isolation Fixes', () => {
         });
     });
 
-    describe('logOrderItemSyncOperation', () => {
+    describe('logOrderItemSyncValidation', () => {
         it('should log sync operations without throwing errors', async () => {
             // This should not throw
-            await expect(logOrderItemSyncOperation({
+            await expect(logOrderItemSyncValidation({
                 orderId: order1.id,
                 quickbooksOrderLineId: 'TEST-LINE-LOG-001',
                 itemId: testItem.id,
@@ -253,7 +253,7 @@ describe('OrderItem Sync Isolation Fixes', () => {
                 success: true
             })).resolves.toBeUndefined();
 
-            await expect(logOrderItemSyncOperation({
+            await expect(logOrderItemSyncValidation({
                 orderId: order1.id,
                 quickbooksOrderLineId: 'TEST-LINE-LOG-002',
                 itemId: testItem.id,

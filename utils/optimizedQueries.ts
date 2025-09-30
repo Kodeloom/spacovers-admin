@@ -6,7 +6,7 @@
  */
 
 import { unenhancedPrisma as prisma } from '~/server/lib/db';
-import type { OrderFilters, DateRange } from './metricsService';
+import type { OrderFilters, MetricsDateRange } from './metricsService';
 import { LeadTimeCalculator } from './leadTimeCalculator';
 import { PerformanceMonitor } from './performanceMonitor';
 
@@ -218,7 +218,7 @@ export class OptimizedQueries {
    * Get productivity data using optimized queries with proper joins
    * Uses efficient aggregation with user and station data
    */
-  static async getProductivityData(dateRange: DateRange): Promise<OptimizedProductivityData[]> {
+  static async getProductivityData(dateRange: MetricsDateRange): Promise<OptimizedProductivityData[]> {
     // Get all processing logs to calculate unique items per user/station
     const processingLogs = await prisma.itemProcessingLog.findMany({
       where: {
@@ -325,7 +325,7 @@ export class OptimizedQueries {
    * Get revenue data by period using optimized date aggregation
    * Uses efficient date truncation and grouping
    */
-  static async getRevenueByPeriod(dateRange: DateRange): Promise<{ period: string; revenue: number; orderCount: number }[]> {
+  static async getRevenueByPeriod(dateRange: MetricsDateRange): Promise<{ period: string; revenue: number; orderCount: number }[]> {
     // Use raw SQL for efficient date truncation and grouping
     const result = await prisma.$queryRaw<{
       period: string;
@@ -357,7 +357,7 @@ export class OptimizedQueries {
    * Uses efficient aggregation with date arithmetic and converts to business days
    * Business days use 8-hour days with minimum 1 day and proper rounding
    */
-  static async getAverageLeadTime(dateRange: DateRange): Promise<number> {
+  static async getAverageLeadTime(dateRange: MetricsDateRange): Promise<number> {
     const result = await prisma.$queryRaw<{
       created_at: Date;
       ready_to_ship_at: Date;
@@ -391,7 +391,7 @@ export class OptimizedQueries {
    * Get total production hours and items using single aggregation
    * Uses efficient sum aggregation with filtering
    */
-  static async getProductionTotals(dateRange: DateRange): Promise<{ totalHours: number; totalItems: number }> {
+  static async getProductionTotals(dateRange: MetricsDateRange): Promise<{ totalHours: number; totalItems: number }> {
     const [durationResult, uniqueItemsResult] = await Promise.all([
       // Get total duration
       prisma.itemProcessingLog.aggregate({

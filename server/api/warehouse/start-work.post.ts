@@ -190,9 +190,6 @@ export default defineEventHandler(async (event) => {
 
     // Enhanced ItemStatusLog entry is created by logOrderItemStatusChangeWithContext above
     // This creates the database record with full audit context
-        timestamp: new Date()
-      }
-    });
 
     return {
       success: true,

@@ -5,7 +5,7 @@
  * Requirements: 9.2 - Add performance safeguards for large date ranges
  */
 
-import type { DateRange } from './metricsService';
+import type { MetricsDateRange } from './metricsService';
 
 /**
  * Interface for pagination parameters
@@ -81,10 +81,10 @@ export class PerformanceSafeguards {
    * @param dateRange - Date range to validate
    * @returns Validation result with warnings
    */
-  static validateDateRange(dateRange: DateRange): {
+  static validateDateRange(dateRange: MetricsDateRange): {
     isValid: boolean;
     warnings: PerformanceWarning[];
-    normalizedRange?: DateRange;
+    normalizedRange?: MetricsDateRange;
     error?: string;
   } {
     const warnings: PerformanceWarning[] = [];
@@ -373,7 +373,7 @@ export class PerformanceSafeguards {
    * @param dateRange - Date range to check
    * @returns Whether progressive loading is recommended
    */
-  static shouldUseProgressiveLoading(dateRange: DateRange): {
+  static shouldUseProgressiveLoading(dateRange: MetricsDateRange): {
     useProgressive: boolean;
     chunkSizeDays: number;
     estimatedChunks: number;
@@ -430,8 +430,8 @@ export class PerformanceSafeguards {
    * @param chunkSizeDays - Size of each chunk in days
    * @returns Array of date range chunks
    */
-  static generateDateRangeChunks(dateRange: DateRange, chunkSizeDays: number): DateRange[] {
-    const chunks: DateRange[] = [];
+  static generateDateRangeChunks(dateRange: MetricsDateRange, chunkSizeDays: number): MetricsDateRange[] {
+    const chunks: MetricsDateRange[] = [];
     const startTime = dateRange.startDate.getTime();
     const endTime = dateRange.endDate.getTime();
     const chunkSizeMs = chunkSizeDays * 24 * 60 * 60 * 1000;
@@ -503,7 +503,7 @@ export class PerformanceSafeguards {
    */
   static getPerformanceRecommendations(
     operationType: string,
-    dateRange?: DateRange,
+    dateRange?: MetricsDateRange,
     expectedResultSize?: number
   ): PerformanceWarning[] {
     const recommendations: PerformanceWarning[] = [];

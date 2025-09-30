@@ -267,7 +267,7 @@ class StagingValidator {
   private async validateDataIntegrity(): Promise<void> {
     try {
       // Test validation functions
-      const { validateOrderItemIsolation, logOrderItemSyncOperation } = await import('../server/utils/orderItemSyncValidation');
+      const { validateOrderItemIsolation, logOrderItemSyncValidation } = await import('../server/utils/orderItemSyncValidation');
 
       // Validate each test order
       for (const order of this.testOrders) {
@@ -282,7 +282,7 @@ class StagingValidator {
       this.addResult('Data Integrity', 'PASS', 'All test orders pass integrity validation');
 
       // Test logging function
-      await logOrderItemSyncOperation({
+      await logOrderItemSyncValidation({
         orderId: this.testOrders[0].id,
         quickbooksOrderLineId: 'STAGING-VALIDATION-LOG-TEST',
         itemId: this.testItem.id,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MetricsService, type DateRange } from '~/utils/metricsService';
+import { MetricsService, type MetricsDateRange } from '~/utils/metricsService';
 
 // Mock the Prisma client
 vi.mock('~/server/lib/db', () => ({

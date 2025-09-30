@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MetricsService, type DateRange } from '~/utils/metricsService';
+import { MetricsService, type MetricsDateRange } from '~/utils/metricsService';
 
 // Mock the database
 vi.mock('~/server/lib/db', () => ({
@@ -16,7 +16,7 @@ vi.mock('~/server/lib/db', () => ({
 }));
 
 describe('MetricsService - Reports Metrics', () => {
-  const mockDateRange: DateRange = {
+  const mockDateRange: MetricsDateRange = {
     startDate: new Date('2024-01-01'),
     endDate: new Date('2024-01-31')
   };

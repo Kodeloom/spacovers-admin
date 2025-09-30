@@ -1,5 +1,5 @@
 import { auth } from '~/server/lib/auth';
-import { MetricsService, type DateRange } from '~/utils/metricsService';
+import { MetricsService, type MetricsDateRange } from '~/utils/metricsService';
 import { PerformanceMonitor } from '~/utils/performanceMonitor';
 import { logError } from '~/utils/errorHandling';
 
@@ -120,7 +120,7 @@ export default defineEventHandler(async (event) => {
  * @param query - Raw query parameters from the request
  * @returns DateRange - Validated date range object
  */
-function parseDateRange(query: Record<string, any>): DateRange {
+function parseDateRange(query: Record<string, any>): MetricsDateRange {
   // Validate startDate parameter
   if (!query.startDate) {
     throw createError({
@@ -193,7 +193,7 @@ function parseDateRange(query: Record<string, any>): DateRange {
       });
     }
 
-    const dateRange: DateRange = { startDate, endDate };
+    const dateRange: MetricsDateRange = { startDate, endDate };
 
     // Use the enhanced validation from MetricsService if available
     try {

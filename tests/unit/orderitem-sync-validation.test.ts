@@ -255,9 +255,9 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
     });
   });
 
-  describe('logOrderItemSyncOperation', () => {
+  describe('logOrderItemSyncValidation', () => {
     it('should log successful sync operations', async () => {
-      const { logOrderItemSyncOperation } = await import('~/server/utils/orderItemSyncValidation');
+      const { logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
       
       const operation = {
         orderId: 'order-123',
@@ -268,7 +268,7 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
         success: true
       };
 
-      await logOrderItemSyncOperation(operation);
+      await logOrderItemSyncValidation(operation);
 
       expect(mockConsole.log).toHaveBeenCalledWith(
         '[OrderItemSync] CREATE SUCCESS',
@@ -283,7 +283,7 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
     });
 
     it('should log failed sync operations with error details', async () => {
-      const { logOrderItemSyncOperation } = await import('~/server/utils/orderItemSyncValidation');
+      const { logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
       
       const operation = {
         orderId: 'order-123',
@@ -295,7 +295,7 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
         error: 'Validation failed: duplicate line ID'
       };
 
-      await logOrderItemSyncOperation(operation);
+      await logOrderItemSyncValidation(operation);
 
       expect(mockConsole.log).toHaveBeenCalledWith(
         '[OrderItemSync] UPDATE FAILED',
@@ -316,7 +316,7 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
         throw new Error('Logging system failure');
       });
 
-      const { logOrderItemSyncOperation } = await import('~/server/utils/orderItemSyncValidation');
+      const { logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
       
       const operation = {
         orderId: 'order-123',
@@ -328,7 +328,7 @@ describe('OrderItem Sync Validation - Unit Tests', () => {
       };
 
       // Should not throw even if logging fails
-      await expect(logOrderItemSyncOperation(operation)).resolves.toBeUndefined();
+      await expect(logOrderItemSyncValidation(operation)).resolves.toBeUndefined();
 
       expect(mockConsole.error).toHaveBeenCalledWith(
         'Failed to log OrderItem sync operation:',

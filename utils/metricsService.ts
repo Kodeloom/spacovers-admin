@@ -49,9 +49,9 @@ export interface OrdersPageMetrics {
 }
 
 /**
- * Interface for date range filtering
+ * Interface for date range filtering in metrics
  */
-export interface DateRange {
+export interface MetricsDateRange {
   startDate: Date;
   endDate: Date;
 }
@@ -106,7 +106,7 @@ export interface ReportsMetrics {
 export interface DateRangeValidationResult {
   isValid: boolean;
   error?: string;
-  normalizedRange?: DateRange;
+  normalizedRange?: MetricsDateRange;
 }
 
 /**
@@ -120,7 +120,7 @@ export class MetricsService {
    * @param dateRange - Date range to validate
    * @returns DateRangeValidationResult - Validation result with normalized dates or error message
    */
-  static validateDateRange(dateRange: DateRange | null | undefined): DateRangeValidationResult {
+  static validateDateRange(dateRange: MetricsDateRange | null | undefined): DateRangeValidationResult {
     // Check for null/undefined date range
     if (!dateRange) {
       return {
@@ -755,7 +755,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering the metrics
    * @returns Promise<ReportsMetrics> - Complete reports metrics with fallback values
    */
-  static async getReportsMetrics(dateRange: DateRange): Promise<ReportsMetrics> {
+  static async getReportsMetrics(dateRange: MetricsDateRange): Promise<ReportsMetrics> {
     try {
       // Validate date range first with performance safeguards
       const validation = this.validateDateRange(dateRange);
@@ -871,7 +871,7 @@ export class MetricsService {
    * @param chunkSizeDays - Size of each chunk in days
    * @returns Promise<ReportsMetrics> - Aggregated metrics from all chunks
    */
-  private static async getReportsMetricsProgressive(dateRange: DateRange, chunkSizeDays: number): Promise<ReportsMetrics> {
+  private static async getReportsMetricsProgressive(dateRange: MetricsDateRange, chunkSizeDays: number): Promise<ReportsMetrics> {
     const chunks = PerformanceSafeguards.generateDateRangeChunks(dateRange, chunkSizeDays);
     console.log(`Processing reports metrics in ${chunks.length} chunks of ${chunkSizeDays} days each`);
 
@@ -1056,7 +1056,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering the data
    * @returns Promise<EmployeeProductivity[]> - Array of employee productivity metrics
    */
-  private static async getProductivityByEmployee(dateRange: DateRange): Promise<EmployeeProductivity[]> {
+  private static async getProductivityByEmployee(dateRange: MetricsDateRange): Promise<EmployeeProductivity[]> {
     try {
       // Get processing logs with user and station information
       const processingLogs = await prisma.itemProcessingLog.findMany({
@@ -1186,7 +1186,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering orders
    * @returns Promise<number> - Average lead time in business days
    */
-  private static async getAverageLeadTime(dateRange: DateRange): Promise<number> {
+  private static async getAverageLeadTime(dateRange: MetricsDateRange): Promise<number> {
     try {
       const orders = await prisma.order.findMany({
         where: {
@@ -1241,7 +1241,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering orders
    * @returns Promise<RevenuePeriod[]> - Array of revenue data by month
    */
-  private static async getRevenueByPeriod(dateRange: DateRange): Promise<RevenuePeriod[]> {
+  private static async getRevenueByPeriod(dateRange: MetricsDateRange): Promise<RevenuePeriod[]> {
     try {
       const orders = await prisma.order.findMany({
         where: {
@@ -1311,7 +1311,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering the data
    * @returns Promise<number> - Total production hours
    */
-  private static async getTotalProductionHours(dateRange: DateRange): Promise<number> {
+  private static async getTotalProductionHours(dateRange: MetricsDateRange): Promise<number> {
     try {
       // Validate date range before processing
       if (!dateRange?.startDate || !dateRange?.endDate) {
@@ -1360,7 +1360,7 @@ export class MetricsService {
    * @param dateRange - Date range for filtering the data
    * @returns Promise<number> - Total items processed
    */
-  private static async getTotalItemsProcessed(dateRange: DateRange): Promise<number> {
+  private static async getTotalItemsProcessed(dateRange: MetricsDateRange): Promise<number> {
     try {
       // Get unique orderItemIds instead of counting all processing logs
       const uniqueItems = await prisma.itemProcessingLog.findMany({

@@ -409,10 +409,10 @@ describe('Staging Environment Validation', () => {
 
     it('should log OrderItem operations correctly', async () => {
       // Import logging function
-      const { logOrderItemSyncOperation } = await import('~/server/utils/orderItemSyncValidation');
+      const { logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
 
       // Test logging various operations
-      await logOrderItemSyncOperation({
+      await logOrderItemSyncValidation({
         orderId: testOrders[0].id,
         quickbooksOrderLineId: testOrderItems[0].quickbooksOrderLineId!,
         itemId: testItem.id,
@@ -421,7 +421,7 @@ describe('Staging Environment Validation', () => {
         success: true
       });
 
-      await logOrderItemSyncOperation({
+      await logOrderItemSyncValidation({
         orderId: testOrders[1].id,
         quickbooksOrderLineId: testOrderItems[1].quickbooksOrderLineId!,
         itemId: testItem.id,
