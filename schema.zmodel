@@ -460,7 +460,7 @@ model OrderItem {
   order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   itemId                String
   item                  Item                      @relation(fields: [itemId], references: [id])
-  quickbooksOrderLineId String?                   @unique
+  quickbooksOrderLineId String?
   quantity              Int
   pricePerItem          Decimal                   @db.Decimal(10, 2)
   lineDescription       String?                   @db.Text // Invoice line description from QBO
@@ -500,6 +500,7 @@ model OrderItem {
   itemStatusLogs        ItemStatusLog[]
   productAttributes     ProductAttribute?
 
+  @@unique([orderId, quickbooksOrderLineId])
   @@allow('create', auth() != null)
   @@allow('read', auth() != null)
   @@allow('update', auth() != null)
