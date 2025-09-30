@@ -11,6 +11,7 @@ async function resetItemStatus() {
 
   try {
     // Find the most recent item that was moved to CUTTING status
+    // Note: This script operates on individual OrderItems, which are already scoped to specific orders
     const recentItem = await prisma.orderItem.findFirst({
       where: {
         itemStatus: 'CUTTING'
