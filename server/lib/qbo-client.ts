@@ -41,17 +41,18 @@ export function validateAccessToken(token: string): {
         errors.push(`Token too long: ${token.length} characters (maximum 2000 expected)`);
     }
     
-    // Check for basic token format (should contain alphanumeric characters)
-    if (!/^[A-Za-z0-9+/=._-]+$/.test(token)) {
+    // Check for basic token format (should not contain obviously invalid characters)
+    if (/[\s<>{}[\]\\|`~!@#$%^&*()]+/.test(token)) {
         errors.push('Token contains invalid characters');
     }
     
     // Check if token looks like a JWT (has dots) or OAuth token (base64-like)
-    const hasJwtFormat = token.split('.').length === 3;
-    const hasBase64Format = /^[A-Za-z0-9+/]+=*$/.test(token);
+    const hasJwtFormat = token.split('.').length >= 2; // More permissive - at least 2 parts
+    const hasBase64Format = /^[A-Za-z0-9+/._-]+=*$/.test(token); // Include dots, underscores, hyphens
+    const hasQuickBooksFormat = token.length > 100 && /^[A-Za-z0-9+/._-]+$/.test(token); // QuickBooks tokens are typically long
     
-    if (!hasJwtFormat && !hasBase64Format) {
-        errors.push('Token does not match expected JWT or base64 format');
+    if (!hasJwtFormat && !hasBase64Format && !hasQuickBooksFormat) {
+        errors.push('Token does not match expected JWT, base64, or QuickBooks format');
     }
     
     return {
@@ -59,7 +60,7 @@ export function validateAccessToken(token: string): {
         errors,
         details: {
             length: token.length,
-            format: hasJwtFormat ? 'JWT' : hasBase64Format ? 'base64' : 'unknown'
+            format: hasJwtFormat ? 'JWT' : hasBase64Format ? 'base64' : hasQuickBooksFormat ? 'quickbooks' : 'unknown'
         }
     };
 }
