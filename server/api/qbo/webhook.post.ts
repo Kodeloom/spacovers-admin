@@ -829,6 +829,12 @@ async function upsertCustomer(qboCustomer: QboCustomerPayload, _event: H3Event) 
         shippingState: qboCustomer.ShipAddr?.CountrySubDivisionCode,
         shippingZipCode: qboCustomer.ShipAddr?.PostalCode,
         shippingCountry: qboCustomer.ShipAddr?.Country,
+        billingAddressLine1: qboCustomer.BillAddr?.Line1,
+        billingAddressLine2: qboCustomer.BillAddr?.Line2,
+        billingCity: qboCustomer.BillAddr?.City,
+        billingState: qboCustomer.BillAddr?.CountrySubDivisionCode,
+        billingZipCode: qboCustomer.BillAddr?.PostalCode,
+        billingCountry: qboCustomer.BillAddr?.Country,
         status: qboCustomer.Active ? CustomerStatus.ACTIVE : CustomerStatus.INACTIVE,
         type: customerType,
     };
@@ -840,6 +846,7 @@ async function upsertCustomer(qboCustomer: QboCustomerPayload, _event: H3Event) 
         type: data.type,
         status: data.status,
         hasShippingAddress: !!(data.shippingAddressLine1 || data.shippingCity),
+        hasBillingAddress: !!(data.billingAddressLine1 || data.billingCity),
         hasContactNumber: !!data.contactNumber,
         customerTypeName
     });
@@ -1044,6 +1051,11 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
             shippingState: qboInvoice.ShipAddr?.CountrySubDivisionCode,
             shippingZipCode: qboInvoice.ShipAddr?.PostalCode,
             shippingCountry: qboInvoice.ShipAddr?.Country,
+            totalAmount: qboInvoice.TotalAmt,
+            balance: qboInvoice.Balance,
+            dueDate: qboInvoice.DueDate ? new Date(qboInvoice.DueDate) : null,
+            customerMemo: qboInvoice.CustomerMemo?.value,
+            emailStatus: qboInvoice.EmailStatus,
             orderStatus: OrderSystemStatus.PENDING,
             notes: qboInvoice.PrivateNote,
             transactionDate: new Date(qboInvoice.TxnDate)
@@ -1217,28 +1229,15 @@ async function upsertEstimate(qboEstimate: QboEstimatePayload, _event: H3Event) 
             customerName: customer.name
         });
         
-        // Create or update the estimate
+        // Create or update the estimate (only include fields that exist in the schema)
         const estimateData = {
             quickbooksEstimateId: qboEstimate.Id,
             customerId: customer.id,
             estimateNumber: qboEstimate.DocNumber,
-            contactEmail: qboEstimate.BillEmail?.Address || customer.email || '',
-            contactPhoneNumber: customer.contactNumber,
-            billingAddressLine1: qboEstimate.BillAddr?.Line1,
-            billingAddressLine2: qboEstimate.BillAddr?.Line2,
-            billingCity: qboEstimate.BillAddr?.City,
-            billingState: qboEstimate.BillAddr?.CountrySubDivisionCode,
-            billingZipCode: qboEstimate.BillAddr?.PostalCode,
-            billingCountry: qboEstimate.BillAddr?.Country,
-            shippingAddressLine1: qboEstimate.ShipAddr?.Line1,
-            shippingAddressLine2: qboEstimate.ShipAddr?.Line2,
-            shippingCity: qboEstimate.ShipAddr?.City,
-            shippingState: qboEstimate.ShipAddr?.CountrySubDivisionCode,
-            shippingZipCode: qboEstimate.ShipAddr?.PostalCode,
-            shippingCountry: qboEstimate.ShipAddr?.Country,
             totalAmount: qboEstimate.TotalAmt,
-            notes: qboEstimate.PrivateNote,
-            transactionDate: new Date(qboEstimate.TxnDate)
+            transactionDate: new Date(qboEstimate.TxnDate),
+            // Note: Contact and address fields are not in the Estimate schema
+            // They should be stored in the Customer record instead
         };
         
         QuickBooksLogger.debug('WebhookUpsert', `Prepared estimate data for upsert`, {
@@ -1246,9 +1245,8 @@ async function upsertEstimate(qboEstimate: QboEstimatePayload, _event: H3Event) 
             estimateNumber: estimateData.estimateNumber,
             customerId: estimateData.customerId,
             totalAmount: estimateData.totalAmount,
-            lineItemCount: qboEstimate.Line?.length || 0,
-            hasBillingAddress: !!(estimateData.billingAddressLine1 || estimateData.billingCity),
-            hasShippingAddress: !!(estimateData.shippingAddressLine1 || estimateData.shippingCity)
+            transactionDate: estimateData.transactionDate,
+            lineItemCount: qboEstimate.Line?.length || 0
         });
         
         const estimate = await prisma.estimate.upsert({
