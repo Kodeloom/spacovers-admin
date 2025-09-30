@@ -57,7 +57,8 @@ export class QuickBooksTokenManager {
     return safeQuickBooksOperation(async () => {
       QuickBooksLogger.debug('TokenManager', 'Starting token retrieval process');
       
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       // Find the active QuickBooks integration
       const integration = await prisma.quickBooksIntegration?.findFirst({
@@ -268,7 +269,8 @@ export class QuickBooksTokenManager {
         throw new Error('Invalid token data: missing required fields');
       }
 
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       const now = new Date();
       const accessTokenExpiresAt = new Date(now.getTime() + (tokens.expires_in * 1000));
@@ -325,7 +327,8 @@ export class QuickBooksTokenManager {
    */
   private static async markIntegrationInactive(integrationId: string, event?: H3Event): Promise<void> {
     return safeQuickBooksOperation(async () => {
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       await prisma.quickBooksIntegration?.update({
         where: { id: integrationId },
@@ -344,7 +347,8 @@ export class QuickBooksTokenManager {
    */
   static async isConnected(event?: H3Event): Promise<boolean> {
     return safeQuickBooksOperation(async () => {
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       const integration = await prisma.quickBooksIntegration?.findFirst({
         where: { isActive: true },
@@ -374,7 +378,8 @@ export class QuickBooksTokenManager {
    */
   static async getConnectionStatus(event?: H3Event): Promise<ConnectionStatus> {
     return safeQuickBooksOperation(async () => {
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       const integration = await prisma.quickBooksIntegration?.findFirst({
         where: { isActive: true },
@@ -436,7 +441,8 @@ export class QuickBooksTokenManager {
           throw qbError;
         }
 
-        const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+        // For webhook operations, always use unenhanced Prisma since there's no user session
+        const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
         const integration = await prisma.quickBooksIntegration?.findFirst({
           where: { isActive: true },
         });
@@ -512,7 +518,8 @@ export class QuickBooksTokenManager {
    */
   static async disconnect(event?: H3Event): Promise<void> {
     return safeQuickBooksOperation(async () => {
-      const prisma = event ? await getEnhancedPrismaClient(event) : (await import('~/server/lib/db')).unenhancedPrisma;
+      // For webhook operations, always use unenhanced Prisma since there's no user session
+      const prisma = (await import('~/server/lib/db')).unenhancedPrisma;
       
       // Find and deactivate all active integrations
       const activeIntegrations = await prisma.quickBooksIntegration?.findMany({
