@@ -51,11 +51,12 @@ const handleLogout = async () => {
   }
 };
 
-const { isAdmin, isWarehouseStaff } = useRoleBasedRouting();
+const { isAdmin, isWarehouseStaff, isOfficeEmployee, hasOfficeAdminAccess } = useRoleBasedRouting();
 
 const menuItems = computed(() => {
   console.log('AppSidebar - isAdmin:', isAdmin.value);
   console.log('AppSidebar - isWarehouseStaff:', isWarehouseStaff.value);
+  console.log('AppSidebar - isOfficeEmployee:', isOfficeEmployee.value);
   
   if (isWarehouseStaff.value) {
     // Warehouse Staff only see warehouse-related items
@@ -78,11 +79,23 @@ const menuItems = computed(() => {
       { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qrcode' },
       { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
+      { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
       { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
       { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'heroicons:book-open' },
       { name: 'Warehouse', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
       { name: 'Kiosk', path: '/warehouse/kiosk', icon: 'heroicons:computer-desktop' },
       { name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' },
+    ];
+  } else if (isOfficeEmployee.value) {
+    // Office employees see limited admin items focused on their workflow
+    return [
+      { name: 'Dashboard', path: '/', icon: 'heroicons:home' },
+      { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
+      { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
+      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
+      { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
+      { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
+      { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
     ];
   } else {
     // Users with no valid roles see nothing
