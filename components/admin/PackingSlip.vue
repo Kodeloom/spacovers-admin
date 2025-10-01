@@ -77,10 +77,7 @@
             :is-print-mode="false"
           />
         </div>
-
-
-
-
+        </div>
     </div>
 
     <!-- No Production Items Message -->
@@ -348,8 +345,6 @@ async function printSinglePackingSlip(orderItem: any) {
   padding: 1rem;
   background: #f9fafb;
   margin-bottom: 1rem;
-}
-</style>
 }
 
 .order-date {
