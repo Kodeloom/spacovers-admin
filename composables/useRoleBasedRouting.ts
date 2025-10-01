@@ -37,6 +37,27 @@ export function useRoleBasedRouting() {
     return hasAdminRole;
   });
 
+  // Check if user has office employee role type
+  const isOfficeEmployee = computed(() => {
+    const user = session.value?.data?.user;
+    if (!user?.roles || !Array.isArray(user.roles)) return false;
+    
+    return user.roles.some((userRole: any) => {
+      const roleName = userRole.role?.name;
+      const roleTypeName = userRole.role?.roleType?.name;
+      
+      // Office employee role types
+      const officeRoleTypes = ['Office Employee'];
+      
+      return (roleTypeName && officeRoleTypes.includes(roleTypeName));
+    });
+  });
+
+  // Check if user has office or admin access (for print queue and similar features)
+  const hasOfficeAdminAccess = computed(() => {
+    return isAdmin.value || isOfficeEmployee.value;
+  });
+
   // Check if user has warehouse staff role types
   const isWarehouseStaff = computed(() => {
     const user = session.value?.data?.user;
@@ -59,6 +80,8 @@ export function useRoleBasedRouting() {
   // Get the appropriate default route for the user
   const getDefaultRoute = computed(() => {
     if (isAdmin.value) {
+      return '/admin';
+    } else if (isOfficeEmployee.value) {
       return '/admin';
     } else if (isWarehouseStaff.value) {
       return '/warehouse/kiosk';
@@ -91,6 +114,8 @@ export function useRoleBasedRouting() {
   return {
     isAdmin,
     isWarehouseStaff,
+    isOfficeEmployee,
+    hasOfficeAdminAccess,
     getDefaultRoute,
     getUserStations,
     canAccessStation
