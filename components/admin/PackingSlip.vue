@@ -1,14 +1,39 @@
 <template>
   <div class="packing-slip-container">
-    <!-- Print All Button -->
+    <!-- Print Controls -->
     <div class="print-controls mb-4">
-      <button
-        @click="handlePrintAll"
-        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-      >
-        <Icon name="heroicons:printer" class="mr-2 h-4 w-4" />
-        Print All Packing Slips
-      </button>
+      <div class="flex gap-4 items-center">
+        <button
+          @click="handlePrintAll"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <Icon name="heroicons:printer" class="mr-2 h-4 w-4" />
+          Print All Packing Slips
+        </button>
+        
+        <button
+          v-if="canAccessPrintQueue"
+          @click="handleAddAllToQueue"
+          :disabled="allItemsQueued"
+          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          :class="{ 'bg-green-50 border-green-300 text-green-700': allItemsQueued }"
+        >
+          <Icon :name="allItemsQueued ? 'heroicons:check' : 'heroicons:queue-list'" class="mr-2 h-4 w-4" />
+          {{ allItemsQueued ? 'All Items in Queue' : 'Add All to Queue' }}
+        </button>
+
+        <NuxtLink
+          v-if="canAccessPrintQueue"
+          to="/admin/print-queue"
+          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <Icon name="heroicons:queue-list" class="mr-2 h-4 w-4" />
+          View Print Queue
+          <span v-if="queueStatus.count > 0" class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+            {{ queueStatus.count }}
+          </span>
+        </NuxtLink>
+      </div>
     </div>
 
     <!-- Packing Slips for Each Production Item -->
@@ -22,13 +47,25 @@
           <h3 class="text-lg font-semibold text-gray-800">
             Packing Slip for: {{ orderItem.item?.name }}
           </h3>
-          <button
-            @click="handlePrintSingle(orderItem)"
-            class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <Icon name="heroicons:printer" class="mr-1 h-3 w-3" />
-            Print This Slip
-          </button>
+          <div class="flex gap-2">
+            <button
+              v-if="canAccessPrintQueue"
+              @click="handleAddToQueue(orderItem)"
+              :disabled="isItemQueued(orderItem.id)"
+              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              :class="{ 'bg-green-50 border-green-300 text-green-700': isItemQueued(orderItem.id) }"
+            >
+              <Icon :name="isItemQueued(orderItem.id) ? 'heroicons:check' : 'heroicons:queue-list'" class="mr-1 h-3 w-3" />
+              {{ isItemQueued(orderItem.id) ? 'In Queue' : 'Add to Queue' }}
+            </button>
+            <button
+              @click="handlePrintSingle(orderItem)"
+              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <Icon name="heroicons:printer" class="mr-1 h-3 w-3" />
+              Print This Slip
+            </button>
+          </div>
         </div>
 
         <!-- Individual Packing Slip (4" x 6" format) -->
@@ -198,6 +235,8 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
 import { BarcodeGenerator } from '~/utils/barcodeGenerator';
+import { usePrintQueue } from '~/composables/usePrintQueue';
+import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
 
 interface Props {
   order: any;
@@ -212,6 +251,25 @@ const packingSlipRefs = ref<Record<string, HTMLElement>>({});
 const barcodeCanvases = ref<Record<string, HTMLCanvasElement>>({});
 const barcodeTypes = ref<Record<string, 'barcode' | 'qr'>>({});
 
+// Initialize print queue
+const { 
+  addToQueue, 
+  isItemQueued, 
+  getQueueStatus, 
+  error: queueError 
+} = usePrintQueue();
+
+const queueStatus = getQueueStatus();
+
+// Role-based access control
+const { hasOfficeAdminAccess } = useRoleBasedRouting();
+
+// Check if user has access to print queue features
+// According to requirements: office employees, admins, and super admins
+const canAccessPrintQueue = computed(() => {
+  return hasOfficeAdminAccess.value;
+});
+
 // Get only production items (items marked as products)
 const productionItems = computed(() => {
   if (!props.order?.items) return [];
@@ -220,6 +278,12 @@ const productionItems = computed(() => {
     // Check if item has productAttributes (meaning it's marked as a product)
     return item.productAttributes !== null;
   });
+});
+
+// Check if all production items are already in the queue
+const allItemsQueued = computed(() => {
+  if (productionItems.value.length === 0) return false;
+  return productionItems.value.every((item: any) => isItemQueued(item.id));
 });
 
 // Initialize barcode types for new items
@@ -441,6 +505,57 @@ async function handlePrintAll() {
   }
   
   await printAllPackingSlips();
+}
+
+// Handler for adding single item to print queue
+async function handleAddToQueue(orderItem: any) {
+  if (isItemQueued(orderItem.id)) {
+    return; // Item already in queue
+  }
+
+  // Transform order item to include required relations for print queue
+  const orderItemWithRelations = {
+    ...orderItem,
+    order: {
+      ...props.order,
+      customer: props.order.customer
+    },
+    item: orderItem.item
+  };
+
+  const success = await addToQueue(orderItemWithRelations);
+  
+  if (!success && queueError.value) {
+    // Show error message to user
+    alert(`Failed to add item to queue: ${queueError.value.message}`);
+  }
+}
+
+// Handler for adding all production items to print queue
+async function handleAddAllToQueue() {
+  if (allItemsQueued.value) {
+    return; // All items already in queue
+  }
+
+  const itemsToAdd = productionItems.value.filter((item: any) => !isItemQueued(item.id));
+  
+  for (const orderItem of itemsToAdd) {
+    const orderItemWithRelations = {
+      ...orderItem,
+      order: {
+        ...props.order,
+        customer: props.order.customer
+      },
+      item: orderItem.item
+    };
+
+    const success = await addToQueue(orderItemWithRelations);
+    
+    if (!success && queueError.value) {
+      // Show error for this specific item but continue with others
+      console.error(`Failed to add ${orderItem.item?.name} to queue:`, queueError.value.message);
+    }
+  }
 }
 
 function handlePrintSingle(orderItem: any) {
