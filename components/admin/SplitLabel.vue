@@ -6,13 +6,7 @@
         Split Label Preview - {{ orderItem.item?.name }}
       </h3>
       <div class="flex gap-4 items-center">
-        <button
-          @click="toggleBarcodeType"
-          class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          <Icon name="heroicons:qr-code" class="mr-1 h-3 w-3" />
-          {{ barcodeType === 'barcode' ? 'Switch to QR' : 'Switch to Barcode' }}
-        </button>
+
       </div>
     </div>
 
@@ -76,7 +70,7 @@
         </div>
       </div>
 
-      <!-- Bottom Part (2x3 inches) -->
+      <!-- Bottom Part (3x2 inches) -->
       <div 
         class="label-part bottom-part"
         :ref="(el: any) => setLabelPartRef(el, 'bottom')"
@@ -153,7 +147,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const labelPartRefs = ref<Record<string, HTMLElement>>({});
 const barcodeCanvases = ref<Record<string, HTMLCanvasElement>>({});
-const barcodeType = ref<'barcode' | 'qr'>('barcode');
+const barcodeType = ref<'barcode'>('barcode');
 
 // Compute order number
 const orderNumber = computed(() => {
@@ -283,11 +277,7 @@ async function generateBarcodeImage(part: string) {
       format: 'CODE128' as const
     };
     
-    if (barcodeType.value === 'barcode') {
-      await BarcodeGenerator.generateCode128(canvas, barcodeText, config);
-    } else {
-      BarcodeGenerator.generateQRCode(canvas, barcodeText, config);
-    }
+    await BarcodeGenerator.generateCode128(canvas, barcodeText, config);
   } catch (error) {
     console.error('Error generating barcode for', part, ':', error);
     
@@ -315,17 +305,7 @@ async function generateBarcodeImage(part: string) {
   }
 }
 
-// Toggle between barcode and QR code
-function toggleBarcodeType() {
-  barcodeType.value = barcodeType.value === 'barcode' ? 'qr' : 'barcode';
-  
-  // Regenerate barcodes for both parts
-  nextTick(() => {
-    Object.keys(barcodeCanvases.value).forEach(part => {
-      generateBarcodeImage(part);
-    });
-  });
-}
+
 
 // Watch for changes and regenerate barcodes
 watch(() => props.orderItem, () => {
@@ -348,7 +328,6 @@ onMounted(() => {
 // Expose methods for parent components
 defineExpose({
   generateBarcodeImage,
-  toggleBarcodeType,
   getLabelPartRef: (part: string) => labelPartRefs.value[part],
   getBarcodeType: () => barcodeType.value,
 });
@@ -390,10 +369,10 @@ defineExpose({
   flex-direction: column;
 }
 
-/* Bottom Part (2x3 inches) */
+/* Bottom Part (3x2 inches) */
 .label-part.bottom-part {
-  width: 144px;  /* 2 inches * 72 DPI */
-  height: 216px; /* 3 inches * 72 DPI */
+  width: 216px;  /* 3 inches * 72 DPI */
+  height: 144px; /* 2 inches * 72 DPI */
   padding: 4px;
   display: flex;
   flex-direction: column;

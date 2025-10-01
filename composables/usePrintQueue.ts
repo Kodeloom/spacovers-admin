@@ -1187,7 +1187,7 @@ export const usePrintQueue = () => {
             </div>
           </div>
           
-          <!-- Bottom Part (2x3) -->
+          <!-- Bottom Part (3x2) -->
           <div class="label-part bottom-part">
             <div class="label-header compact">
               <div class="customer-info compact">
@@ -1310,8 +1310,8 @@ export const usePrintQueue = () => {
       }
       
       .label-part.bottom-part {
-        width: 2in;
-        height: 3in;
+        width: 3in;
+        height: 2in;
         display: flex;
         flex-direction: column;
       }

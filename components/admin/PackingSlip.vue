@@ -68,159 +68,19 @@
           </div>
         </div>
 
-        <!-- Individual Packing Slip (4" x 6" format) -->
-        <div class="packing-slip" :ref="(el: any) => setPackingSlipRef(el, orderItem.id)">
-      <!-- Header Section -->
-      <div class="header-section">
-            <div class="header-content">
-                 <div class="dealer-info">
-           <div class="dealer-label">Dealer:</div>
-           <div class="dealer-name">{{ order.customer?.name }}</div>
-         </div>
-        
-        <div class="order-info">
-          <div class="order-number">Order #{{ order.salesOrderNumber || order.id.slice(-8) }}</div>
-          <div class="order-date">Date: {{ new Date(order.createdAt).toLocaleDateString() }}</div>
-                
-          <div class="po-number" v-if="order.purchaseOrderNumber">PO #{{ order.purchaseOrderNumber }}</div>
-              </div>
+        <!-- Split Label -->
+        <div class="split-label-wrapper" :ref="(el: any) => setPackingSlipRef(el, orderItem.id)">
+          <SplitLabel
+            :order-item="orderItem"
+            :order="order"
+            :show-preview="true"
+            :is-print-mode="false"
+          />
         </div>
-<div class="barcode-container">
-                  <canvas 
-                    :ref="(el: any) => setBarcodeCanvas(el, orderItem.id)" 
-                    class="barcode-canvas"
-                    width="380"
-                    height="100"
-                  ></canvas>
-                </div>
-      </div>
 
-             <!-- Product Specifications -->
-       <div class="specs-section">
-         <!-- Core Attributes - 2 Column Layout (First 8 attributes) -->
-         <div class="core-specs-grid">
-           <!-- Left Column (4 attributes) -->
-           <div class="spec-column">
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'color')">
-               <div class="spec-label">Color:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'color') }}</div>
-             </div>
-             
-                         <div class="spec-row" v-if="shouldShowSize(orderItem)">
-              <div class="spec-label">Size:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'size') }}</div>
-            </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'shape')">
-               <div class="spec-label">Shape:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'shape') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'radiusSize')">
-               <div class="spec-label">{{ getRadiusFieldLabel(orderItem) }}:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'radiusSize') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'length')">
-               <div class="spec-label">Length:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'length') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'width')">
-               <div class="spec-label">Width:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'width') }}</div>
-             </div>
-           </div>
-           
-           <!-- Right Column (4 attributes) -->
-           <div class="spec-column">
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'skirtLength')">
-               <div class="spec-label">Skirt Length:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtLength') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'skirtType')">
-               <div class="spec-label">Skirt Type:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'skirtType') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'tieDownsQty')">
-               <div class="spec-label">Tie Downs Qty:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownsQty') }}</div>
-             </div>
-             
-             <div class="spec-row" v-if="getProductAttribute(orderItem, 'tieDownPlacement')">
-               <div class="spec-label">Tie Down Placement:</div>
-               <div class="spec-value">{{ getProductAttribute(orderItem, 'tieDownPlacement') }}</div>
-             </div>
-           </div>
-         </div>
-         
-         <!-- Additional Attributes (Below core specs) -->
-         <div class="additional-specs" v-if="hasAdditionalAttributes(orderItem)">
-           <div class="spec-row" v-if="getProductAttribute(orderItem, 'distance') && getProductAttribute(orderItem, 'distance') !== '0'">
-             <div class="spec-label">Distance:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'distance') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="getProductAttribute(orderItem, 'foamUpgrade')">
-             <div class="spec-label">Foam Upgrade:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'foamUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('doublePlasticWrapUpgrade', orderItem)">
-             <div class="spec-label">Double Plastic Wrap:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'doublePlasticWrapUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('webbingUpgrade', orderItem)">
-             <div class="spec-label">Webbing Upgrade:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'webbingUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('metalForLifterUpgrade', orderItem)">
-             <div class="spec-label">Metal For Lifter:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'metalForLifterUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('steamStopperUpgrade', orderItem)">
-             <div class="spec-label">Steam Stopper:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'steamStopperUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('fabricUpgrade', orderItem)">
-             <div class="spec-label">Fabric Upgrade:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'fabricUpgrade') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowExtraHandle(orderItem)">
-             <div class="spec-label">Extra Handle Qty:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'extraHandleQty') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="shouldShowUpgrade('extraLongSkirt', orderItem)">
-             <div class="spec-label">Extra Long Skirt:</div>
-             <div class="spec-value">{{ getProductAttribute(orderItem, 'extraLongSkirt') }}</div>
-           </div>
-           
-           <div class="spec-row" v-if="getProductAttribute(orderItem, 'packaging')">
-             <div class="spec-label">Requires Packaging:</div>
-             <div class="spec-value">Yes</div>
-           </div>
-           
-                       <div class="spec-row" v-if="shouldShowNotes(orderItem)">
-              <div class="spec-label">Notes:</div>
-              <div class="spec-value">{{ getProductAttribute(orderItem, 'notes') }}</div>
-            </div>
-         </div>
-       </div>
 
-      <!-- Footer Section -->
-      <div class="footer-section">
-            <div class="save-info">SAVE for ReOrder</div>
-          </div>
-        </div>
-      </div>
+
+
     </div>
 
     <!-- No Production Items Message -->
@@ -234,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue';
-import { BarcodeGenerator } from '~/utils/barcodeGenerator';
+
 import { usePrintQueue } from '~/composables/usePrintQueue';
 import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
 
@@ -248,8 +108,6 @@ const emit = defineEmits<{
 }>();
 
 const packingSlipRefs = ref<Record<string, HTMLElement>>({});
-const barcodeCanvases = ref<Record<string, HTMLCanvasElement>>({});
-const barcodeTypes = ref<Record<string, 'barcode' | 'qr'>>({});
 
 // Initialize print queue
 const { 
@@ -286,28 +144,7 @@ const allItemsQueued = computed(() => {
   return productionItems.value.every((item: any) => isItemQueued(item.id));
 });
 
-// Initialize barcode types for new items
-watch(productionItems, (newItems) => {
-  newItems.forEach((item: any) => {
-    if (!barcodeTypes.value[item.id]) {
-      barcodeTypes.value[item.id] = 'barcode';
-    }
-  });
-}, { immediate: true });
 
-// Watch for changes in production items to regenerate barcodes
-watch(productionItems, (newItems) => {
-  if (newItems.length > 0) {
-    // Regenerate barcodes for all items after a short delay
-    nextTick(() => {
-      newItems.forEach((item: any) => {
-        if (barcodeCanvases.value[item.id]) {
-          generateBarcodeImage(item.id);
-        }
-      });
-    });
-  }
-}, { immediate: true });
 
 // Function to set packing slip ref for each item
 function setPackingSlipRef(el: any, itemId: string) {
@@ -316,76 +153,8 @@ function setPackingSlipRef(el: any, itemId: string) {
   }
 }
 
-// Function to set barcode canvas ref for each item
-function setBarcodeCanvas(el: any, itemId: string) {
-  if (el) {
-    barcodeCanvases.value[itemId] = el;
-    // Generate barcode once canvas is available
-    nextTick(() => generateBarcodeImage(itemId));
-  }
-}
 
-// Function to generate barcode for an item
-function generateBarcode(orderItem: any): string {
-  const orderNumber = props.order.salesOrderNumber || props.order.id.slice(-8);
-  
-  // Use the full CUID for maximum uniqueness and reliability
-  // JsBarcode can handle longer strings without issues
-  return `${orderNumber}-${orderItem.id}`;
-}
 
-// Function to generate barcode image and display it in the canvas
-async function generateBarcodeImage(itemId: string) {
-  const canvas = barcodeCanvases.value[itemId];
-  if (!canvas) return;
-
-  const orderItem = productionItems.value.find((item: any) => item.id === itemId);
-  if (!orderItem) return;
-
-  const barcodeText = generateBarcode(orderItem);
-  const barcodeType = getBarcodeType(itemId);
-  
-  try {
-    // Simple, reliable configuration for JsBarcode
-    const config = {
-      width: 330,      
-      height: 130,     
-      fontSize: 30,    
-      margin: 10,      
-      showText: true,
-      format: 'CODE128' as const
-    };
-    
-    if (barcodeType === 'barcode') {
-      await BarcodeGenerator.generateCode128(canvas, barcodeText, config);
-    } else {
-      BarcodeGenerator.generateQRCode(canvas, barcodeText, config);
-    }
-  } catch (error) {
-    console.error('Error generating barcode:', error);
-    
-    // Fallback to simple text display
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      canvas.width = 200;
-      canvas.height = 60;
-      canvas.style.width = '200px';
-      canvas.style.height = '60px';
-      
-      ctx.clearRect(0, 0, 200, 60);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, 200, 60);
-      
-      ctx.fillStyle = '#000000';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(barcodeText, 100, 30);
-    }
-  }
-}
-
-// These functions are now replaced by the professional BarcodeGenerator class
 
 // Function to get product attribute value
 function getProductAttribute(orderItem: any, attributeName: string): string {
@@ -476,17 +245,7 @@ function getPriorityClass(priority: string): string {
   }
 }
 
-// Function to get barcode type for an item
-function getBarcodeType(itemId: string): 'barcode' | 'qr' {
-  return barcodeTypes.value[itemId] || 'barcode';
-}
 
-// Function to toggle between barcode and QR code
-function toggleBarcodeType(itemId: string) {
-  barcodeTypes.value[itemId] = barcodeTypes.value[itemId] === 'barcode' ? 'qr' : 'barcode';
-  // Regenerate the image
-  nextTick(() => generateBarcodeImage(itemId));
-}
 
 // Handler functions for print confirmation
 async function handlePrintAll() {
@@ -562,578 +321,35 @@ function handlePrintSingle(orderItem: any) {
   emit('print-confirmation', orderItem, async () => await printSinglePackingSlip(orderItem));
 }
 
-// Function to print all packing slips
+// Function to print all split labels
 async function printAllPackingSlips() {
   if (productionItems.value.length === 0) return;
   
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-  
-  let printContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>All Packing Slips - Order ${props.order.salesOrderNumber || props.order.id.slice(-8)}</title>
-      <style>
-        @media print {
-          @page {
-            size: 4in 6in;
-            margin: 0.1in;
-          }
-        }
-        
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0.05in;
-          font-size: 7pt;
-          line-height: 1.1;
-        }
-        
-        .packing-slip {
-          width: 3.8in;
-          height: 5.8in;
-          border: 1px solid #000;
-          padding: 0.05in;
-          box-sizing: border-box;
-          margin-bottom: 0.1in;
-          page-break-inside: avoid;
-          page-break-after: avoid;
-          overflow: hidden;
-        }
-        
-        .header-section {
-          border-bottom: 1px solid #000;
-          margin-bottom: 0.1in;
-        }
-        
-        .header-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-        
-        .dealer-info {
-          margin-bottom: 0.1in;
-          flex: 1;
-        }
-        
-        .dealer-label {
-          font-weight: bold;
-          display: inline;
-        }
-        
-        .dealer-name {
-          font-weight: bold;
-          display: inline;
-          margin-left: 0.1in;
-        }
-        
-        .dealer-details {
-          font-size: 7pt;
-          color: #666;
-          margin-top: 0.05in;
-        }
-        
-        .order-info {
-          text-align: right;
-          font-size: 7pt;
-          flex: 1;
-          text-align: right;
-        }
-        
-        .order-number {
-          font-weight: bold;
-          font-size: 8pt;
-        }
-        
-        .order-date {
-          margin-bottom: 0.05in;
-        }
-        
-        .barcode-container {
-          margin: 0.05in 0;
-          text-align: center;
-          justify-self: flex-end;
-        }
-        
-        .barcode-canvas {
-          display: block;
-          margin-right: 1.5px;
-          max-width: 100%;
-          height: auto;
-        }
-        
-        .po-number {
-          margin-top: 0.05in;
-          font-size: 7pt;
-        }
-        
-        .specs-section {
-          margin: 0.1in 0;
-        }
-        
-        .core-specs-grid {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 0.1in !important;
-          margin-bottom: 0.1in !important;
-        }
-        
-        .spec-column {
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        
-        .additional-specs {
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        
-        .spec-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 0.05in;
-          border-bottom: 1px dotted #ccc;
-          padding-bottom: 0.02in;
-        }
-        
-        .spec-label {
-          font-weight: bold;
-        }
-        
-        .spec-value {
-          text-align: right;
-        }
-        
-        .footer-section {
-          border-top: 1px solid #000;
-          padding-top: 0.1in;
-          margin-top: 0.1in;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        
-        .priority-info {
-          display: flex;
-          align-items: center;
-        }
-        
-        .priority-label {
-          font-weight: bold;
-          margin-right: 0.1in;
-        }
-        
-        .priority-value {
-          padding: 0.02in 0.1in;
-          border: 1px solid #000;
-          border-radius: 0.05in;
-          font-size: 7pt;
-        }
-        
-        .save-info {
-          font-size: 7pt;
-          font-style: italic;
-          color: #666;
-        }
-        
-        .text-red-600 { color: #dc2626; }
-        .text-yellow-600 { color: #ca8a04; }
-        .text-green-600 { color: #16a34a; }
-        .font-bold { font-weight: bold; }
-        .font-semibold { font-weight: 600; }
-        
-        /* Prevent extra blank pages */
-        html, body {
-          height: 5.8in;
-          overflow: hidden;
-        }
-        
-        /* Ensure content fits within page */
-        * {
-          box-sizing: border-box;
-        }
-      </style>
-    </head>
-    <body>
-  `;
-  
-  // Add each packing slip to the print content
-  for (const orderItem of productionItems.value) {
-    const slipRef = packingSlipRefs.value[orderItem.id];
-    if (slipRef) {
-      // Generate high-resolution barcode for printing
-      const canvas = document.createElement('canvas');
-      const barcodeText = generateBarcode(orderItem);
-      const barcodeType = getBarcodeType(orderItem.id);
-      const printConfig = BarcodeGenerator.getPrintConfig();
-      
-      try {
-        if (barcodeType === 'barcode') {
-          await BarcodeGenerator.generateCode128(canvas, barcodeText, printConfig);
-        } else {
-          BarcodeGenerator.generateQRCode(canvas, barcodeText, printConfig);
-        }
-        
-        const dataURL = canvas.toDataURL('image/png', 1.0);
-        let slipHTML = slipRef.outerHTML;
-        slipHTML = slipHTML.replace(
-          /<canvas[^>]*class="barcode-canvas"[^>]*>.*?<\/canvas>/s,
-          `<img src="${dataURL}" style="width: 100%; height: auto; min-width: 250px;" alt="Barcode" />`
-        );
-        printContent += slipHTML;
-      } catch (error) {
-        console.error('Error generating print barcode:', error);
-        printContent += slipRef.outerHTML;
-      }
-    }
-  }
-  
-  printContent += `
-    </body>
-    </html>
-  `;
-  
-  printWindow.document.write(printContent);
-  printWindow.document.close();
-  
-  // Wait for content to load then print
-  printWindow.onload = () => {
-    printWindow.print();
-    printWindow.close();
-  };
+  // For now, just show a message that individual split labels should be printed
+  // The proper way is to use the print queue system for batch printing
+  alert('To print multiple labels efficiently, please use the "Add All to Queue" button and then use the Print Queue for batch printing of split labels.');
 }
 
-// Function to print a single packing slip
+// Function to print a single split label
 async function printSinglePackingSlip(orderItem: any) {
-  const slipRef = packingSlipRefs.value[orderItem.id];
-  if (!slipRef) return;
-  
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-  
-  // Generate high-resolution barcode for printing
-  const canvas = document.createElement('canvas');
-  const barcodeText = generateBarcode(orderItem);
-  const barcodeType = getBarcodeType(orderItem.id);
-  const printConfig = BarcodeGenerator.getPrintConfig();
-  
-  let slipHTML = slipRef.outerHTML;
-  
-  try {
-    if (barcodeType === 'barcode') {
-      await BarcodeGenerator.generateCode128(canvas, barcodeText, printConfig);
-    } else {
-      BarcodeGenerator.generateQRCode(canvas, barcodeText, printConfig);
-    }
-    
-    const dataURL = canvas.toDataURL('image/png', 1.0);
-    slipHTML = slipHTML.replace(
-      /<canvas[^>]*class="barcode-canvas"[^>]*>.*?<\/canvas>/s,
-      `<img src="${dataURL}" style="width: 100%; height: auto; min-width: 250px;" alt="Barcode" />`
-    );
-  } catch (error) {
-    console.error('Error generating print barcode:', error);
-    // Keep original HTML if barcode generation fails
-  }
-  
-  const printContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Packing Slip - ${orderItem.item?.name} - Order ${props.order.salesOrderNumber || props.order.id.slice(-8)}</title>
-      <style>
-        @media print {
-          @page {
-            size: 4in 6in;
-            margin: 0.1in;
-          }
-        }
-        
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 0.1in;
-          font-size: 8pt;
-          line-height: 1.2;
-        }
-        
-        .packing-slip {
-          width: 3.8in;
-          height: 5.8in;
-          border: 1px solid #000;
-          padding: 0.05in;
-          box-sizing: border-box;
-          overflow: hidden;
-          page-break-inside: avoid;
-          page-break-after: avoid;
-        }
-        
-        .header-section {
-          border-bottom: 1px solid #000;
-          margin-bottom: 0.1in;
-        }
-        
-        .header-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-        
-        .dealer-info {
-          margin-bottom: 0.1in;
-          flex: 1;
-        }
-        
-        .dealer-label {
-          font-weight: bold;
-          display: inline;
-        }
-        
-        .dealer-name {
-          font-weight: bold;
-          display: inline;
-          margin-left: 0.1in;
-        }
-        
-        .dealer-details {
-          font-size: 7pt;
-          color: #666;
-          margin-top: 0.05in;
-        }
-        
-        .order-info {
-          text-align: right;
-          font-size: 7pt;
-          flex: 1;
-          text-align: right;
-        }
-        
-        .order-number {
-          font-weight: bold;
-          font-size: 8pt;
-        }
-        
-        .order-date {
-          margin-bottom: 0.05in;
-        }
-        
-        .barcode-container {
-          margin: 0.05in 0;
-          text-align: center;
-          justify-self: flex-end;
-        }
-        
-        .barcode-canvas {
-          display: block;
-          margin-right: 1.5px;
-          max-width: 100%;
-          height: auto;
-        }
-        
-        .po-number {
-          margin-top: 0.05in;
-          font-size: 7pt;
-        }
-        
-        .specs-section {
-          margin: 0.1in 0;
-        }
-        
-        .core-specs-grid {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 0.1in !important;
-          margin-bottom: 0.1in !important;
-        }
-        
-        .spec-column {
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        
-        .additional-specs {
-          display: flex !important;
-          flex-direction: column !important;
-        }
-        
-        .spec-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 0.05in;
-          border-bottom: 1px dotted #ccc;
-          padding-bottom: 0.02in;
-        }
-        
-        .spec-label {
-          font-weight: bold;
-        }
-        
-        .spec-value {
-          text-align: right; 
-        }
-        
-        .footer-section {
-          border-top: 1px solid #000;
-          padding-top: 0.1in;
-          margin-top: 0.1in;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        
-        .priority-info {
-          display: flex;
-          align-items: center;
-        }
-        
-        .priority-label {
-          font-weight: bold;
-          margin-right: 0.1in;
-        }
-        
-        .priority-value {
-          padding: 0.02in 0.1in;
-          border: 1px solid #000;
-          border-radius: 0.05in;
-          font-size: 7pt;
-        }
-        
-        .save-info {
-          font-size: 7pt;
-          font-style: italic;
-          color: #666;
-        }
-        
-        .text-red-600 { color: #dc2626; }
-        .text-yellow-600 { color: #ca8a04; }
-        .text-green-600 { color: #16a34a; }
-        .font-bold { font-weight: bold; }
-        .font-semibold { font-weight: 600; }
-        
-        /* Prevent extra blank pages */
-        html, body {
-          height: 5.8in;
-          overflow: hidden;
-        }
-        
-        /* Ensure content fits within page */
-        * {
-          box-sizing: border-box;
-        }
-      </style>
-    </head>
-    <body>
-      ${slipHTML}
-    </body>
-    </html>
-  `;
-  
-  printWindow.document.write(printContent);
-  printWindow.document.close();
-  
-  // Wait for content to load then print
-  printWindow.onload = () => {
-    // Add a small delay to ensure content is fully rendered
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 100);
-  };
+  // For individual printing, we'll just show a message to use the print queue
+  alert('For individual label printing, please use the "Add to Queue" button and then use the Print Queue.');
 }
 </script>
 
 <style scoped>
-/* Enhanced barcode rendering for crisp display */
-.barcode-canvas {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-  max-width: 100%;
-  height: auto;
-  min-width: 250px; /* Ensure minimum scannable size */
-}
-
-/* Ensure proper barcode container alignment */
-.barcode-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 8px 0;
-}
-
 .packing-slip-container {
   max-width: 100%;
 }
 
-.packing-slip-wrapper {
+.split-label-wrapper {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   padding: 1rem;
   background: #f9fafb;
+  margin-bottom: 1rem;
 }
-
-.packing-slip {
-  width: 4in;
-  height: 6in;
-  border: 2px solid #000;
-  padding: 0.2in;
-  background: white;
-  font-family: 'Courier New', monospace;
-  font-size: 8pt;
-  line-height: 1.2;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin: 0 auto;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.header-section {
-  border-bottom: 1px solid #000;
-  margin-bottom: 0.1in;
-  position: relative;
-  /* min-height: 0.8in; Ensure enough height for barcode */
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.dealer-info {
-  margin-bottom: 0.1in;
-  flex: 1;
-}
-
-.dealer-label {
-  font-weight: bold;
-  display: inline;
-}
-
-.dealer-name {
-  font-weight: bold;
-  display: inline;
-  margin-left: 0.1in;
-}
-
-.dealer-details {
-  font-size: 7pt;
-  color: #666;
-  margin-top: 0.05in;
-}
-
-.order-info {
-  text-align: right;
-  font-size: 7pt;
-  flex: 1;
-  text-align: right;
-}
-
-.order-number {
-  font-weight: bold;
-  font-size: 8pt;
+</style>
 }
 
 .order-date {
