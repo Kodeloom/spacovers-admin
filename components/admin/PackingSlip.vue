@@ -1062,9 +1062,7 @@ async function printSinglePackingSlip(orderItem: any) {
   align-items: center;
   margin: 8px 0;
 }
-</style>
 
-<style scoped>
 .packing-slip-container {
   max-width: 100%;
 }

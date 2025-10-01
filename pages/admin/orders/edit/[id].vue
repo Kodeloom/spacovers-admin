@@ -1273,16 +1273,6 @@ const combinedOrderLogs = computed(() => {
   return sortedLogs;
 });
 
-// Get only production items (items marked as products)
-const productionItems = computed(() => {
-  if (!order.value?.items) return [];
-  
-  return order.value.items.filter((item: any) => {
-    // Check if item has productAttributes (meaning it's marked as a product)
-    return item.productAttributes !== null;
-  });
-});
-
 // Item status editing
 const editingItemStatus = ref<OrderItemProcessingStatus | ''>('');
 const isSavingItem = ref(false);
