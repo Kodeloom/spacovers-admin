@@ -401,16 +401,23 @@ async function syncEstimates(event: H3Event, prisma: PrismaClient, token: { acce
             const customer = await unenhancedPrisma.customer.findUnique({ where: { quickbooksCustomerId: estimate.CustomerRef.value } });
             if (!customer) continue;
 
-            const created = await prisma.estimate.create({
-                data: {
-                    quickbooksEstimateId: estimate.Id,
-                    customer: { connect: { id: customer.id } },
-                    estimateNumber: estimate.DocNumber,
-                    transactionDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
-                    expirationDate: estimate.ExpirationDate ? new Date(estimate.ExpirationDate) : null,
-                    totalAmount: estimate.TotalAmt || 0,
-                },
-            });
+            console.log(`🔄 Creating estimate for customer ${customer.id}, QBO ID: ${estimate.Id}`);
+            try {
+                const created = await unenhancedPrisma.estimate.create({
+                    data: {
+                        quickbooksEstimateId: estimate.Id,
+                        customer: { connect: { id: customer.id } },
+                        estimateNumber: estimate.DocNumber,
+                        transactionDate: estimate.TxnDate ? new Date(estimate.TxnDate) : null,
+                        expirationDate: estimate.ExpirationDate ? new Date(estimate.ExpirationDate) : null,
+                        totalAmount: estimate.TotalAmt || 0,
+                    },
+                });
+                console.log(`✅ Successfully created estimate ${created.id}`);
+            } catch (createError) {
+                console.error(`❌ Failed to create estimate for QBO ID ${estimate.Id}:`, createError);
+                throw createError;
+            }
             await recordAuditLog(event, { action: 'QBO_ESTIMATE_SYNC_CREATE', entityName: 'Estimate', entityId: created.id, newValue: created }, null);
             
             // Process line items for the estimate
@@ -545,18 +552,25 @@ async function syncInvoices(event: H3Event, prisma: PrismaClient, token: { acces
                 }
             }
 
-            const created = await prisma.order.create({
-                data: {
-                    quickbooksOrderId: invoice.Id,
-                    customer: { connect: { id: customer.id } },
-                    estimate: estimateId ? { connect: { id: estimateId } } : undefined,
-                    salesOrderNumber: invoice.DocNumber,
-                    transactionDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
-                    dueDate: invoice.DueDate ? new Date(invoice.DueDate) : null,
-                    totalAmount: invoice.TotalAmt || 0,
-                    contactEmail: customer.email || 'no-email@example.com', // Required field
-                },
-            });
+            console.log(`🔄 Creating order for customer ${customer.id}, QBO ID: ${invoice.Id}`);
+            try {
+                const created = await unenhancedPrisma.order.create({
+                    data: {
+                        quickbooksOrderId: invoice.Id,
+                        customer: { connect: { id: customer.id } },
+                        estimate: estimateId ? { connect: { id: estimateId } } : undefined,
+                        salesOrderNumber: invoice.DocNumber,
+                        transactionDate: invoice.TxnDate ? new Date(invoice.TxnDate) : null,
+                        dueDate: invoice.DueDate ? new Date(invoice.DueDate) : null,
+                        totalAmount: invoice.TotalAmt || 0,
+                        contactEmail: customer.email || 'no-email@example.com', // Required field
+                    },
+                });
+                console.log(`✅ Successfully created order ${created.id}`);
+            } catch (createError) {
+                console.error(`❌ Failed to create order for QBO ID ${invoice.Id}:`, createError);
+                throw createError;
+            }
             
             // Process line items for the new order
             await processInvoiceLineItems(invoice, created.id, event);
@@ -615,14 +629,19 @@ export default defineEventHandler(async (event) => {
 
     try {
         const { oauthClient, token } = await getQboClient(event);
-        const prisma = await getEnhancedPrismaClient(event);
+        const prisma = unenhancedPrisma;
         
         const baseUrl = oauthClient.environment === 'sandbox' 
             ? 'https://sandbox-quickbooks.api.intuit.com' 
             : 'https://quickbooks.api.intuit.com';
 
+        console.log('🚀 Starting estimates sync...');
         const estimatesSynced = await syncEstimates(event, prisma, token, baseUrl, syncMode);
+        console.log(`✅ Estimates sync completed. Synced: ${estimatesSynced}`);
+        
+        console.log('🚀 Starting invoices sync...');
         const invoicesSynced = await syncInvoices(event, prisma, token, baseUrl, syncMode);
+        console.log(`✅ Invoices sync completed. Synced: ${invoicesSynced}`);
 
         return {
             success: true,

@@ -1,90 +1,69 @@
 <template>
-  <div class="packing-slip-container">
+  <div class="split-label-container">
     <!-- Print Controls -->
     <div class="print-controls mb-4">
       <div class="flex gap-4 items-center">
-        <button
-          @click="handlePrintAll"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
+        <button @click="handlePrintAll"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
           <Icon name="heroicons:printer" class="mr-2 h-4 w-4" />
-          Print All Packing Slips
+          Add All to Print Queue
         </button>
-        
-        <button
-          v-if="canAccessPrintQueue"
-          @click="handleAddAllToQueue"
-          :disabled="allItemsQueued"
+
+        <button v-if="canAccessPrintQueue" @click="handleAddAllToQueue" :disabled="allItemsQueued"
           class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          :class="{ 'bg-green-50 border-green-300 text-green-700': allItemsQueued }"
-        >
+          :class="{ 'bg-green-50 border-green-300 text-green-700': allItemsQueued }">
           <Icon :name="allItemsQueued ? 'heroicons:check' : 'heroicons:queue-list'" class="mr-2 h-4 w-4" />
           {{ allItemsQueued ? 'All Items in Queue' : 'Add All to Queue' }}
         </button>
 
-        <NuxtLink
-          v-if="canAccessPrintQueue"
-          to="/admin/print-queue"
-          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
+        <NuxtLink v-if="canAccessPrintQueue" to="/admin/print-queue"
+          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
           <Icon name="heroicons:queue-list" class="mr-2 h-4 w-4" />
           View Print Queue
-          <span v-if="queueStatus.count > 0" class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+          <span v-if="queueStatus.count > 0"
+            class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
             {{ queueStatus.count }}
           </span>
         </NuxtLink>
       </div>
     </div>
 
-    <!-- Packing Slips for Each Production Item -->
+    <!-- Split Labels for Each Production Item -->
     <div class="space-y-6">
-      <div 
-        v-for="orderItem in productionItems" 
-        :key="orderItem.id" 
-        class="packing-slip-wrapper"
-      >
+      <div v-for="orderItem in productionItems" :key="orderItem.id" class="split-label-item-wrapper">
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-lg font-semibold text-gray-800">
-            Packing Slip for: {{ orderItem.item?.name }}
+            Split Label for: {{ orderItem.item?.name }}
           </h3>
           <div class="flex gap-2">
-            <button
-              v-if="canAccessPrintQueue"
-              @click="handleAddToQueue(orderItem)"
+            <button v-if="canAccessPrintQueue" @click="handleAddToQueue(orderItem)"
               :disabled="isItemQueued(orderItem.id)"
               class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="{ 'bg-green-50 border-green-300 text-green-700': isItemQueued(orderItem.id) }"
-            >
-              <Icon :name="isItemQueued(orderItem.id) ? 'heroicons:check' : 'heroicons:queue-list'" class="mr-1 h-3 w-3" />
+              :class="{ 'bg-green-50 border-green-300 text-green-700': isItemQueued(orderItem.id) }">
+              <Icon :name="isItemQueued(orderItem.id) ? 'heroicons:check' : 'heroicons:queue-list'"
+                class="mr-1 h-3 w-3" />
               {{ isItemQueued(orderItem.id) ? 'In Queue' : 'Add to Queue' }}
             </button>
-            <button
-              @click="handlePrintSingle(orderItem)"
-              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <Icon name="heroicons:printer" class="mr-1 h-3 w-3" />
-              Print This Slip
+            <button @click="handlePrintSingle(orderItem)"
+              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+              <Icon name="heroicons:queue-list" class="mr-1 h-3 w-3" />
+              Add to Queue
             </button>
           </div>
         </div>
 
         <!-- Split Label -->
-        <div class="split-label-wrapper" :ref="(el: any) => setPackingSlipRef(el, orderItem.id)">
-          <SplitLabel
-            :order-item="orderItem"
-            :order="order"
-            :show-preview="true"
-            :is-print-mode="false"
-          />
+        <div class="split-label-wrapper" :ref="(el: any) => setSplitLabelRef(el, orderItem.id)">
+          <SplitLabel :order-item="orderItem" :order="order" :show-preview="true" :is-print-mode="false" />
         </div>
-        </div>
+      </div>
     </div>
 
     <!-- No Production Items Message -->
     <div v-if="productionItems.length === 0" class="text-center py-8 text-gray-500">
       <Icon name="heroicons:cube" class="mx-auto h-12 w-12 text-gray-400 mb-4" />
       <p>No production items found for this order.</p>
-      <p class="text-sm">Mark items as production items to generate packing slips.</p>
+      <p class="text-sm">Mark items as production items to generate split labels.</p>
     </div>
   </div>
 </template>
@@ -104,14 +83,14 @@ const emit = defineEmits<{
   'print-confirmation': [orderItem: any, printFunction: () => void]
 }>();
 
-const packingSlipRefs = ref<Record<string, HTMLElement>>({});
+const splitLabelRefs = ref<Record<string, HTMLElement>>({});
 
 // Initialize print queue
-const { 
-  addToQueue, 
-  isItemQueued, 
-  getQueueStatus, 
-  error: queueError 
+const {
+  addToQueue,
+  isItemQueued,
+  getQueueStatus,
+  error: queueError
 } = usePrintQueue();
 
 const queueStatus = getQueueStatus();
@@ -128,7 +107,7 @@ const canAccessPrintQueue = computed(() => {
 // Get only production items (items marked as products)
 const productionItems = computed(() => {
   if (!props.order?.items) return [];
-  
+
   return props.order.items.filter((item: any) => {
     // Check if item has productAttributes (meaning it's marked as a product)
     return item.productAttributes !== null;
@@ -143,10 +122,10 @@ const allItemsQueued = computed(() => {
 
 
 
-// Function to set packing slip ref for each item
-function setPackingSlipRef(el: any, itemId: string) {
+// Function to set split label ref for each item
+function setSplitLabelRef(el: any, itemId: string) {
   if (el) {
-    packingSlipRefs.value[itemId] = el;
+    splitLabelRefs.value[itemId] = el;
   }
 }
 
@@ -156,19 +135,19 @@ function setPackingSlipRef(el: any, itemId: string) {
 // Function to get product attribute value
 function getProductAttribute(orderItem: any, attributeName: string): string {
   if (!orderItem.productAttributes) return 'N/A';
-  
+
   const value = orderItem.productAttributes[attributeName];
-  
+
   // Handle boolean values
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No';
   }
-  
+
   // Handle empty strings
   if (value === '' || value === null || value === undefined) {
-      return 'N/A';
+    return 'N/A';
   }
-  
+
   return value.toString();
 }
 
@@ -244,23 +223,10 @@ function getPriorityClass(priority: string): string {
 
 
 
-// Handler functions for print confirmation
+// Handler functions for adding all items to print queue
 async function handlePrintAll() {
-  // Check if any items are already in production
-  const itemsInProduction = productionItems.value.filter(item => item.itemStatus !== 'NOT_STARTED_PRODUCTION');
-  
-  if (itemsInProduction.length > 0) {
-    const itemNames = itemsInProduction.map(item => item.item?.name).join(', ');
-    const confirmed = confirm(
-      `The following products are already in production: ${itemNames}. ` +
-      `This means packing slips have been previously printed for these items. ` +
-      `Are you sure you want to print all packing slips again?`
-    );
-    
-    if (!confirmed) return;
-  }
-  
-  await printAllPackingSlips();
+  // Just call the add all to queue function
+  await handleAddAllToQueue();
 }
 
 // Handler for adding single item to print queue
@@ -280,7 +246,7 @@ async function handleAddToQueue(orderItem: any) {
   };
 
   const success = await addToQueue(orderItemWithRelations);
-  
+
   if (!success && queueError.value) {
     // Show error message to user
     alert(`Failed to add item to queue: ${queueError.value.message}`);
@@ -294,7 +260,7 @@ async function handleAddAllToQueue() {
   }
 
   const itemsToAdd = productionItems.value.filter((item: any) => !isItemQueued(item.id));
-  
+
   for (const orderItem of itemsToAdd) {
     const orderItemWithRelations = {
       ...orderItem,
@@ -306,7 +272,7 @@ async function handleAddAllToQueue() {
     };
 
     const success = await addToQueue(orderItemWithRelations);
-    
+
     if (!success && queueError.value) {
       // Show error for this specific item but continue with others
       console.error(`Failed to add ${orderItem.item?.name} to queue:`, queueError.value.message);
@@ -315,27 +281,14 @@ async function handleAddAllToQueue() {
 }
 
 function handlePrintSingle(orderItem: any) {
-  emit('print-confirmation', orderItem, async () => await printSinglePackingSlip(orderItem));
+  handleAddToQueue(orderItem);
 }
 
-// Function to print all split labels
-async function printAllPackingSlips() {
-  if (productionItems.value.length === 0) return;
-  
-  // For now, just show a message that individual split labels should be printed
-  // The proper way is to use the print queue system for batch printing
-  alert('To print multiple labels efficiently, please use the "Add All to Queue" button and then use the Print Queue for batch printing of split labels.');
-}
 
-// Function to print a single split label
-async function printSinglePackingSlip(orderItem: any) {
-  // For individual printing, we'll just show a message to use the print queue
-  alert('For individual label printing, please use the "Add to Queue" button and then use the Print Queue.');
-}
 </script>
 
 <style scoped>
-.packing-slip-container {
+.split-label-container {
   max-width: 100%;
 }
 
@@ -443,25 +396,39 @@ async function printSinglePackingSlip(orderItem: any) {
 }
 
 /* Priority colors */
-.text-red-600 { color: #dc2626; }
-.text-yellow-600 { color: #ca8a04; }
-.text-green-600 { color: #16a34a; }
-.font-bold { font-weight: bold; }
-.font-semibold { font-weight: 600; }
+.text-red-600 {
+  color: #dc2626;
+}
+
+.text-yellow-600 {
+  color: #ca8a04;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
 
 /* Print styles */
 @media print {
   .print-controls {
     display: none;
   }
-  
-  .packing-slip-wrapper {
+
+  .split-label-item-wrapper {
     border: none;
     background: none;
     padding: 0;
   }
-  
-  .packing-slip {
+
+  .split-label-wrapper {
     box-shadow: none;
     border: 1px solid #000;
   }
