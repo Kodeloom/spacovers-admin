@@ -575,7 +575,60 @@
                   </div>
                 </div>
               </div>
-              <PackingSlip :order="order" @print-confirmation="handlePrintConfirmation" />
+
+              <!-- Label Format Toggle -->
+              <div class="mb-4 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-800">Label Format</h3>
+                <div class="flex items-center space-x-4">
+                  <label class="inline-flex items-center">
+                    <input
+                      type="radio"
+                      :value="false"
+                      v-model="useSplitLabels"
+                      class="form-radio h-4 w-4 text-indigo-600"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Standard Packing Slip (4"x6")</span>
+                  </label>
+                  <label class="inline-flex items-center">
+                    <input
+                      type="radio"
+                      :value="true"
+                      v-model="useSplitLabels"
+                      class="form-radio h-4 w-4 text-indigo-600"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Split Labels (3"x3" + 2"x3")</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Standard Packing Slip -->
+              <div v-if="!useSplitLabels">
+                <PackingSlip :order="order" @print-confirmation="handlePrintConfirmation" />
+              </div>
+
+              <!-- Split Labels -->
+              <div v-else>
+                <div class="space-y-6">
+                  <div 
+                    v-for="orderItem in productionItems" 
+                    :key="orderItem.id"
+                    class="border border-gray-200 rounded-lg p-4"
+                  >
+                    <SplitLabel 
+                      :order-item="orderItem" 
+                      :order="order"
+                      :show-preview="true"
+                    />
+                  </div>
+                  
+                  <!-- No Production Items Message -->
+                  <div v-if="productionItems.length === 0" class="text-center py-8 text-gray-500">
+                    <Icon name="heroicons:cube" class="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No production items found for this order.</p>
+                    <p class="text-sm">Mark items as production items to generate split labels.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1089,6 +1142,7 @@ import { useFindUniqueOrder, useUpdateOrder, useFindManyOrderStatusLog, useFindM
 import { OrderSystemStatus, OrderItemProcessingStatus, OrderPriority } from '@prisma-app/client';
 import { useRouter } from 'vue-router';
 import PackingSlip from '~/components/admin/PackingSlip.vue';
+import SplitLabel from '~/components/admin/SplitLabel.vue';
 import AppModal from '~/components/AppModal.vue';
 
 definePageMeta({
@@ -1101,6 +1155,7 @@ const router = useRouter();
 const toast = useToast();
 const orderId = route.params.id as string;
 const isSyncing = ref(false);
+const useSplitLabels = ref(false);
 
 // Data fetching
 const { data: order, refetch: refetchOrder } = useFindUniqueOrder({
@@ -1115,6 +1170,16 @@ const { data: order, refetch: refetchOrder } = useFindUniqueOrder({
     },
     estimate: true, // Include the full estimate object
   },
+});
+
+// Get only production items (items marked as products)
+const productionItems = computed(() => {
+  if (!order.value?.items) return [];
+  
+  return order.value.items.filter((item: any) => {
+    // Check if item has productAttributes (meaning it's marked as a product)
+    return item.productAttributes !== null;
+  });
 });
 
 // Fetch order activity logs
