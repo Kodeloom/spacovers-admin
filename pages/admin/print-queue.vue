@@ -544,8 +544,9 @@ async function retryLastOperation(): Promise<void> {
 onMounted(() => {
   clearError();
 });
-</script><style scop
-ed>
+</script>
+
+<style scoped>
 .label-preview-container {
   transform: scale(0.6);
   transform-origin: top left;
