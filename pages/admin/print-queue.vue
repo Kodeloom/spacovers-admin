@@ -191,7 +191,6 @@
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
         </div>
       </div>
@@ -243,7 +242,9 @@
       @cancel="printWarnings.handleCancel"
     />
   </div>
-</template><script setup lang="ts">
+</template>
+
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { usePrintQueue } from '~/composables/usePrintQueue';
 import { usePrintWarnings } from '~/composables/usePrintWarnings';
