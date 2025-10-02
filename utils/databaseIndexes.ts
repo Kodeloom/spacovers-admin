@@ -214,6 +214,62 @@ export class DatabaseIndexes {
         priority: 'low',
         estimatedImpact: 'Better user filtering performance',
         sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_status ON users (status);'
+      },
+
+      // Priority Items Display - Specific indexes for warehouse kiosk performance
+      {
+        tableName: 'order_items',
+        columns: ['item_status', 'created_at'],
+        indexType: 'btree',
+        reason: 'Optimizes priority items query filtering by status and sorting by creation date (production items identified by ProductAttributes relation)',
+        priority: 'high',
+        estimatedImpact: 'Major improvement for priority items panel loading (50-80% faster)',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_priority_status_created ON order_items (item_status, created_at) WHERE item_status IN (\'NOT_STARTED_PRODUCTION\', \'CUTTING\');'
+      },
+      {
+        tableName: 'product_attributes',
+        columns: ['order_item_id'],
+        indexType: 'btree',
+        reason: 'Optimizes ProductAttributes lookup for identifying production items in priority display',
+        priority: 'medium',
+        estimatedImpact: 'Improved performance for production item identification',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_product_attributes_order_item ON product_attributes (order_item_id);'
+      },
+      {
+        tableName: 'orders',
+        columns: ['order_status', 'priority', 'created_at'],
+        indexType: 'btree',
+        reason: 'Optimizes priority items query with HIGH priority order filtering and date sorting',
+        priority: 'high',
+        estimatedImpact: 'Significant improvement for priority items with order joins (60-90% faster)',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_high_priority_items ON orders (order_status, priority, created_at ASC) WHERE order_status NOT IN (\'CANCELLED\', \'ARCHIVED\') AND priority = \'HIGH\';'
+      },
+      {
+        tableName: 'order_items',
+        columns: ['order_id', 'item_status'],
+        indexType: 'btree',
+        reason: 'Optimizes order-item joins in priority items query',
+        priority: 'medium',
+        estimatedImpact: 'Improved join performance for priority items (30-50% faster)',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_order_items_order_status_join ON order_items (order_id, item_status);'
+      },
+      {
+        tableName: 'items',
+        columns: ['id', 'name'],
+        indexType: 'btree',
+        reason: 'Optimizes item name lookups in priority items display',
+        priority: 'low',
+        estimatedImpact: 'Faster item name resolution in priority panel',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_items_id_name ON items (id, name);'
+      },
+      {
+        tableName: 'customers',
+        columns: ['id', 'name'],
+        indexType: 'btree',
+        reason: 'Optimizes customer name lookups in priority items display',
+        priority: 'low',
+        estimatedImpact: 'Faster customer name resolution in priority panel',
+        sqlCommand: 'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customers_id_name ON customers (id, name);'
       }
     ];
   }
