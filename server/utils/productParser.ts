@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma-app/client'
+import { unenhancedPrisma } from '~/server/lib/db'
 
-const prisma = new PrismaClient()
+const prisma = unenhancedPrisma
 
 export interface ProductSpecs {
   size: string
