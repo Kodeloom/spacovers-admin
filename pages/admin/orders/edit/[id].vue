@@ -200,7 +200,7 @@
                 <span class="text-sm text-gray-600">
                   {{ order.items?.length || 0 }} items
                 </span>
-                <button
+                <!-- <button
                   v-if="order.orderStatus === 'PENDING'"
                   :disabled="!canVerifyOrder()"
                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -208,7 +208,7 @@
                 >
                   <Icon name="heroicons:check-circle" class="mr-2 h-4 w-4" />
                   Verify All Products
-                </button>
+                </button> -->
               </div>
             </div>
 
@@ -576,59 +576,8 @@
                 </div>
               </div>
 
-              <!-- Label Format Toggle -->
-              <div class="mb-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-gray-800">Label Format</h3>
-                <div class="flex items-center space-x-4">
-                  <label class="inline-flex items-center">
-                    <input
-                      type="radio"
-                      :value="false"
-                      v-model="useSplitLabels"
-                      class="form-radio h-4 w-4 text-indigo-600"
-                    />
-                    <span class="ml-2 text-sm text-gray-700">Standard Packing Slip (4"x6")</span>
-                  </label>
-                  <label class="inline-flex items-center">
-                    <input
-                      type="radio"
-                      :value="true"
-                      v-model="useSplitLabels"
-                      class="form-radio h-4 w-4 text-indigo-600"
-                    />
-                    <span class="ml-2 text-sm text-gray-700">Split Labels (3"x3" + 2"x3")</span>
-                  </label>
-                </div>
-              </div>
-
-              <!-- Standard Packing Slip -->
-              <div v-if="!useSplitLabels">
-                <PackingSlip :order="order" @print-confirmation="handlePrintConfirmation" />
-              </div>
-
-              <!-- Split Labels -->
-              <div v-else>
-                <div class="space-y-6">
-                  <div 
-                    v-for="orderItem in productionItems" 
-                    :key="orderItem.id"
-                    class="border border-gray-200 rounded-lg p-4"
-                  >
-                    <SplitLabel 
-                      :order-item="orderItem" 
-                      :order="order"
-                      :show-preview="true"
-                    />
-                  </div>
-                  
-                  <!-- No Production Items Message -->
-                  <div v-if="productionItems.length === 0" class="text-center py-8 text-gray-500">
-                    <Icon name="heroicons:cube" class="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No production items found for this order.</p>
-                    <p class="text-sm">Mark items as production items to generate split labels.</p>
-                  </div>
-                </div>
-              </div>
+              <!-- Split Labels with Print Queue -->
+              <PackingSlip :order="order" @print-confirmation="handlePrintConfirmation" />
             </div>
           </div>
         </div>
