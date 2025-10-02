@@ -158,6 +158,10 @@ interface QboInvoicePayload {
     };
     Line: QboInvoiceLineItem[];
     TotalAmt: number;
+    Balance?: number;
+    DueDate?: string;
+    CustomerMemo?: { value: string };
+    EmailStatus?: string;
     PrivateNote?: string;
 }
 
@@ -1087,9 +1091,14 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
         }
         
         // Process line items to create products and order items
+        console.log(`Processing ${qboInvoice.Line.length} line items for invoice ${qboInvoice.Id}`);
+        
         for (const lineItem of qboInvoice.Line) {
+            console.log(`Processing line item ${lineItem.Id} with DetailType: ${lineItem.DetailType}`);
+            
             if (lineItem.DetailType === 'SalesItemLineDetail' && lineItem.SalesItemLineDetail) {
                 const detail = lineItem.SalesItemLineDetail;
+                console.log(`Processing SalesItemLineDetail for item: ${detail.ItemRef.name} (ID: ${detail.ItemRef.value}), Qty: ${detail.Qty}, Price: ${detail.UnitPrice}`);
                 
                 // Try to parse product from description
                 let product = null;
@@ -1111,6 +1120,7 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                 }
                 
                 // Find or create the local item record
+                console.log(`Looking for local item with QBO ID: ${detail.ItemRef.value}`);
                 let localItem = await prisma.item.findUnique({
                     where: { quickbooksItemId: detail.ItemRef.value }
                 });
@@ -1125,6 +1135,9 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                             category: 'QBO Imported'
                         }
                     });
+                    console.log(`Created new local item with ID: ${localItem.id}`);
+                } else {
+                    console.log(`Found existing local item with ID: ${localItem.id}`);
                 }
                 
                 // Create order item with proper order isolation
@@ -1139,6 +1152,7 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                 };
                 
                 // Validate sync operation before proceeding
+                console.log(`Validating order item sync for order ${order.id}, line ${lineItem.Id}`);
                 const { validateOrderItemSync, logOrderItemSyncValidation } = await import('~/server/utils/orderItemSyncValidation');
                 const validation = await validateOrderItemSync(order.id, lineItem.Id, 'create');
                 
@@ -1155,9 +1169,12 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                     });
                     // Continue processing other items instead of failing the entire webhook
                     continue;
+                } else {
+                    console.log(`Order item validation passed for line ${lineItem.Id}`);
                 }
                 
                 // Use compound unique constraint to ensure proper order isolation
+                console.log(`Creating/updating order item for line ${lineItem.Id} with data:`, orderItemData);
                 const orderItem = await prisma.orderItem.upsert({
                     where: { 
                         orderId_quickbooksOrderLineId: {
@@ -1168,6 +1185,7 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                     update: orderItemData,
                     create: orderItemData
                 });
+                console.log(`Order item upserted successfully with ID: ${orderItem.id}`);
                 
                 // Log successful sync operation
                 await logOrderItemSyncValidation({
@@ -1180,6 +1198,8 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                 });
                 
                 console.log(`Order item created for line ${lineItem.Id}: ${detail.Qty}x ${detail.ItemRef.name}`);
+            } else {
+                console.log(`Skipping line item ${lineItem.Id} - DetailType: ${lineItem.DetailType}, has SalesItemLineDetail: ${!!lineItem.SalesItemLineDetail}`);
             }
         }
         
