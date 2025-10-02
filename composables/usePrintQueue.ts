@@ -909,7 +909,7 @@ export const usePrintQueue = () => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Split Label Print - ${queue.value.length} Labels</title>
+  <title>Packing Slip Print - ${queue.value.length} Labels</title>
   <style>${getPrintStyles()}</style>
 </head>
 <body>
