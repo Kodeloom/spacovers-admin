@@ -151,7 +151,7 @@
                 </div>
 
                 <div v-if="expandedPreviews.has(label.id)" class="label-preview-container">
-                  <SplitLabel :order-item="label.labelData.orderItem" :order="label.labelData.orderItem.order"
+                  <AdminSplitLabel :order-item="label.labelData.orderItem" :order="label.labelData.orderItem.order"
                     :show-preview="false" :is-print-mode="false" />
                 </div>
                 <div v-else class="text-xs text-gray-500">
@@ -190,7 +190,7 @@
     </AppModal>
 
     <!-- Print Warning System -->
-    <PrintWarningModal :warning-state="printWarnings.warningState.value"
+    <AdminPrintWarningModal :warning-state="printWarnings.warningState.value"
       :paper-waste-info="printWarnings.paperWasteInfo.value"
       :current-warning-messages="printWarnings.currentWarningMessages.value"
       @first-warning-confirm="printWarnings.handleFirstWarningConfirm"
@@ -202,6 +202,8 @@
 import { ref, onMounted } from 'vue';
 import { usePrintQueue } from '~/composables/usePrintQueue';
 import { usePrintWarnings } from '~/composables/usePrintWarnings';
+import AdminSplitLabel from '~/components/admin/SplitLabel.vue';
+import AdminPrintWarningModal from '~/components/admin/PrintWarningModal.vue';
 // Note: vuedraggable needs to be installed: npm install vuedraggable@next
 // For now, we'll implement a basic reorder functionality without drag-and-drop
 // import draggable from 'vuedraggable';
