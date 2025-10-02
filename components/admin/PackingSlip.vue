@@ -3,14 +3,8 @@
     <!-- Print Controls -->
     <div class="print-controls mb-4">
       <div class="flex gap-4 items-center">
-        <button @click="handlePrintAll"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          <Icon name="heroicons:printer" class="mr-2 h-4 w-4" />
-          Add All to Print Queue
-        </button>
-
         <button v-if="canAccessPrintQueue" @click="handleAddAllToQueue" :disabled="allItemsQueued"
-          class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           :class="{ 'bg-green-50 border-green-300 text-green-700': allItemsQueued }">
           <Icon :name="allItemsQueued ? 'heroicons:check' : 'heroicons:queue-list'" class="mr-2 h-4 w-4" />
           {{ allItemsQueued ? 'All Items in Queue' : 'Add All to Queue' }}
@@ -44,17 +38,12 @@
                 class="mr-1 h-3 w-3" />
               {{ isItemQueued(orderItem.id) ? 'In Queue' : 'Add to Queue' }}
             </button>
-            <button @click="handlePrintSingle(orderItem)"
-              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-              <Icon name="heroicons:queue-list" class="mr-1 h-3 w-3" />
-              Add to Queue
-            </button>
           </div>
         </div>
 
         <!-- Split Label -->
         <div class="split-label-wrapper" :ref="(el: any) => setSplitLabelRef(el, orderItem.id)">
-          <SplitLabel :order-item="orderItem" :order="order" :show-preview="true" :is-print-mode="false" />
+          <AdminSplitLabel :order-item="orderItem" :order="order" :show-preview="true" :is-print-mode="false" />
         </div>
       </div>
     </div>
@@ -69,19 +58,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue';
-
+import { ref, computed } from 'vue';
 import { usePrintQueue } from '~/composables/usePrintQueue';
 import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
+import AdminSplitLabel from '~/components/admin/SplitLabel.vue';
 
 interface Props {
   order: any;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{
-  'print-confirmation': [orderItem: any, printFunction: () => void]
-}>();
 
 const splitLabelRefs = ref<Record<string, HTMLElement>>({});
 
@@ -110,7 +96,8 @@ const productionItems = computed(() => {
 
   return props.order.items.filter((item: any) => {
     // Check if item has productAttributes (meaning it's marked as a product)
-    return item.productAttributes !== null;
+    // Also include items that have isProduct flag set to true
+    return item.productAttributes !== null || item.isProduct === true;
   });
 });
 
@@ -120,113 +107,11 @@ const allItemsQueued = computed(() => {
   return productionItems.value.every((item: any) => isItemQueued(item.id));
 });
 
-
-
 // Function to set split label ref for each item
 function setSplitLabelRef(el: any, itemId: string) {
   if (el) {
     splitLabelRefs.value[itemId] = el;
   }
-}
-
-
-
-
-// Function to get product attribute value
-function getProductAttribute(orderItem: any, attributeName: string): string {
-  if (!orderItem.productAttributes) return 'N/A';
-
-  const value = orderItem.productAttributes[attributeName];
-
-  // Handle boolean values
-  if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No';
-  }
-
-  // Handle empty strings
-  if (value === '' || value === null || value === undefined) {
-    return 'N/A';
-  }
-
-  return value.toString();
-}
-
-// Helper function to determine if an upgrade should be shown
-function shouldShowUpgrade(attributeName: string, orderItem: any): boolean {
-  const value = getProductAttribute(orderItem, attributeName);
-  // Show if value exists and is not "No" or "N/A"
-  return !!(value && value !== 'No' && value !== 'N/A');
-}
-
-// Helper function to determine if Extra Handle Qty should be shown
-function shouldShowExtraHandle(orderItem: any): boolean {
-  const value = getProductAttribute(orderItem, 'extraHandleQty');
-  // Show if value exists and is not "0" or "N/A"
-  return !!(value && value !== '0' && value !== 'N/A');
-}
-
-// Helper function to check if there are any additional attributes to show
-function hasAdditionalAttributes(orderItem: any): boolean {
-  return !!(
-    (getProductAttribute(orderItem, 'distance') && getProductAttribute(orderItem, 'distance') !== '0') ||
-    getProductAttribute(orderItem, 'foamUpgrade') ||
-    shouldShowUpgrade('doublePlasticWrapUpgrade', orderItem) ||
-    shouldShowUpgrade('webbingUpgrade', orderItem) ||
-    shouldShowUpgrade('metalForLifterUpgrade', orderItem) ||
-    shouldShowUpgrade('steamStopperUpgrade', orderItem) ||
-    shouldShowUpgrade('fabricUpgrade', orderItem) ||
-    shouldShowExtraHandle(orderItem) ||
-    shouldShowUpgrade('extraLongSkirt', orderItem) ||
-    getProductAttribute(orderItem, 'packaging') ||
-    shouldShowNotes(orderItem) ||
-    shouldShowSize(orderItem)
-  );
-}
-
-// Helper function to get the appropriate label for radius/side length field
-function getRadiusFieldLabel(orderItem: any): string {
-  const shape = getProductAttribute(orderItem, 'shape');
-  if (shape === 'Octagon') {
-    return 'Side Length';
-  }
-  return 'Radius Size';
-}
-
-// Helper function to determine if Size should be shown (only for Round and Octagon)
-function shouldShowSize(orderItem: any): boolean {
-  const shape = getProductAttribute(orderItem, 'shape');
-  const value = getProductAttribute(orderItem, 'size');
-  // Show size only for Round and Octagon shapes, and only if it has a value
-  return (shape === 'Round' || shape === 'Octagon') && !!(value && value.trim() !== '' && value !== 'N/A');
-}
-
-// Helper function to determine if Notes should be shown
-function shouldShowNotes(orderItem: any): boolean {
-  const value = getProductAttribute(orderItem, 'notes');
-  // Show if value exists and is not empty, "N/A", or just whitespace
-  return !!(value && value.trim() !== '' && value !== 'N/A');
-}
-
-// Function to get priority styling class
-function getPriorityClass(priority: string): string {
-  switch (priority) {
-    case 'HIGH':
-      return 'text-red-600 font-bold';
-    case 'MEDIUM':
-      return 'text-yellow-600 font-semibold';
-    case 'LOW':
-      return 'text-green-600';
-    default:
-      return '';
-  }
-}
-
-
-
-// Handler functions for adding all items to print queue
-async function handlePrintAll() {
-  // Just call the add all to queue function
-  await handleAddAllToQueue();
 }
 
 // Handler for adding single item to print queue
@@ -279,12 +164,6 @@ async function handleAddAllToQueue() {
     }
   }
 }
-
-function handlePrintSingle(orderItem: any) {
-  handleAddToQueue(orderItem);
-}
-
-
 </script>
 
 <style scoped>
