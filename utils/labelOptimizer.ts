@@ -215,7 +215,7 @@ export function optimizeLabelInfo(
     color: optimizeColor(orderItem.color || '', finalConfig.maxColorLength),
     date: formatCompactDate(orderItem.date || new Date()),
     upgrades: condenseUpgrades(orderItem.upgrades || [], finalConfig.maxUpgradeLength),
-    barcode: orderItem.barcode || orderItem.id || '',
+    barcode: orderItem.barcode || '',
   };
 }
 
