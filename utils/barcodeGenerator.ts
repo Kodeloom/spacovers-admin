@@ -39,13 +39,29 @@ export class BarcodeGenerator {
    */
   static async generateCode128(canvas: HTMLCanvasElement, data: string, config: BarcodeConfig): Promise<void> {
     try {
-      // Dynamically import JsBarcode
-      const JsBarcode = await import('jsbarcode');
+      // Try different import methods for JsBarcode
+      let JsBarcode;
+      
+      try {
+        // Method 1: Dynamic import
+        const module = await import('jsbarcode');
+        JsBarcode = module.default || module;
+      } catch (importError) {
+        console.warn('Dynamic import failed, trying require:', importError);
+        // Method 2: Fallback to require (if available)
+        try {
+          JsBarcode = require('jsbarcode');
+        } catch (requireError) {
+          console.warn('Require failed:', requireError);
+          throw new Error('JsBarcode not available');
+        }
+      }
 
       // Calculate optimal settings based on canvas size
       const optimizedSettings = this.getOptimizedBarcodeSettings(config);
 
-      JsBarcode.default(canvas, data, {
+      // Generate barcode with JsBarcode
+      JsBarcode(canvas, data, {
         format: "CODE128",
         width: optimizedSettings.barWidth,
         height: optimizedSettings.barcodeHeight,
@@ -60,8 +76,7 @@ export class BarcodeGenerator {
         valid: (valid: boolean) => {
           if (!valid) {
             console.warn('Invalid barcode data:', data);
-            // Try fallback generation for invalid data
-            this.generateFallbackBarcode(canvas, data, config);
+            throw new Error('Invalid barcode data');
           }
         }
       });
@@ -154,17 +169,36 @@ export class BarcodeGenerator {
     const barcodeHeight = config.height - config.margin * 2 - textHeight;
     const availableWidth = config.width - config.margin * 2;
 
-    // Create a simple pattern based on data hash
-    const pattern = this.generateSimplePattern(data, availableWidth);
-    const barWidth = Math.max(1, availableWidth / pattern.length);
+    // Create a more realistic barcode pattern
+    const pattern = this.generateRealisticBarcodePattern(data, availableWidth);
+    const barWidth = Math.max(1, Math.floor(availableWidth / pattern.length));
 
-    // Draw the pattern
+    // Draw start pattern (quiet zone + start bars)
     ctx.fillStyle = '#000000';
     let x = config.margin;
 
-    for (let i = 0; i < pattern.length; i++) {
+    // Add start pattern
+    const startPattern = [1, 1, 0, 1, 0, 1, 1, 0]; // Start pattern
+    for (let i = 0; i < startPattern.length && x < config.width - config.margin; i++) {
+      if (startPattern[i] === 1) {
+        ctx.fillRect(x, config.margin, barWidth, barcodeHeight);
+      }
+      x += barWidth;
+    }
+
+    // Draw main pattern
+    for (let i = 0; i < pattern.length && x < config.width - config.margin - (barWidth * 8); i++) {
       if (pattern[i] === 1) {
-        ctx.fillRect(Math.floor(x), config.margin, Math.ceil(barWidth), barcodeHeight);
+        ctx.fillRect(x, config.margin, barWidth, barcodeHeight);
+      }
+      x += barWidth;
+    }
+
+    // Add end pattern
+    const endPattern = [1, 1, 0, 1, 0, 1, 1]; // End pattern
+    for (let i = 0; i < endPattern.length && x < config.width - config.margin; i++) {
+      if (endPattern[i] === 1) {
+        ctx.fillRect(x, config.margin, barWidth, barcodeHeight);
       }
       x += barWidth;
     }
@@ -191,34 +225,48 @@ export class BarcodeGenerator {
   }
 
   /**
-   * Generate a simple barcode pattern based on data hash
+   * Generate a realistic barcode pattern based on data
    */
-  private static generateSimplePattern(data: string, targetWidth: number): number[] {
+  private static generateRealisticBarcodePattern(data: string, targetWidth: number): number[] {
     const pattern: number[] = [];
-    const minBars = Math.floor(targetWidth / 4); // Minimum number of bars for readability
-    const maxBars = Math.floor(targetWidth / 2); // Maximum for density
+    const targetBars = Math.floor(targetWidth / 2) - 16; // Reserve space for start/end patterns
 
-    // Create hash from data
+    // Create a more sophisticated hash from data
     let hash = 0;
     for (let i = 0; i < data.length; i++) {
-      hash = ((hash << 5) - hash + data.charCodeAt(i)) & 0xffffffff;
+      const char = data.charCodeAt(i);
+      hash = ((hash << 5) - hash + char) & 0xffffffff;
     }
 
-    // Generate pattern based on hash
-    const numBars = Math.max(minBars, Math.min(maxBars, Math.abs(hash) % maxBars + minBars));
-    
-    for (let i = 0; i < numBars; i++) {
-      // Alternate bars and spaces based on hash and position
-      const shouldDraw = ((hash >> i) & 1) === 1;
-      pattern.push(shouldDraw ? 1 : 0);
+    // Generate pattern that looks more like Code 128
+    for (let i = 0; i < data.length && pattern.length < targetBars; i++) {
+      const charCode = data.charCodeAt(i);
       
-      // Add space after each bar (except last)
-      if (i < numBars - 1) {
-        pattern.push(0);
+      // Each character generates a pattern of 6 elements (3 bars, 3 spaces)
+      const charPattern = [
+        (charCode & 1) === 1 ? 1 : 0,           // Bar
+        0,                                       // Space
+        ((charCode >> 1) & 1) === 1 ? 1 : 0,   // Bar
+        0,                                       // Space
+        ((charCode >> 2) & 1) === 1 ? 1 : 0,   // Bar
+        0                                        // Space
+      ];
+
+      // Add some variation based on position
+      if (i % 2 === 0) {
+        charPattern[1] = ((charCode >> 3) & 1); // Sometimes fill the space
       }
+
+      pattern.push(...charPattern);
     }
 
-    return pattern;
+    // Ensure we have enough bars
+    while (pattern.length < targetBars) {
+      const fillPattern = [(hash >> (pattern.length % 8)) & 1, 0];
+      pattern.push(...fillPattern);
+    }
+
+    return pattern.slice(0, targetBars);
   }
 
   /**
