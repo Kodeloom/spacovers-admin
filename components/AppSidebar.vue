@@ -3,17 +3,15 @@
     <div>
       <div class="mb-8 text-center">
         <NuxtLink to="/" class="text-2xl font-bold text-white hover:text-indigo-400 transition-colors duration-200">
-            Spacovers Admin
+          Spacovers Admin
         </NuxtLink>
       </div>
       <nav class="mt-4">
         <ul class="space-y-2">
           <li v-for="item in menuItems" :key="item.name">
-            <NuxtLink
-              :to="item.path"
+            <NuxtLink :to="item.path"
               class="flex items-center w-full p-3 rounded-lg text-gray-300 hover:bg-slate-800 hover:text-white transition-colors duration-200"
-              :class="{ 'bg-indigo-600 text-white font-semibold': $route.path.startsWith(item.path) }"
-            >
+              :class="{ 'bg-indigo-600 text-white font-semibold': $route.path.startsWith(item.path) }">
               <Icon :name="item.icon" class="w-6 h-6 mr-3" />
               <span>{{ item.name }}</span>
             </NuxtLink>
@@ -24,8 +22,7 @@
     <div class="mt-auto">
       <button
         class="flex items-center justify-center w-full py-2.5 px-4 rounded-md bg-red-600 hover:bg-red-700 transition-colors duration-200 text-white font-semibold"
-        @click="handleLogout"
-      >
+        @click="handleLogout">
         <Icon name="heroicons:arrow-left-on-rectangle-solid" class="mr-3 h-5 w-5" />
         Logout
       </button>
@@ -57,7 +54,7 @@ const menuItems = computed(() => {
   console.log('AppSidebar - isAdmin:', isAdmin.value);
   console.log('AppSidebar - isWarehouseStaff:', isWarehouseStaff.value);
   console.log('AppSidebar - isOfficeEmployee:', isOfficeEmployee.value);
-  
+
   if (isWarehouseStaff.value) {
     // Warehouse Staff only see warehouse-related items
     return [
@@ -76,7 +73,7 @@ const menuItems = computed(() => {
       { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
       { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
       { name: 'Stations', path: '/admin/stations', icon: 'heroicons:building-office-2' },
-      { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qrcode' },
+      { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qr-code' },
       { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
       { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
@@ -108,9 +105,11 @@ const menuItems = computed(() => {
 <style scoped>
 /* Add any specific styles for the sidebar if necessary */
 .min-h-screen {
-  min-height: 100vh; /* Ensure sidebar takes full viewport height */
+  min-height: 100vh;
+  /* Ensure sidebar takes full viewport height */
 }
+
 .mt-auto {
   margin-top: auto;
 }
-</style> 
+</style>
