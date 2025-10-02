@@ -59,27 +59,27 @@ const menuItems = computed(() => {
     // Warehouse Staff only see warehouse-related items
     return [
       { name: 'Kiosk', path: '/warehouse/kiosk', icon: 'heroicons:computer-desktop' },
-      { name: 'Scanner', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
+      // { name: 'Scanner', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
     ];
   } else if (isAdmin.value) {
     // Admin users see all admin items
     return [
       { name: 'Dashboard', path: '/', icon: 'heroicons:home' },
+      // { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
+      { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
+      { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
+      { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
+      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
+      { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
+      // { name: 'Warehouse', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
+      { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
       { name: 'Users', path: '/admin/users', icon: 'heroicons:users' },
       { name: 'Roles', path: '/admin/roles', icon: 'heroicons:user-group' },
       { name: 'Role Types', path: '/admin/role-types', icon: 'heroicons:squares-2x2' },
       { name: 'Permissions', path: '/admin/permissions', icon: 'heroicons:key' },
-      { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
-      { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
-      { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
       { name: 'Stations', path: '/admin/stations', icon: 'heroicons:building-office-2' },
       { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qr-code' },
-      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
-      { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
-      { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
-      { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
       { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'heroicons:book-open' },
-      { name: 'Warehouse', path: '/warehouse/scan', icon: 'heroicons:building-office-2' },
       { name: 'Kiosk', path: '/warehouse/kiosk', icon: 'heroicons:computer-desktop' },
       { name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' },
     ];
@@ -87,12 +87,12 @@ const menuItems = computed(() => {
     // Office employees see limited admin items focused on their workflow
     return [
       { name: 'Dashboard', path: '/', icon: 'heroicons:home' },
-      { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
-      { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
-      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
       { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
-      { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
+      { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
+      // { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
+      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
+      // { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
     ];
   } else {
     // Users with no valid roles see nothing
