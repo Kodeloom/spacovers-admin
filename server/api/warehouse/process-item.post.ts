@@ -3,6 +3,8 @@ import { auth } from '~/server/lib/auth';
 import { EmailService } from '~/server/lib/emailService';
 import { createErrorResponse, handlePrismaError, logError, validateBarcodeFormat } from '~/utils/errorHandling';
 import { logOrderItemStatusChange } from '~/server/utils/orderItemValidation';
+import { eventEmitter } from '~/server/utils/eventEmitter';
+import type { ItemStatusChangeEvent, OrderStatusChangeEvent } from '~/server/utils/eventEmitter';
 
 // Helper function to get workflow step information
 function getWorkflowStepInfo(fromStatus: string, toStatus: string, stationName: string) {
@@ -236,6 +238,21 @@ export default defineEventHandler(async (event) => {
       `Scanned at ${station.name} station`
     );
 
+    // Emit real-time event for item status change
+    // Requirements: 5.1, 5.2 - Add automatic updates when items change status
+    const itemStatusChangeEvent: ItemStatusChangeEvent = {
+      orderItemId: orderItemId,
+      fromStatus: currentStatus,
+      toStatus: nextStatus,
+      orderNumber: orderItem.order.salesOrderNumber || orderItem.order.id.slice(-8),
+      itemName: orderItem.item?.name || 'Unknown Item',
+      userId: sessionData.user.id,
+      stationName: station.name,
+      timestamp: new Date()
+    };
+    
+    eventEmitter.emitItemStatusChange(itemStatusChangeEvent);
+
     // Create ItemStatusLog entry for UI display and audit trail
     try {
       await logPrisma.itemStatusLog.create({
@@ -331,6 +348,18 @@ export default defineEventHandler(async (event) => {
         // Don't fail the main operation
       }
 
+      // Emit real-time event for order status change
+      const orderStatusChangeEvent: OrderStatusChangeEvent = {
+        orderId: orderItem.orderId,
+        fromStatus: 'APPROVED',
+        toStatus: 'ORDER_PROCESSING',
+        orderNumber: orderItem.order.salesOrderNumber || orderItem.order.id.slice(-8),
+        userId: sessionData.user.id,
+        timestamp: new Date()
+      };
+      
+      eventEmitter.emitOrderStatusChange(orderStatusChangeEvent);
+
       // Send production started email notification
       try {
         await EmailService.sendOrderStatusEmail(orderItem.orderId, 'production_started');
@@ -380,6 +409,18 @@ export default defineEventHandler(async (event) => {
           console.error('❌ Failed to create OrderStatusLog:', orderLogError);
           // Don't fail the main operation
         }
+
+        // Emit real-time event for final order status change
+        const finalOrderStatusChangeEvent: OrderStatusChangeEvent = {
+          orderId: orderItem.orderId,
+          fromStatus: 'ORDER_PROCESSING',
+          toStatus: 'READY_TO_SHIP',
+          orderNumber: orderItem.order.salesOrderNumber || orderItem.order.id.slice(-8),
+          userId: sessionData.user.id,
+          timestamp: new Date()
+        };
+        
+        eventEmitter.emitOrderStatusChange(finalOrderStatusChangeEvent);
 
         // Send order ready email notification
         try {
