@@ -27,7 +27,7 @@
       <div v-for="orderItem in productionItems" :key="orderItem.id" class="split-label-item-wrapper">
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-lg font-semibold text-gray-800">
-            Split Label for: {{ orderItem.item?.name }}
+            Packing Slip for: {{ orderItem.item?.name }}
           </h3>
           <div class="flex gap-2">
             <button v-if="canAccessPrintQueue" @click="handleAddToQueue(orderItem)"
@@ -52,7 +52,7 @@
     <div v-if="productionItems.length === 0" class="text-center py-8 text-gray-500">
       <Icon name="heroicons:cube" class="mx-auto h-12 w-12 text-gray-400 mb-4" />
       <p>No production items found for this order.</p>
-      <p class="text-sm">Mark items as production items to generate split labels.</p>
+      <p class="text-sm">Mark items as production items to generate packing slips.</p>
     </div>
   </div>
 </template>
