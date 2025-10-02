@@ -13,10 +13,7 @@
     <!-- Split Label Parts Container -->
     <div class="split-label-parts" :class="{ 'print-layout': isPrintMode }">
       <!-- Top Part (3x3 inches) -->
-      <div 
-        class="label-part top-part"
-        :ref="(el: any) => setLabelPartRef(el, 'top')"
-      >
+      <div class="label-part top-part" :ref="(el: any) => setLabelPartRef(el, 'top')">
         <div class="label-header">
           <div class="customer-info">
             <div class="customer-label">Customer:</div>
@@ -29,12 +26,8 @@
         </div>
 
         <div class="barcode-section">
-          <canvas 
-            :ref="(el: any) => setBarcodeCanvas(el, 'top')" 
-            class="barcode-canvas"
-            width="200"
-            height="50"
-          ></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'top')" class="barcode-canvas" width="200"
+            height="50"></canvas>
         </div>
 
         <div class="specs-section">
@@ -56,7 +49,7 @@
               <span class="spec-value">{{ optimizedInfo.size }}</span>
             </div>
           </div>
-          
+
           <div class="upgrades-section" v-if="optimizedInfo.upgrades">
             <div class="spec-item upgrades">
               <span class="spec-label">Upgrades:</span>
@@ -65,16 +58,11 @@
           </div>
         </div>
 
-        <div class="label-footer">
-          <div class="part-indicator">TOP PART</div>
-        </div>
+
       </div>
 
       <!-- Bottom Part (3x2 inches) -->
-      <div 
-        class="label-part bottom-part"
-        :ref="(el: any) => setLabelPartRef(el, 'bottom')"
-      >
+      <div class="label-part bottom-part" :ref="(el: any) => setLabelPartRef(el, 'bottom')">
         <div class="label-header compact">
           <div class="customer-info compact">
             <span class="customer-label">Customer:</span>
@@ -87,12 +75,8 @@
         </div>
 
         <div class="barcode-section compact">
-          <canvas 
-            :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" 
-            class="barcode-canvas compact"
-            width="140"
-            height="40"
-          ></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" class="barcode-canvas compact" width="140"
+            height="40"></canvas>
         </div>
 
         <div class="specs-section compact">
@@ -120,9 +104,7 @@
           </div>
         </div>
 
-        <div class="label-footer compact">
-          <div class="part-indicator">BOTTOM PART</div>
-        </div>
+
       </div>
     </div>
   </div>
@@ -160,7 +142,7 @@ const optimizedInfo = computed((): OptimizedLabelInfo => {
     customerName: props.order?.customer?.name || '',
     thickness: getProductAttribute('thickness') || '',
     size: getProductAttribute('size') || '',
-    type: props.orderItem?.item?.name || '',
+    type: getProductAttribute('type') || '',
     color: getProductAttribute('color') || '',
     date: props.order?.createdAt || new Date(),
     upgrades: extractUpgrades(),
@@ -184,27 +166,27 @@ function generateBarcodeText(): string {
 // Get product attribute value
 function getProductAttribute(attributeName: string): string {
   if (!props.orderItem?.productAttributes) return '';
-  
+
   const value = props.orderItem.productAttributes[attributeName];
-  
+
   if (typeof value === 'boolean') {
     return value ? 'Yes' : 'No';
   }
-  
+
   if (value === '' || value === null || value === undefined) {
     return '';
   }
-  
+
   return value.toString();
 }
 
 // Extract upgrades from product attributes
 function extractUpgrades(): string[] {
   if (!props.orderItem?.productAttributes) return [];
-  
+
   const upgrades: string[] = [];
   const attributes = props.orderItem.productAttributes;
-  
+
   // Check for upgrade attributes
   const upgradeFields = [
     'foamUpgrade',
@@ -215,7 +197,7 @@ function extractUpgrades(): string[] {
     'fabricUpgrade',
     'extraLongSkirt'
   ];
-  
+
   upgradeFields.forEach(field => {
     const value = attributes[field];
     if (value && value !== 'No' && value !== false && value !== '') {
@@ -228,12 +210,12 @@ function extractUpgrades(): string[] {
       upgrades.push(readable);
     }
   });
-  
+
   // Add extra handle quantity if present
   if (attributes.extraHandleQty && attributes.extraHandleQty !== '0') {
     upgrades.push(`Extra Handle x${attributes.extraHandleQty}`);
   }
-  
+
   return upgrades;
 }
 
@@ -258,9 +240,9 @@ async function generateBarcodeImage(part: string) {
   if (!canvas) return;
 
   const barcodeText = optimizedInfo.value.barcode;
-  
+
   try {
-    // Configure barcode for different parts
+    // Configure barcode for different parts - using the original working approach
     const config = part === 'top' ? {
       width: 200,
       height: 50,
@@ -276,26 +258,27 @@ async function generateBarcodeImage(part: string) {
       showText: true,
       format: 'CODE128' as const
     };
-    
+
+    // Use the original BarcodeGenerator method that was working
     await BarcodeGenerator.generateCode128(canvas, barcodeText, config);
   } catch (error) {
     console.error('Error generating barcode for', part, ':', error);
-    
-    // Fallback to text display
+
+    // Fallback to text display if barcode generation fails
     const ctx = canvas.getContext('2d');
     if (ctx) {
       const width = part === 'top' ? 200 : 140;
       const height = part === 'top' ? 50 : 40;
-      
+
       canvas.width = width;
       canvas.height = height;
       canvas.style.width = width + 'px';
       canvas.style.height = height + 'px';
-      
+
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, width, height);
-      
+
       ctx.fillStyle = '#000000';
       ctx.font = `${part === 'top' ? 8 : 7}px monospace`;
       ctx.textAlign = 'center';
@@ -303,6 +286,96 @@ async function generateBarcodeImage(part: string) {
       ctx.fillText(barcodeText, width / 2, height / 2);
     }
   }
+}
+
+// Manual barcode generation as final fallback
+function generateManualBarcode(canvas: HTMLCanvasElement, text: string, part: string) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const width = part === 'top' ? 200 : 140;
+  const height = part === 'top' ? 50 : 40;
+  const fontSize = part === 'top' ? 8 : 7;
+
+  // Set canvas dimensions with high DPI for crisp rendering
+  const scale = window.devicePixelRatio || 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  ctx.scale(scale, scale);
+
+  // Clear with white background
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, width, height);
+
+  // Calculate barcode dimensions
+  const textHeight = fontSize + 4;
+  const barcodeHeight = height - textHeight - 8;
+  const barcodeWidth = width - 16;
+  const startX = 8;
+  const startY = 4;
+
+  // Generate a more realistic barcode pattern
+  ctx.fillStyle = '#000000';
+
+  // Create start pattern
+  const startPattern = [3, 1, 1, 1, 1, 1]; // Start bars
+  let x = startX;
+  const minBarWidth = part === 'top' ? 1.5 : 1;
+
+  // Draw start pattern
+  for (let i = 0; i < startPattern.length; i++) {
+    const barWidth = startPattern[i] * minBarWidth;
+    if (i % 2 === 0) { // Even indices are bars
+      ctx.fillRect(x, startY, barWidth, barcodeHeight);
+    }
+    x += barWidth;
+  }
+
+  // Generate data pattern based on text
+  const availableWidth = barcodeWidth - (x - startX) - (6 * minBarWidth); // Reserve space for end pattern
+  const charWidth = availableWidth / text.length;
+
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+
+    // Create pattern for each character (6 elements: bar-space-bar-space-bar-space)
+    const pattern = [
+      ((charCode & 1) ? 2 : 1) * minBarWidth,        // Bar
+      ((charCode >> 1 & 1) ? 2 : 1) * minBarWidth,  // Space
+      ((charCode >> 2 & 1) ? 2 : 1) * minBarWidth,  // Bar
+      ((charCode >> 3 & 1) ? 2 : 1) * minBarWidth,  // Space
+      ((charCode >> 4 & 1) ? 2 : 1) * minBarWidth,  // Bar
+      ((charCode >> 5 & 1) ? 1 : 2) * minBarWidth   // Space
+    ];
+
+    for (let j = 0; j < pattern.length && x < startX + barcodeWidth - (6 * minBarWidth); j++) {
+      if (j % 2 === 0) { // Even indices are bars
+        ctx.fillRect(x, startY, pattern[j], barcodeHeight);
+      }
+      x += pattern[j];
+    }
+  }
+
+  // Draw end pattern
+  const endPattern = [1, 1, 3, 1, 1, 1]; // End bars
+  for (let i = 0; i < endPattern.length; i++) {
+    const barWidth = endPattern[i] * minBarWidth;
+    if (i % 2 === 0) { // Even indices are bars
+      ctx.fillRect(x, startY, barWidth, barcodeHeight);
+    }
+    x += barWidth;
+  }
+
+  // Draw text below barcode
+  ctx.fillStyle = '#000000';
+  ctx.font = `${fontSize}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, width / 2, startY + barcodeHeight + 2);
+
+  console.log(`Manual barcode generated for ${part} part: ${text}`);
 }
 
 
@@ -362,8 +435,10 @@ defineExpose({
 
 /* Top Part (3x3 inches) */
 .label-part.top-part {
-  width: 216px;  /* 3 inches * 72 DPI */
-  height: 216px; /* 3 inches * 72 DPI */
+  width: 216px;
+  /* 3 inches * 72 DPI */
+  height: 216px;
+  /* 3 inches * 72 DPI */
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -371,8 +446,10 @@ defineExpose({
 
 /* Bottom Part (3x2 inches) */
 .label-part.bottom-part {
-  width: 216px;  /* 3 inches * 72 DPI */
-  height: 144px; /* 2 inches * 72 DPI */
+  width: 216px;
+  /* 3 inches * 72 DPI */
+  height: 144px;
+  /* 2 inches * 72 DPI */
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -509,23 +586,7 @@ defineExpose({
   margin-top: 4px;
 }
 
-/* Label Footer */
-.label-footer {
-  border-top: 1px solid #000;
-  padding-top: 2px;
-  margin-top: auto;
-  text-align: center;
-}
 
-.label-footer.compact {
-  padding-top: 1px;
-}
-
-.part-indicator {
-  font-size: 6pt;
-  font-weight: bold;
-  color: #666;
-}
 
 /* Preview Controls */
 .preview-controls {
@@ -540,25 +601,25 @@ defineExpose({
   .preview-controls {
     display: none;
   }
-  
+
   .split-label-parts {
     flex-direction: column;
     gap: 0.25rem;
   }
-  
+
   .label-part {
     page-break-inside: avoid;
   }
-  
+
   /* Ensure exact print dimensions */
   .label-part.top-part {
     width: 3in;
     height: 3in;
   }
-  
+
   .label-part.bottom-part {
-    width: 2in;
-    height: 3in;
+    width: 3in;
+    height: 2in;
   }
 }
 
@@ -568,7 +629,7 @@ defineExpose({
     flex-direction: column;
     align-items: center;
   }
-  
+
   .label-part.top-part,
   .label-part.bottom-part {
     transform: scale(0.8);
