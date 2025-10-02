@@ -388,7 +388,7 @@ export const usePrintQueue = () => {
       customer: orderItem.order.customer.name,
       thickness: attrs?.foamUpgrade || orderItem.foamUpgrade || 'Standard',
       size,
-      type: orderItem.item.name,
+      type: attrs?.type || 'Standard',
       color,
       date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
       barcode: orderItem.id, // Using order item ID as barcode
@@ -767,26 +767,12 @@ export const usePrintQueue = () => {
       if (queue.value.length === MAX_QUEUE_SIZE || forcePartial) {
         try {
           // Generate print layout and trigger browser print
+          // Note: We don't clear the queue automatically anymore
+          // The user needs to manually clear it after confirming the print was successful
           await generatePrintLayout()
           
-          // Clear the queue after successful printing
-          const clearSuccess = await clearQueue()
-          if (!clearSuccess) {
-            // Print succeeded but queue clear failed - warn user
-            console.warn('Print succeeded but failed to clear queue')
-            error.value = {
-              type: 'STORAGE_ERROR',
-              message: 'Print succeeded but failed to clear queue',
-              userMessage: 'Labels were printed successfully, but the queue could not be cleared automatically',
-              suggestions: [
-                'Manually clear the queue to avoid duplicate printing',
-                'Refresh the page to see the current queue status',
-                'Contact support if the problem persists'
-              ],
-              retryable: true
-            }
-            return true // Print was successful even if clear failed
-          }
+          // Print window opened successfully
+          // Queue remains intact so user can retry if needed
           
           return true
         } catch (printErr) {
@@ -928,28 +914,78 @@ export const usePrintQueue = () => {
 </head>
 <body>
   ${printContent}
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.1/dist/JsBarcode.all.min.js"></script>
   <script>
     let printAttempted = false;
     let windowClosed = false;
     
-    // Auto-print when page loads
-    window.onload = function() {
-      setTimeout(function() {
-        if (!printAttempted && !windowClosed) {
+    // Generate barcodes using the same method as the preview
+    function generateBarcodes() {
+      const canvases = document.querySelectorAll('canvas.barcode-canvas');
+      canvases.forEach(function(canvas) {
+        const barcodeText = canvas.getAttribute('data-barcode');
+        if (barcodeText && window.JsBarcode) {
           try {
-            printAttempted = true;
-            window.print();
-          } catch (printErr) {
-            console.error('Print failed:', printErr);
-            alert('Print failed: ' + printErr.message);
+            const isCompact = canvas.classList.contains('compact');
+            const config = {
+              format: "CODE128",
+              width: isCompact ? 1.5 : 2,
+              height: isCompact ? 32 : 42,
+              displayValue: true,
+              fontSize: isCompact ? 7 : 8,
+              margin: isCompact ? 3 : 5,
+              background: "#ffffff",
+              lineColor: "#000000",
+              textMargin: isCompact ? 2 : 3,
+              textAlign: "center",
+              textPosition: "bottom"
+            };
+            
+            JsBarcode(canvas, barcodeText, config);
+          } catch (err) {
+            console.error('Barcode generation failed for:', barcodeText, err);
+            // Fallback to text if barcode fails
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#000000';
+              ctx.font = '8px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(barcodeText, canvas.width / 2, canvas.height / 2);
+            }
           }
         }
-      }, 500);
+      });
+    }
+    
+    // Auto-print when page loads
+    window.onload = function() {
+      // Wait for JsBarcode to load, then generate barcodes
+      setTimeout(function() {
+        generateBarcodes();
+        
+        // Wait a bit more for barcodes to render, then print
+        setTimeout(function() {
+          if (!printAttempted && !windowClosed) {
+            try {
+              printAttempted = true;
+              window.print();
+            } catch (printErr) {
+              console.error('Print failed:', printErr);
+              alert('Print failed: ' + printErr.message);
+            }
+          }
+        }, 300);
+      }, 200);
     };
     
     // Handle print dialog events
     window.onbeforeprint = function() {
       console.log('Print dialog opened');
+      // Regenerate barcodes before printing to ensure they're rendered
+      generateBarcodes();
     };
     
     window.onafterprint = function() {
@@ -1150,7 +1186,7 @@ export const usePrintQueue = () => {
             </div>
             
             <div class="barcode-section">
-              <div class="barcode-text">${safeBarcode}</div>
+              <canvas class="barcode-canvas" data-barcode="${safeBarcode}" width="200" height="50"></canvas>
             </div>
             
             <div class="specs-section">
@@ -1182,9 +1218,7 @@ export const usePrintQueue = () => {
               ` : ''}
             </div>
             
-            <div class="label-footer">
-              <div class="part-indicator">TOP PART</div>
-            </div>
+
           </div>
           
           <!-- Bottom Part (3x2) -->
@@ -1201,7 +1235,7 @@ export const usePrintQueue = () => {
             </div>
             
             <div class="barcode-section compact">
-              <div class="barcode-text compact">${safeBarcode}</div>
+              <canvas class="barcode-canvas compact" data-barcode="${safeBarcode}" width="140" height="40"></canvas>
             </div>
             
             <div class="specs-section compact">
@@ -1231,9 +1265,7 @@ export const usePrintQueue = () => {
               </div>
             </div>
             
-            <div class="label-footer compact">
-              <div class="part-indicator">BOTTOM PART</div>
-            </div>
+
           </div>
         </div>
       `
@@ -1368,17 +1400,20 @@ export const usePrintQueue = () => {
         margin: 0.03in 0;
       }
       
-      .barcode-text {
-        font-family: monospace;
-        font-size: 8pt;
-        font-weight: bold;
+      .barcode-canvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: auto;
         border: 1px solid #000;
-        padding: 0.02in;
         background: #fff;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+        image-rendering: pixelated;
       }
       
-      .barcode-text.compact {
-        font-size: 7pt;
+      .barcode-canvas.compact {
+        border: 1px solid #000;
       }
       
       .specs-section {
