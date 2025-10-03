@@ -41,7 +41,7 @@ export class BarcodeGenerator {
     try {
       // Try different import methods for JsBarcode
       let JsBarcode;
-      
+
       try {
         // Method 1: Dynamic import
         const module = await import('jsbarcode');
@@ -241,7 +241,7 @@ export class BarcodeGenerator {
     // Generate pattern that looks more like Code 128
     for (let i = 0; i < data.length && pattern.length < targetBars; i++) {
       const charCode = data.charCodeAt(i);
-      
+
       // Each character generates a pattern of 6 elements (3 bars, 3 spaces)
       const charPattern = [
         (charCode & 1) === 1 ? 1 : 0,           // Bar
@@ -287,7 +287,7 @@ export class BarcodeGenerator {
     ctx.font = `${Math.max(8, config.fontSize)}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
+
     // Split long text if necessary
     const maxChars = Math.floor(config.width / (config.fontSize * 0.6));
     if (data.length > maxChars) {
@@ -684,8 +684,8 @@ export class BarcodeGenerator {
    * Tries multiple approaches to ensure successful generation
    */
   static async generateWithFallback(
-    canvas: HTMLCanvasElement, 
-    data: string, 
+    canvas: HTMLCanvasElement,
+    data: string,
     config: BarcodeConfig
   ): Promise<{
     success: boolean;
@@ -693,7 +693,7 @@ export class BarcodeGenerator {
     warnings: string[];
   }> {
     const readabilityTest = this.testBarcodeReadability(config, data);
-    
+
     try {
       // First attempt: Use JsBarcode with optimized settings
       await this.generateCode128(canvas, data, config);
@@ -704,7 +704,7 @@ export class BarcodeGenerator {
       };
     } catch (error) {
       console.warn('JsBarcode failed, trying simplified approach:', error);
-      
+
       try {
         // Second attempt: Use simplified barcode
         this.generateFallbackBarcode(canvas, data, config);
@@ -715,13 +715,13 @@ export class BarcodeGenerator {
         };
       } catch (fallbackError) {
         console.error('All barcode generation methods failed:', fallbackError);
-        
+
         // Final fallback: Text only
         const ctx = canvas.getContext('2d');
         if (ctx) {
           this.drawTextFallback(ctx, data, config);
         }
-        
+
         return {
           success: false,
           method: 'text',
@@ -736,8 +736,8 @@ export class BarcodeGenerator {
    * Automatically optimizes settings for best readability
    */
   static getRecommendedConfig(
-    targetWidth: number, 
-    targetHeight: number, 
+    targetWidth: number,
+    targetHeight: number,
     dataLength: number = 15
   ): BarcodeConfig {
     // Determine if this is a small label

@@ -3,7 +3,7 @@
     <!-- Label Preview Controls -->
     <div class="preview-controls mb-4" v-if="showPreview">
       <h3 class="text-lg font-semibold text-gray-800 mb-2">
-        Split Label Preview - {{ orderItem.item?.name }}
+        Packing Slip Preview - {{ orderItem.item?.name }}
       </h3>
       <div class="flex gap-4 items-center">
 
@@ -26,8 +26,8 @@
         </div>
 
         <div class="barcode-section">
-          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'top')" class="barcode-canvas" width="200"
-            height="50"></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'top')" class="barcode-canvas"
+            :data-barcode="optimizedInfo.barcode" width="200" height="50"></canvas>
         </div>
 
         <div class="specs-section">
@@ -75,8 +75,8 @@
         </div>
 
         <div class="barcode-section compact">
-          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" class="barcode-canvas compact" width="140"
-            height="40"></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" class="barcode-canvas compact"
+            :data-barcode="optimizedInfo.barcode" width="140" height="40"></canvas>
         </div>
 
         <div class="specs-section compact">
@@ -150,17 +150,34 @@ const optimizedInfo = computed((): OptimizedLabelInfo => {
     id: props.orderItem?.id || '',
   };
 
-  return optimizeLabelInfo(orderItemData, {
+  console.log('🔍 DEBUG - orderItemData before optimization:', {
+    barcode: orderItemData.barcode,
+    id: orderItemData.id
+  });
+
+  const result = optimizeLabelInfo(orderItemData, {
     maxCustomerLength: 12, // Shorter for split labels
     maxUpgradeLength: 15,   // Shorter for compact display
     maxTypeLength: 10,      // Shorter for split labels
     maxColorLength: 8,      // Shorter for split labels
   });
+
+  console.log('🔍 DEBUG - optimizedInfo result:', {
+    barcode: result.barcode
+  });
+
+  return result;
 });
 
 // Generate barcode text
 function generateBarcodeText(): string {
-  return `${orderNumber.value}-${props.orderItem?.id || ''}`;
+  const result = `${orderNumber.value}-${props.orderItem?.id || ''}`;
+  console.log('🔍 DEBUG - generateBarcodeText:', {
+    orderNumber: orderNumber.value,
+    orderItemId: props.orderItem?.id,
+    result: result
+  });
+  return result;
 }
 
 // Get product attribute value
@@ -240,6 +257,8 @@ async function generateBarcodeImage(part: string) {
   if (!canvas) return;
 
   const barcodeText = optimizedInfo.value.barcode;
+
+
 
   try {
     // Configure barcode for different parts - using the original working approach

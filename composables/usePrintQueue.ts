@@ -391,7 +391,7 @@ export const usePrintQueue = () => {
       type: attrs?.type || 'Standard',
       color,
       date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
-      barcode: orderItem.id, // Using order item ID as barcode
+      barcode: `${orderItem.order.salesOrderNumber || orderItem.order.id?.slice(-8) || 'N/A'}-${orderItem.id}`, // OrderNumber-OrderItemId format
       upgrades
     }
   }
