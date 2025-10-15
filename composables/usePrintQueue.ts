@@ -353,43 +353,91 @@ export const usePrintQueue = () => {
 
   // Generate optimized label data
   const generateLabelData = (orderItem: OrderItemWithRelations): SplitLabelData => {
+    // Get product attributes from ProductAttribute table first
+    const attrs = orderItem.productAttributes
     const upgrades: string[] = []
     
-    // Collect upgrades from order item
-    if (orderItem.foamUpgrade && orderItem.foamUpgrade !== 'No') {
-      upgrades.push(`Foam: ${orderItem.foamUpgrade}`)
+    // Collect ONLY upgrades - core attributes are displayed separately
+    if (attrs?.foamUpgrade && attrs.foamUpgrade !== 'No' && attrs.foamUpgrade !== 'Standard' && attrs.foamUpgrade.trim() !== '') {
+      upgrades.push(`Foam: ${attrs.foamUpgrade}"`)
     }
-    if (orderItem.doublePlasticWrapUpgrade === 'Yes') {
+    if (attrs?.doublePlasticWrapUpgrade === 'Yes') {
       upgrades.push('Double Wrap')
     }
-    if (orderItem.webbingUpgrade === 'Yes') {
+    if (attrs?.webbingUpgrade === 'Yes') {
       upgrades.push('Webbing')
     }
-    if (orderItem.metalForLifterUpgrade === 'Yes') {
+    if (attrs?.metalForLifterUpgrade === 'Yes') {
       upgrades.push('Metal Lifter')
     }
-    if (orderItem.steamStopperUpgrade === 'Yes') {
+    if (attrs?.steamStopperUpgrade === 'Yes') {
       upgrades.push('Steam Stop')
     }
-    if (orderItem.fabricUpgrade && orderItem.fabricUpgrade !== 'No') {
-      upgrades.push(`Fabric: ${orderItem.fabricUpgrade}`)
+    if (attrs?.fabricUpgrade === 'Yes') {
+      upgrades.push('Fabric')
     }
-    if (orderItem.extraHandleQty && parseInt(orderItem.extraHandleQty) > 0) {
-      upgrades.push(`+${orderItem.extraHandleQty} Handle`)
+    if (attrs?.extraHandleQty && parseInt(attrs.extraHandleQty) > 0) {
+      upgrades.push(`Extra Handles: +${attrs.extraHandleQty}`)
+    }
+    if (attrs?.extraLongSkirt === 'Yes') {
+      upgrades.push('Extra Long Skirt')
+    }
+    if (attrs?.packaging === true) {
+      upgrades.push('Packaging')
     }
 
-    // Get product attributes if available
-    const attrs = orderItem.productAttributes
-    const color = attrs?.color || orderItem.product?.color || 'Standard'
-    const size = attrs?.size || orderItem.size || orderItem.product?.size || 'Custom'
+    // Map core attributes that always show (regardless of value)
+    const color = attrs?.color || 'Standard'
+    const shape = attrs?.shape || 'Standard'
+    const radiusSize = attrs?.radiusSize || ''
+    const width = attrs?.width || ''
+    const length = attrs?.length || ''
+    const skirtType = attrs?.skirtType === 'CONN' ? 'Connected' : (attrs?.skirtType || 'Standard')
+    const skirtLength = attrs?.skirtLength || '0'
+    const tieDownsQty = attrs?.tieDownsQty || '0'
+    const tieDownPlacement = attrs?.tieDownPlacement === 'HANDLE_SIDE' ? 'Handle Side' : (attrs?.tieDownPlacement || 'Standard')
+    const distance = attrs?.distance || '0'
+    
+    // Size logic: show width x length if both available, otherwise show size
+    let sizeDisplay = ''
+    if (width && length && width.trim() !== '' && length.trim() !== '') {
+      sizeDisplay = `${width}" x ${length}"`
+    } else {
+      sizeDisplay = attrs?.size || 'Custom'
+    }
+    
+    const foam = attrs?.foamUpgrade || 'Standard'
+    
+    // Convert productType enum to human readable format
+    const getProductTypeDisplay = (productType: string) => {
+      switch (productType) {
+        case 'SPA_COVER':
+          return 'Cover for Cover'
+        case 'POOL_COVER':
+          return 'Pool Cover'
+        case 'HOT_TUB_COVER':
+          return 'Hot Tub Cover'
+        default:
+          return productType || 'Standard'
+      }
+    }
+    
+    const type = getProductTypeDisplay(attrs?.productType)
     
     return {
       orderItem,
       customer: orderItem.order.customer.name,
-      thickness: attrs?.foamUpgrade || orderItem.foamUpgrade || 'Standard',
-      size,
-      type: attrs?.type || 'Standard',
+      type,
       color,
+      size: sizeDisplay,
+      shape,
+      radiusSize,
+      skirtType,
+      skirtLength,
+      tieDownsQty,
+      tieDownPlacement,
+      distance,
+      foam,
       date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
       barcode: `${orderItem.order.salesOrderNumber || orderItem.order.id?.slice(-8) || 'N/A'}-${orderItem.id}`, // OrderNumber-OrderItemId format
       upgrades
@@ -1129,7 +1177,7 @@ export const usePrintQueue = () => {
       const { labelData } = label
 
       // Validate required label data fields
-      const requiredFields = ['customer', 'type', 'color', 'thickness', 'size', 'date', 'barcode']
+      const requiredFields = ['customer', 'type', 'color', 'size', 'date', 'barcode']
       for (const field of requiredFields) {
         if (!labelData[field as keyof SplitLabelData]) {
           throw new Error(`Label is missing required field: ${field}`)
@@ -1154,8 +1202,15 @@ export const usePrintQueue = () => {
       const safeBarcode = sanitizeText(labelData.barcode)
       const safeType = sanitizeText(labelData.type)
       const safeColor = sanitizeText(labelData.color)
-      const safeThickness = sanitizeText(labelData.thickness)
       const safeSize = sanitizeText(labelData.size)
+      const safeShape = sanitizeText(labelData.shape)
+      const safeRadiusSize = sanitizeText(labelData.radiusSize)
+      const safeSkirtType = sanitizeText(labelData.skirtType)
+      const safeSkirtLength = sanitizeText(labelData.skirtLength)
+      const safeTieDownsQty = sanitizeText(labelData.tieDownsQty)
+      const safeTieDownPlacement = sanitizeText(labelData.tieDownPlacement)
+      const safeDistance = sanitizeText(labelData.distance)
+      const safeFoam = sanitizeText(labelData.foam)
       
       // Handle upgrades array safely
       let safeUpgrades: string[] = []
@@ -1191,31 +1246,93 @@ export const usePrintQueue = () => {
             
             <div class="specs-section">
               <div class="spec-grid">
-                <div class="spec-item">
-                  <span class="spec-label">Type:</span>
-                  <span class="spec-value">${safeType}</span>
+                <div class="spec-column">
+                  <div class="spec-item">
+                    <span class="spec-label">Type:</span>
+                    <span class="spec-value">${safeType}</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Color:</span>
+                    <span class="spec-value">${safeColor}</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Size:</span>
+                    <span class="spec-value">${safeSize}</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Shape:</span>
+                    <span class="spec-value">${safeShape}</span>
+                  </div>
+                  ${safeRadiusSize ? `<div class="spec-item">
+                    <span class="spec-label">Radius:</span>
+                    <span class="spec-value">${safeRadiusSize}"</span>
+                  </div>` : ''}
+                  <div class="spec-item">
+                    <span class="spec-label">Skirt Type:</span>
+                    <span class="spec-value">${safeSkirtType}</span>
+                  </div>
+                  ${safeUpgrades.slice(0, Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
+                    // Parse upgrade to separate name and value
+                    const parts = upgrade.split(': ')
+                    if (parts.length === 2) {
+                      return `
+                        <div class="spec-item">
+                          <span class="spec-label">${parts[0]}:</span>
+                          <span class="spec-value">${parts[1]}</span>
+                        </div>
+                      `
+                    } else {
+                      return `
+                        <div class="spec-item">
+                          <span class="spec-label">${upgrade}:</span>
+                          <span class="spec-value">Yes</span>
+                        </div>
+                      `
+                    }
+                  }).join('')}
                 </div>
-                <div class="spec-item">
-                  <span class="spec-label">Color:</span>
-                  <span class="spec-value">${safeColor}</span>
-                </div>
-                <div class="spec-item">
-                  <span class="spec-label">Thickness:</span>
-                  <span class="spec-value">${safeThickness}</span>
-                </div>
-                <div class="spec-item">
-                  <span class="spec-label">Size:</span>
-                  <span class="spec-value">${safeSize}</span>
+                <div class="spec-column">
+                  <div class="spec-item">
+                    <span class="spec-label">Skirt Length:</span>
+                    <span class="spec-value">${safeSkirtLength}"</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Tie Downs:</span>
+                    <span class="spec-value">${safeTieDownsQty}</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Placement:</span>
+                    <span class="spec-value">${safeTieDownPlacement}</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Distance:</span>
+                    <span class="spec-value">${safeDistance}"</span>
+                  </div>
+                  <div class="spec-item">
+                    <span class="spec-label">Foam:</span>
+                    <span class="spec-value">${safeFoam}"</span>
+                  </div>
+                  ${safeUpgrades.slice(Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
+                    // Parse upgrade to separate name and value
+                    const parts = upgrade.split(': ')
+                    if (parts.length === 2) {
+                      return `
+                        <div class="spec-item">
+                          <span class="spec-label">${parts[0]}:</span>
+                          <span class="spec-value">${parts[1]}</span>
+                        </div>
+                      `
+                    } else {
+                      return `
+                        <div class="spec-item">
+                          <span class="spec-label">${upgrade}:</span>
+                          <span class="spec-value">Yes</span>
+                        </div>
+                      `
+                    }
+                  }).join('')}
                 </div>
               </div>
-              ${safeUpgrades.length > 0 ? `
-                <div class="upgrades-section">
-                  <div class="spec-item upgrades">
-                    <span class="spec-label">Upgrades:</span>
-                    <span class="spec-value">${safeUpgrades.join(', ')}</span>
-                  </div>
-                </div>
-              ` : ''}
             </div>
             
 
@@ -1239,29 +1356,93 @@ export const usePrintQueue = () => {
             </div>
             
             <div class="specs-section compact">
-              <div class="spec-list">
-                <div class="spec-item compact">
-                  <span class="spec-label">Type:</span>
-                  <span class="spec-value">${safeType}</span>
-                </div>
-                <div class="spec-item compact">
-                  <span class="spec-label">Color:</span>
-                  <span class="spec-value">${safeColor}</span>
-                </div>
-                <div class="spec-item compact">
-                  <span class="spec-label">Thick:</span>
-                  <span class="spec-value">${safeThickness}</span>
-                </div>
-                <div class="spec-item compact">
-                  <span class="spec-label">Size:</span>
-                  <span class="spec-value">${safeSize}</span>
-                </div>
-                ${safeUpgrades.length > 0 ? `
+              <div class="spec-grid compact">
+                <div class="spec-column">
                   <div class="spec-item compact">
-                    <span class="spec-label">Up:</span>
-                    <span class="spec-value">${safeUpgrades.join(', ')}</span>
+                    <span class="spec-label">Type:</span>
+                    <span class="spec-value">${safeType}</span>
                   </div>
-                ` : ''}
+                  <div class="spec-item compact">
+                    <span class="spec-label">Color:</span>
+                    <span class="spec-value">${safeColor}</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Size:</span>
+                    <span class="spec-value">${safeSize}</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Shape:</span>
+                    <span class="spec-value">${safeShape}</span>
+                  </div>
+                  ${safeRadiusSize ? `<div class="spec-item compact">
+                    <span class="spec-label">Radius:</span>
+                    <span class="spec-value">${safeRadiusSize}"</span>
+                  </div>` : ''}
+                  <div class="spec-item compact">
+                    <span class="spec-label">Skirt Type:</span>
+                    <span class="spec-value">${safeSkirtType}</span>
+                  </div>
+                  ${safeUpgrades.slice(0, Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
+                    // Parse upgrade to separate name and value
+                    const parts = upgrade.split(': ')
+                    if (parts.length === 2) {
+                      return `
+                        <div class="spec-item compact">
+                          <span class="spec-label">${parts[0]}:</span>
+                          <span class="spec-value">${parts[1]}</span>
+                        </div>
+                      `
+                    } else {
+                      return `
+                        <div class="spec-item compact">
+                          <span class="spec-label">${upgrade}:</span>
+                          <span class="spec-value">Yes</span>
+                        </div>
+                      `
+                    }
+                  }).join('')}
+                </div>
+                <div class="spec-column">
+                  <div class="spec-item compact">
+                    <span class="spec-label">Skirt:</span>
+                    <span class="spec-value">${safeSkirtLength}"</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Ties:</span>
+                    <span class="spec-value">${safeTieDownsQty}</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Placement:</span>
+                    <span class="spec-value">${safeTieDownPlacement}</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Distance:</span>
+                    <span class="spec-value">${safeDistance}"</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">Foam:</span>
+                    <span class="spec-value">${safeFoam}"</span>
+                  </div>
+                  ${safeUpgrades.slice(Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
+                    // Parse upgrade to separate name and value
+                    const parts = upgrade.split(': ')
+                    if (parts.length === 2) {
+                      return `
+                        <div class="spec-item compact">
+                          <span class="spec-label">${parts[0]}:</span>
+                          <span class="spec-value">${parts[1]}</span>
+                        </div>
+                      `
+                    } else {
+                      return `
+                        <div class="spec-item compact">
+                          <span class="spec-label">${upgrade}:</span>
+                          <span class="spec-value">Yes</span>
+                        </div>
+                      `
+                    }
+                  }).join('')}
+                </div>
               </div>
             </div>
             
@@ -1322,7 +1503,7 @@ export const usePrintQueue = () => {
       .split-label-container {
         display: flex;
         flex-direction: column;
-        gap: 0.1in;
+        gap: 0;
         width: 100%;
         height: 100%;
       }
@@ -1339,6 +1520,8 @@ export const usePrintQueue = () => {
         height: 3in;
         display: flex;
         flex-direction: column;
+        margin-bottom: -2px;
+        border-bottom: none;
       }
       
       .label-part.bottom-part {
@@ -1346,6 +1529,8 @@ export const usePrintQueue = () => {
         height: 2in;
         display: flex;
         flex-direction: column;
+        margin-top: -2px;
+        border-top: none;
       }
       
       .label-header {
@@ -1428,8 +1613,14 @@ export const usePrintQueue = () => {
       .spec-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 0.02in;
+        gap: 0.1in;
         margin-bottom: 0.05in;
+      }
+      
+      .spec-column {
+        display: flex;
+        flex-direction: column;
+        gap: 0.01in;
       }
       
       .spec-list {
@@ -1449,7 +1640,7 @@ export const usePrintQueue = () => {
       
       .spec-item.compact {
         margin-bottom: 0.01in;
-        font-size: 6pt;
+        font-size: 4pt;
       }
       
       .spec-item.upgrades {
