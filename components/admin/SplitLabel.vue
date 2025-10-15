@@ -11,7 +11,7 @@
     </div>
 
     <!-- Split Label Parts Container -->
-    <div class="split-label-parts" :class="{ 'print-layout': isPrintMode }">
+    <div class="split-label-parts" :class="{ 'print-layout': isPrintMode }" :data-print-mode="isPrintMode">
       <!-- Top Part (3x3 inches) -->
       <div class="label-part top-part" :ref="(el: any) => setLabelPartRef(el, 'top')">
         <div class="label-header">
@@ -26,8 +26,8 @@
         </div>
 
         <div class="barcode-section">
-          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'top')" class="barcode-canvas"
-            :data-barcode="optimizedInfo.barcode" width="200" height="50"></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'top')" class="barcode-canvas" width="200"
+            height="50"></canvas>
         </div>
 
         <div class="specs-section">
@@ -37,23 +37,51 @@
               <span class="spec-value">{{ optimizedInfo.type }}</span>
             </div>
             <div class="spec-item">
+              <span class="spec-label">Skirt Length:</span>
+              <span class="spec-value">{{ getProductAttribute('skirtLength') || '1' }}"</span>
+            </div>
+            <div class="spec-item">
               <span class="spec-label">Color:</span>
               <span class="spec-value">{{ optimizedInfo.color }}</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Thickness:</span>
-              <span class="spec-value">{{ optimizedInfo.thickness }}</span>
+              <span class="spec-label">Tie Downs:</span>
+              <span class="spec-value">{{ getProductAttribute('tieDownsQty') || '4' }}</span>
             </div>
             <div class="spec-item">
               <span class="spec-label">Size:</span>
               <span class="spec-value">{{ optimizedInfo.size }}</span>
             </div>
+            <div class="spec-item">
+              <span class="spec-label">Placement:</span>
+              <span class="spec-value">{{ getProductAttribute('tieDownPlacement') === 'HANDLE_SIDE' ? 'Handle Side' : (getProductAttribute('tieDownPlacement') || 'Standard') }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Shape:</span>
+              <span class="spec-value">{{ getProductAttribute('shape') || 'Round' }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Distance:</span>
+              <span class="spec-value">{{ getProductAttribute('distance') || '4' }}"</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Radius:</span>
+              <span class="spec-value">{{ getProductAttribute('radiusSize') || '12' }}"</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Foam:</span>
+              <span class="spec-value">{{ getProductAttribute('foamUpgrade') || '54' }}"</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Skirt Type:</span>
+              <span class="spec-value">{{ getProductAttribute('skirtType') === 'CONN' ? 'Connected' : (getProductAttribute('skirtType') || 'Standard') }}</span>
+            </div>
           </div>
 
-          <div class="upgrades-section" v-if="optimizedInfo.upgrades">
-            <div class="spec-item upgrades">
-              <span class="spec-label">Upgrades:</span>
-              <span class="spec-value">{{ optimizedInfo.upgrades }}</span>
+          <div class="upgrades-section" v-if="extractUpgrades().length > 0">
+            <div class="spec-item" v-for="upgrade in extractUpgrades()" :key="upgrade.name">
+              <span class="spec-label">{{ upgrade.name }}:</span>
+              <span class="spec-value">{{ upgrade.value }}</span>
             </div>
           </div>
         </div>
@@ -75,8 +103,8 @@
         </div>
 
         <div class="barcode-section compact">
-          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" class="barcode-canvas compact"
-            :data-barcode="optimizedInfo.barcode" width="140" height="40"></canvas>
+          <canvas :ref="(el: any) => setBarcodeCanvas(el, 'bottom')" class="barcode-canvas compact" width="140"
+            height="40"></canvas>
         </div>
 
         <div class="specs-section compact">
@@ -86,20 +114,28 @@
               <span class="spec-value">{{ optimizedInfo.type }}</span>
             </div>
             <div class="spec-item compact">
+              <span class="spec-label">Shape:</span>
+              <span class="spec-value">{{ getProductAttribute('shape') || 'Round' }}</span>
+            </div>
+            <div class="spec-item compact">
               <span class="spec-label">Color:</span>
               <span class="spec-value">{{ optimizedInfo.color }}</span>
             </div>
             <div class="spec-item compact">
-              <span class="spec-label">Thick:</span>
-              <span class="spec-value">{{ optimizedInfo.thickness }}</span>
+              <span class="spec-label">Skirt:</span>
+              <span class="spec-value">{{ getProductAttribute('skirtLength') || '1' }}"</span>
             </div>
             <div class="spec-item compact">
               <span class="spec-label">Size:</span>
               <span class="spec-value">{{ optimizedInfo.size }}</span>
             </div>
-            <div class="spec-item compact" v-if="optimizedInfo.upgrades">
-              <span class="spec-label">Up:</span>
-              <span class="spec-value">{{ optimizedInfo.upgrades }}</span>
+            <div class="spec-item compact">
+              <span class="spec-label">Ties:</span>
+              <span class="spec-value">{{ getProductAttribute('tieDownsQty') || '4' }}</span>
+            </div>
+            <div class="spec-item compact" v-for="upgrade in extractUpgrades()" :key="upgrade.name">
+              <span class="spec-label">{{ upgrade.name }}:</span>
+              <span class="spec-value">{{ upgrade.value }}</span>
             </div>
           </div>
         </div>
@@ -138,14 +174,38 @@ const orderNumber = computed(() => {
 
 // Optimize label information for compact display
 const optimizedInfo = computed((): OptimizedLabelInfo => {
+  const attrs = props.orderItem?.productAttributes
+  
+  // Convert productType enum to human readable format
+  const getProductTypeDisplay = (productType: string) => {
+    switch (productType) {
+      case 'SPA_COVER':
+        return 'Cover for Cover'
+      case 'POOL_COVER':
+        return 'Pool Cover'
+      case 'HOT_TUB_COVER':
+        return 'Hot Tub Cover'
+      default:
+        return productType || 'Standard'
+    }
+  }
+  
   const orderItemData = {
     customerName: props.order?.customer?.name || '',
-    thickness: getProductAttribute('thickness') || '',
-    size: getProductAttribute('size') || '',
-    type: getProductAttribute('type') || '',
-    color: getProductAttribute('color') || '',
+    type: getProductTypeDisplay(attrs?.productType),
+    color: attrs?.color || 'Standard',
+    size: attrs?.size || 'Custom',
+    shape: attrs?.shape || 'Standard',
+    radiusSize: attrs?.radiusSize || '',
+    skirtType: attrs?.skirtType === 'CONN' ? 'Connected' : (attrs?.skirtType || 'Standard'),
+    skirtLength: attrs?.skirtLength || '0',
+    tieDownsQty: attrs?.tieDownsQty || '0',
+    tieDownPlacement: attrs?.tieDownPlacement === 'HANDLE_SIDE' ? 'Handle Side' : (attrs?.tieDownPlacement || 'Standard'),
+    distance: attrs?.distance || '0',
+    foam: attrs?.foamUpgrade || 'Standard',
+    thickness: attrs?.thickness || 'Standard',
     date: props.order?.createdAt || new Date(),
-    upgrades: extractUpgrades(),
+    upgrades: [], // We handle upgrades separately now
     barcode: generateBarcodeText(),
     id: props.orderItem?.id || '',
   };
@@ -198,39 +258,35 @@ function getProductAttribute(attributeName: string): string {
 }
 
 // Extract upgrades from product attributes
-function extractUpgrades(): string[] {
+function extractUpgrades(): Array<{name: string, value: string}> {
   if (!props.orderItem?.productAttributes) return [];
 
-  const upgrades: string[] = [];
+  const upgrades: Array<{name: string, value: string}> = [];
   const attributes = props.orderItem.productAttributes;
 
-  // Check for upgrade attributes
+  // Check for upgrade attributes with their values
   const upgradeFields = [
-    'foamUpgrade',
-    'doublePlasticWrapUpgrade',
-    'webbingUpgrade',
-    'metalForLifterUpgrade',
-    'steamStopperUpgrade',
-    'fabricUpgrade',
-    'extraLongSkirt'
+    { field: 'foamUpgrade', label: 'Foam' },
+    { field: 'doublePlasticWrapUpgrade', label: 'Double Wrap' },
+    { field: 'webbingUpgrade', label: 'Webbing' },
+    { field: 'metalForLifterUpgrade', label: 'Metal Lifter' },
+    { field: 'steamStopperUpgrade', label: 'Steam Stop' },
+    { field: 'fabricUpgrade', label: 'Fabric' },
+    { field: 'extraLongSkirt', label: 'Extra Long Skirt' }
   ];
 
-  upgradeFields.forEach(field => {
+  upgradeFields.forEach(({ field, label }) => {
     const value = attributes[field];
     if (value && value !== 'No' && value !== false && value !== '') {
-      // Convert field name to readable format
-      const readable = field
-        .replace(/Upgrade$/, '')
-        .replace(/([A-Z])/g, ' $1')
-        .trim()
-        .replace(/^./, str => str.toUpperCase());
-      upgrades.push(readable);
+      // If it's a boolean true, show "Yes", otherwise show the actual value
+      const displayValue = value === true ? 'Yes' : value.toString();
+      upgrades.push({ name: label, value: displayValue });
     }
   });
 
   // Add extra handle quantity if present
   if (attributes.extraHandleQty && attributes.extraHandleQty !== '0') {
-    upgrades.push(`Extra Handle x${attributes.extraHandleQty}`);
+    upgrades.push({ name: 'Extra Handles', value: `+${attributes.extraHandleQty}` });
   }
 
   return upgrades;
@@ -258,7 +314,8 @@ async function generateBarcodeImage(part: string) {
 
   const barcodeText = optimizedInfo.value.barcode;
 
-
+  console.log('HERE');
+  console.log(barcodeText);
 
   try {
     // Configure barcode for different parts - using the original working approach
@@ -439,7 +496,7 @@ defineExpose({
 
 .split-label-parts.print-layout {
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 /* Label Parts Base Styles */
@@ -472,6 +529,41 @@ defineExpose({
   padding: 4px;
   display: flex;
   flex-direction: column;
+}
+
+/* Remove gap between parts when printing - make them touch */
+.split-label-container .split-label-parts.print-layout .label-part.top-part {
+  margin-bottom: -6px !important;
+  border-bottom: none !important;
+}
+
+.split-label-container .split-label-parts.print-layout .label-part.bottom-part {
+  margin-top: -6px !important;
+  border-top: none !important;
+}
+
+/* Alternative approach - target by data attribute */
+.split-label-container .split-label-parts[data-print-mode="true"] .label-part.top-part {
+  margin-bottom: -6px !important;
+  border-bottom: none !important;
+}
+
+.split-label-container .split-label-parts[data-print-mode="true"] .label-part.bottom-part {
+  margin-top: -6px !important;
+  border-top: none !important;
+}
+
+/* Print media query as backup */
+@media print {
+  .split-label-container .split-label-parts .label-part.top-part {
+    margin-bottom: -6px !important;
+    border-bottom: none !important;
+  }
+  
+  .split-label-container .split-label-parts .label-part.bottom-part {
+    margin-top: -6px !important;
+    border-top: none !important;
+  }
 }
 
 /* Label Header */

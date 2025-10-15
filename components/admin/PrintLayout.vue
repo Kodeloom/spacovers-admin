@@ -5,39 +5,25 @@
       <div class="preview-header">
         <h3 class="text-lg font-semibold mb-4">Print Preview</h3>
         <div class="preview-controls">
-          <button
-            @click="togglePreview"
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
+          <button @click="togglePreview" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
             Hide Preview
           </button>
-          <button
-            @click="printLabels"
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2"
-            :disabled="labels.length === 0"
-          >
+          <button @click="printLabels" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2"
+            :disabled="labels.length === 0">
             Print {{ labels.length }} Label{{ labels.length !== 1 ? 's' : '' }}
           </button>
         </div>
       </div>
-      
+
       <!-- Preview of the print layout -->
       <div class="print-preview-wrapper">
         <div class="print-page-preview" ref="printPreview">
           <div class="label-grid">
-            <div
-              v-for="(label, index) in gridLabels"
-              :key="label?.id || `empty-${index}`"
-              class="label-position"
-              :class="`position-${index + 1}`"
-            >
+            <div v-for="(label, index) in gridLabels" :key="label?.id || `empty-${index}`" class="label-position"
+              :class="`position-${index + 1}`">
               <div v-if="label" class="label-content">
-                <SplitLabel
-                  :order-item="label.orderItem"
-                  :order="label.order"
-                  :show-preview="false"
-                  :is-print-mode="false"
-                />
+                <SplitLabel :order-item="label.orderItem" :order="label.order" :show-preview="false"
+                  :is-print-mode="true" />
               </div>
               <div v-else class="empty-label-slot">
                 <span class="text-gray-400 text-sm">Empty Slot</span>
@@ -50,11 +36,8 @@
 
     <!-- Print Controls -->
     <div v-if="!showPreview" class="print-controls">
-      <button
-        @click="togglePreview"
-        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        :disabled="labels.length === 0"
-      >
+      <button @click="togglePreview" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        :disabled="labels.length === 0">
         Show Print Preview
       </button>
     </div>
@@ -63,19 +46,11 @@
     <div class="print-only-layout" ref="printLayout">
       <div class="print-page">
         <div class="label-grid">
-          <div
-            v-for="(label, index) in gridLabels"
-            :key="label?.id || `print-${index}`"
-            class="label-position"
-            :class="`position-${index + 1}`"
-          >
+          <div v-for="(label, index) in gridLabels" :key="label?.id || `print-${index}`" class="label-position"
+            :class="`position-${index + 1}`">
             <div v-if="label" class="label-content">
-              <SplitLabel
-                :order-item="label.orderItem"
-                :order="label.order"
-                :show-preview="false"
-                :is-print-mode="true"
-              />
+              <SplitLabel :order-item="label.orderItem" :order="label.order" :show-preview="false"
+                :is-print-mode="true" />
             </div>
           </div>
         </div>
@@ -133,13 +108,13 @@ const togglePreview = () => {
 
 const printLabels = () => {
   if (props.labels.length === 0) return
-  
+
   // Use the browser's print functionality
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
-  
+
   const printContent = printLayout.value?.innerHTML || ''
-  
+
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
@@ -154,10 +129,10 @@ const printLabels = () => {
       </body>
     </html>
   `)
-  
+
   printWindow.document.close()
   printWindow.focus()
-  
+
   // Wait for content to load then print
   setTimeout(() => {
     printWindow.print()
@@ -195,7 +170,7 @@ const getPrintStyles = () => {
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
-      gap: 0.25in;
+      gap: 0;
       width: 100%;
       height: 100%;
       max-width: 6in;
@@ -280,7 +255,8 @@ onMounted(() => {
   /* 8.5" x 11" aspect ratio scaled down */
   width: 425px;
   height: 550px;
-  padding: 25px 62.5px; /* 0.5" top/bottom, 1.25" left/right scaled */
+  padding: 25px 62.5px;
+  /* 0.5" top/bottom, 1.25" left/right scaled */
   position: relative;
 }
 
@@ -288,7 +264,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 12px; /* 0.25" scaled */
+  gap: 0;
+  /* No gap between labels */
   width: 100%;
   height: 100%;
 }
@@ -330,15 +307,16 @@ onMounted(() => {
 
 /* Print-specific styles */
 @media print {
+
   .print-preview-section,
   .print-controls {
     display: none !important;
   }
-  
+
   .print-only-layout {
     display: block !important;
   }
-  
+
   .print-page {
     width: 8.5in;
     height: 11in;
@@ -348,18 +326,20 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
   }
-  
+
   .label-grid {
-    width: 6in; /* 8.5" - 2.5" margins */
-    height: 10in; /* 11" - 1" margins */
-    gap: 0.25in;
+    width: 6in;
+    /* 8.5" - 2.5" margins */
+    height: 10in;
+    /* 11" - 1" margins */
+    gap: 0;
   }
-  
+
   .label-position {
     border: none;
     page-break-inside: avoid;
   }
-  
+
   .empty-label-slot {
     display: none;
   }
@@ -372,13 +352,13 @@ onMounted(() => {
     height: 440px;
     padding: 20px 50px;
   }
-  
+
   .preview-header {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .preview-controls {
     justify-content: center;
   }
