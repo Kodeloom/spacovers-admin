@@ -1,11 +1,11 @@
 import { ref, computed, readonly, onMounted } from 'vue'
 import type { OrderItem, Order, Customer, Item, Product, ProductAttribute } from '@prisma-app/client'
-import { 
-  validateQueueIntegrity, 
-  repairQueueData, 
-  getErrorContext, 
+import {
+  validateQueueIntegrity,
+  repairQueueData,
+  getErrorContext,
   logPrintQueueError,
-  checkSystemHealth 
+  checkSystemHealth
 } from '~/utils/printQueueErrorHandling'
 
 // Types for the print queue system
@@ -72,34 +72,34 @@ export const usePrintQueue = () => {
   // Load queue from localStorage with comprehensive validation and repair
   const loadQueue = (): void => {
     const context = getErrorContext('loadQueue')
-    
+
     try {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
           const parsed = JSON.parse(stored)
-          
+
           // Validate queue integrity
           const validation = validateQueueIntegrity(parsed)
-          
+
           if (!validation.isValid) {
             console.warn('Queue data integrity issues found:', validation.issues)
-            
+
             // Attempt to repair the queue
             const repair = repairQueueData(parsed)
-            
+
             if (repair.repairedQueue.length > 0) {
               console.log('Queue repair completed:', repair.repairLog)
-              
+
               // Convert date strings back to Date objects
               queue.value = repair.repairedQueue.map((item: any) => ({
                 ...item,
                 createdAt: new Date(item.createdAt)
               }))
-              
+
               // Save the repaired queue
               saveQueue()
-              
+
               // Show warning about repaired data
               error.value = {
                 type: 'STORAGE_ERROR',
@@ -113,13 +113,13 @@ export const usePrintQueue = () => {
                 retryable: false,
                 details: { repairLog: repair.repairLog, removedItems: repair.removedItems }
               }
-              
+
               return
             } else {
               throw new Error('Queue data is completely corrupted and cannot be repaired')
             }
           }
-          
+
           // Convert date strings back to Date objects for valid data
           queue.value = parsed.map((item: any) => ({
             ...item,
@@ -129,7 +129,7 @@ export const usePrintQueue = () => {
       }
     } catch (err) {
       console.error('Failed to load print queue from localStorage:', err)
-      
+
       // Log error with context
       const errorDetails: QueueValidationError = {
         type: 'STORAGE_ERROR',
@@ -143,9 +143,9 @@ export const usePrintQueue = () => {
         retryable: false,
         details: err
       }
-      
+
       logPrintQueueError(errorDetails, context)
-      
+
       // Clear corrupted data
       if (typeof window !== 'undefined') {
         try {
@@ -154,9 +154,9 @@ export const usePrintQueue = () => {
           console.error('Failed to clear corrupted queue data:', clearErr)
         }
       }
-      
+
       error.value = errorDetails
-      
+
       // Reset queue to empty state
       queue.value = []
     }
@@ -165,44 +165,44 @@ export const usePrintQueue = () => {
   // Save queue to localStorage with retry mechanism
   const saveQueue = async (retryCount: number = 0): Promise<boolean> => {
     const maxRetries = 3
-    
+
     try {
       if (typeof window !== 'undefined') {
         // Check localStorage availability and quota
         const testKey = 'test_storage_' + Date.now()
         localStorage.setItem(testKey, 'test')
         localStorage.removeItem(testKey)
-        
+
         // Validate queue data before saving
         if (!Array.isArray(queue.value)) {
           throw new Error('Invalid queue data - not an array')
         }
-        
+
         const serializedQueue = JSON.stringify(queue.value)
-        
+
         // Check if data is too large (rough estimate)
         if (serializedQueue.length > 5 * 1024 * 1024) { // 5MB limit
           throw new Error('Queue data too large for localStorage')
         }
-        
+
         localStorage.setItem(STORAGE_KEY, serializedQueue)
         return true
       }
       return false
     } catch (err) {
       console.error(`Failed to save print queue (attempt ${retryCount + 1}):`, err)
-      
+
       if (retryCount < maxRetries) {
         // Wait before retry with exponential backoff
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
         return saveQueue(retryCount + 1)
       }
-      
+
       // Determine error type and provide appropriate user message
       let errorType: QueueValidationError['type'] = 'STORAGE_ERROR'
       let userMessage = 'Failed to save print queue changes'
       let suggestions = ['Try the operation again', 'Contact support if the problem persists']
-      
+
       if (err instanceof Error) {
         if (err.message.includes('quota') || err.message.includes('QUOTA_EXCEEDED')) {
           userMessage = 'Not enough storage space to save the print queue'
@@ -220,7 +220,7 @@ export const usePrintQueue = () => {
           ]
         }
       }
-      
+
       error.value = {
         type: errorType,
         message: 'Failed to save print queue',
@@ -229,7 +229,7 @@ export const usePrintQueue = () => {
         retryable: retryCount < maxRetries,
         details: err
       }
-      
+
       return false
     }
   }
@@ -356,11 +356,10 @@ export const usePrintQueue = () => {
     // Get product attributes from ProductAttribute table first
     const attrs = orderItem.productAttributes
     const upgrades: string[] = []
-    
+
     // Collect ONLY upgrades - core attributes are displayed separately
-    if (attrs?.foamUpgrade && attrs.foamUpgrade !== 'No' && attrs.foamUpgrade !== 'Standard' && attrs.foamUpgrade.trim() !== '') {
-      upgrades.push(`Foam: ${attrs.foamUpgrade}"`)
-    }
+    // if (attrs?.foamUpgrade && attrs.foamUpgrade !== 'No' && attrs.foamUpgrade !== 'Standard' && attrs.foamUpgrade.trim() !== '') {
+    //  upgrades.push(`Foam: ${attrs.foamUpgrade}"`) // }
     if (attrs?.doublePlasticWrapUpgrade === 'Yes') {
       upgrades.push('Double Wrap')
     }
@@ -397,7 +396,7 @@ export const usePrintQueue = () => {
     const tieDownsQty = attrs?.tieDownsQty || '0'
     const tieDownPlacement = attrs?.tieDownPlacement === 'HANDLE_SIDE' ? 'Handle Side' : (attrs?.tieDownPlacement || 'Standard')
     const distance = attrs?.distance || '0'
-    
+
     // Size logic: show width x length if both available, otherwise show size
     let sizeDisplay = ''
     if (width && length && width.trim() !== '' && length.trim() !== '') {
@@ -405,14 +404,14 @@ export const usePrintQueue = () => {
     } else {
       sizeDisplay = attrs?.size || 'Custom'
     }
-    
+
     const foam = attrs?.foamUpgrade || 'Standard'
-    
+
     // Convert productType enum to human readable format
     const getProductTypeDisplay = (productType: string) => {
       switch (productType) {
         case 'SPA_COVER':
-          return 'Cover for Cover'
+          return 'Spa Cover'
         case 'POOL_COVER':
           return 'Pool Cover'
         case 'HOT_TUB_COVER':
@@ -421,9 +420,9 @@ export const usePrintQueue = () => {
           return productType || 'Standard'
       }
     }
-    
+
     const type = getProductTypeDisplay(attrs?.productType)
-    
+
     return {
       orderItem,
       customer: orderItem.order.customer.name,
@@ -531,7 +530,7 @@ export const usePrintQueue = () => {
 
       // Add to queue
       queue.value.push(queuedLabel)
-      
+
       // Save queue with error handling
       const saveSuccess = await saveQueue()
       if (!saveSuccess) {
@@ -594,10 +593,10 @@ export const usePrintQueue = () => {
 
       // Store the label info for potential error messages
       const labelToRemove = queue.value[index]
-      
+
       // Remove from queue
       queue.value.splice(index, 1)
-      
+
       // Update positions
       queue.value.forEach((label, idx) => {
         label.position = idx
@@ -640,10 +639,10 @@ export const usePrintQueue = () => {
     try {
       // Create backup of current queue in case we need to restore
       const queueBackup = [...queue.value]
-      
+
       // Clear the queue
       queue.value = []
-      
+
       // Save the cleared queue
       const saveSuccess = await saveQueue()
       if (!saveSuccess) {
@@ -687,8 +686,8 @@ export const usePrintQueue = () => {
         return false
       }
 
-      if (fromIndex < 0 || fromIndex >= queue.value.length || 
-          toIndex < 0 || toIndex >= queue.value.length) {
+      if (fromIndex < 0 || fromIndex >= queue.value.length ||
+        toIndex < 0 || toIndex >= queue.value.length) {
         error.value = {
           type: 'INVALID_DATA',
           message: 'Invalid reorder indices - out of bounds',
@@ -773,7 +772,7 @@ export const usePrintQueue = () => {
   // Print queue with comprehensive error handling and retry mechanism
   const printQueue = async (forcePartial: boolean = false, retryCount: number = 0): Promise<boolean> => {
     const maxRetries = 2
-    
+
     try {
       if (queue.value.length === 0) {
         error.value = {
@@ -791,10 +790,10 @@ export const usePrintQueue = () => {
       }
 
       // Validate queue data before printing
-      const invalidLabels = queue.value.filter(label => 
+      const invalidLabels = queue.value.filter(label =>
         !label.id || !label.labelData || !label.orderItemId
       )
-      
+
       if (invalidLabels.length > 0) {
         error.value = {
           type: 'INVALID_DATA',
@@ -818,19 +817,19 @@ export const usePrintQueue = () => {
           // Note: We don't clear the queue automatically anymore
           // The user needs to manually clear it after confirming the print was successful
           await generatePrintLayout()
-          
+
           // Print window opened successfully
           // Queue remains intact so user can retry if needed
-          
+
           return true
         } catch (printErr) {
           console.error('Print generation failed:', printErr)
-          
+
           // Determine error type based on the error
           let errorType: QueueValidationError['type'] = 'PRINT_ERROR'
           let userMessage = 'Failed to generate the print layout'
           let suggestions = ['Try printing again', 'Contact support if the problem persists']
-          
+
           if (printErr instanceof Error) {
             if (printErr.message.includes('popup') || printErr.message.includes('blocked')) {
               errorType = 'BROWSER_ERROR'
@@ -850,7 +849,7 @@ export const usePrintQueue = () => {
               ]
             }
           }
-          
+
           error.value = {
             type: errorType,
             message: 'Failed to print labels',
@@ -859,14 +858,14 @@ export const usePrintQueue = () => {
             retryable: retryCount < maxRetries,
             details: printErr
           }
-          
+
           // Retry for certain types of errors
           if (retryCount < maxRetries && (errorType === 'NETWORK_ERROR' || errorType === 'PRINT_ERROR')) {
             console.log(`Retrying print operation (attempt ${retryCount + 1})`)
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
             return printQueue(forcePartial, retryCount + 1)
           }
-          
+
           return false
         }
       }
@@ -899,14 +898,14 @@ export const usePrintQueue = () => {
         retryable: retryCount < maxRetries,
         details: err
       }
-      
+
       // Retry for unexpected errors
       if (retryCount < maxRetries) {
         console.log(`Retrying print operation after unexpected error (attempt ${retryCount + 1})`)
         await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)))
         return printQueue(forcePartial, retryCount + 1)
       }
-      
+
       return false
     }
   }
@@ -923,11 +922,11 @@ export const usePrintQueue = () => {
     }
 
     let printWindow: Window | null = null
-    
+
     try {
       // Attempt to open print window with error handling
       printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes')
-      
+
       if (!printWindow) {
         throw new Error('Failed to open print window - popup may be blocked by browser')
       }
@@ -943,14 +942,14 @@ export const usePrintQueue = () => {
       let printContent: string
       try {
         printContent = await generatePrintHTML()
-        
+
         if (!printContent || printContent.trim().length === 0) {
           throw new Error('Generated print content is empty')
         }
       } catch (contentErr) {
         throw new Error(`Failed to generate print content: ${contentErr}`)
       }
-      
+
       // Create complete HTML document with error handling
       const htmlDocument = `<!DOCTYPE html>
 <html lang="en">
@@ -1064,7 +1063,7 @@ export const usePrintQueue = () => {
   </script>
 </body>
 </html>`
-      
+
       // Write document content with error handling
       try {
         printWindow.document.open()
@@ -1073,7 +1072,7 @@ export const usePrintQueue = () => {
       } catch (writeErr) {
         throw new Error(`Failed to write content to print window: ${writeErr}`)
       }
-      
+
     } catch (error) {
       // Clean up print window if it was created
       if (printWindow) {
@@ -1083,7 +1082,7 @@ export const usePrintQueue = () => {
           console.warn('Could not close print window after error:', closeErr)
         }
       }
-      
+
       // Re-throw with more context
       if (error instanceof Error) {
         throw error
@@ -1107,29 +1106,29 @@ export const usePrintQueue = () => {
 
       let html = '<div class="print-page">'
       html += '<div class="label-grid">'
-      
+
       // Create 2x2 grid with labels (4 positions total)
       for (let i = 0; i < MAX_QUEUE_SIZE; i++) {
         const label = queue.value[i]
         const row = Math.floor(i / 2) + 1 // Row 1 or 2
         const col = (i % 2) + 1 // Column 1 or 2
-        
+
         html += `<div class="label-position position-${i + 1} row-${row} col-${col}">`
-        
+
         if (label) {
           try {
             // Validate label before generating HTML
             if (!label.id || !label.labelData || !label.orderItemId) {
               throw new Error(`Invalid label at position ${i + 1}`)
             }
-            
+
             // Generate split label HTML for each queued item
             const labelHTML = await generateSplitLabelHTML(label)
-            
+
             if (!labelHTML || labelHTML.trim().length === 0) {
               throw new Error(`Empty HTML generated for label at position ${i + 1}`)
             }
-            
+
             html += labelHTML
           } catch (labelErr) {
             console.error(`Error generating HTML for label at position ${i + 1}:`, labelErr)
@@ -1143,18 +1142,18 @@ export const usePrintQueue = () => {
           // Empty placeholder for unused positions
           html += '<div class="empty-label-placeholder"></div>'
         }
-        
+
         html += '</div>'
       }
-      
+
       html += '</div>'
       html += '</div>'
-      
+
       // Validate final HTML
       if (!html || html.trim().length === 0) {
         throw new Error('Generated HTML is empty')
       }
-      
+
       return html
     } catch (error) {
       console.error('Error generating print HTML:', error)
@@ -1211,7 +1210,7 @@ export const usePrintQueue = () => {
       const safeTieDownPlacement = sanitizeText(labelData.tieDownPlacement)
       const safeDistance = sanitizeText(labelData.distance)
       const safeFoam = sanitizeText(labelData.foam)
-      
+
       // Handle upgrades array safely
       let safeUpgrades: string[] = []
       if (Array.isArray(labelData.upgrades)) {
@@ -1272,24 +1271,24 @@ export const usePrintQueue = () => {
                     <span class="spec-value">${safeSkirtType}</span>
                   </div>
                   ${safeUpgrades.slice(0, Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
-                    // Parse upgrade to separate name and value
-                    const parts = upgrade.split(': ')
-                    if (parts.length === 2) {
-                      return `
+        // Parse upgrade to separate name and value
+        const parts = upgrade.split(': ')
+        if (parts.length === 2) {
+          return `
                         <div class="spec-item">
                           <span class="spec-label">${parts[0]}:</span>
                           <span class="spec-value">${parts[1]}</span>
                         </div>
                       `
-                    } else {
-                      return `
+        } else {
+          return `
                         <div class="spec-item">
                           <span class="spec-label">${upgrade}:</span>
                           <span class="spec-value">Yes</span>
                         </div>
                       `
-                    }
-                  }).join('')}
+        }
+      }).join('')}
                 </div>
                 <div class="spec-column">
                   <div class="spec-item">
@@ -1301,11 +1300,11 @@ export const usePrintQueue = () => {
                     <span class="spec-value">${safeTieDownsQty}</span>
                   </div>
                   <div class="spec-item">
-                    <span class="spec-label">Placement:</span>
+                    <span class="spec-label">Location:</span>
                     <span class="spec-value">${safeTieDownPlacement}</span>
                   </div>
                   <div class="spec-item">
-                    <span class="spec-label">Distance:</span>
+                    <span class="spec-label">TD Distance:</span>
                     <span class="spec-value">${safeDistance}"</span>
                   </div>
                   <div class="spec-item">
@@ -1313,24 +1312,24 @@ export const usePrintQueue = () => {
                     <span class="spec-value">${safeFoam}"</span>
                   </div>
                   ${safeUpgrades.slice(Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
-                    // Parse upgrade to separate name and value
-                    const parts = upgrade.split(': ')
-                    if (parts.length === 2) {
-                      return `
+        // Parse upgrade to separate name and value
+        const parts = upgrade.split(': ')
+        if (parts.length === 2) {
+          return `
                         <div class="spec-item">
                           <span class="spec-label">${parts[0]}:</span>
                           <span class="spec-value">${parts[1]}</span>
                         </div>
                       `
-                    } else {
-                      return `
+        } else {
+          return `
                         <div class="spec-item">
                           <span class="spec-label">${upgrade}:</span>
                           <span class="spec-value">Yes</span>
                         </div>
                       `
-                    }
-                  }).join('')}
+        }
+      }).join('')}
                 </div>
               </div>
             </div>
@@ -1382,25 +1381,7 @@ export const usePrintQueue = () => {
                     <span class="spec-label">Skirt Type:</span>
                     <span class="spec-value">${safeSkirtType}</span>
                   </div>
-                  ${safeUpgrades.slice(0, Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
-                    // Parse upgrade to separate name and value
-                    const parts = upgrade.split(': ')
-                    if (parts.length === 2) {
-                      return `
-                        <div class="spec-item compact">
-                          <span class="spec-label">${parts[0]}:</span>
-                          <span class="spec-value">${parts[1]}</span>
-                        </div>
-                      `
-                    } else {
-                      return `
-                        <div class="spec-item compact">
-                          <span class="spec-label">${upgrade}:</span>
-                          <span class="spec-value">Yes</span>
-                        </div>
-                      `
-                    }
-                  }).join('')}
+
                 </div>
                 <div class="spec-column">
                   <div class="spec-item compact">
@@ -1423,25 +1404,27 @@ export const usePrintQueue = () => {
                     <span class="spec-label">Foam:</span>
                     <span class="spec-value">${safeFoam}"</span>
                   </div>
-                  ${safeUpgrades.slice(Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
-                    // Parse upgrade to separate name and value
-                    const parts = upgrade.split(': ')
-                    if (parts.length === 2) {
-                      return `
+                  ${safeUpgrades.filter(upgrade =>
+        upgrade.includes('Double Wrap') || upgrade.includes('Metal Lifter')
+      ).map(upgrade => {
+        // Parse upgrade to separate name and value
+        const parts = upgrade.split(': ')
+        if (parts.length === 2) {
+          return `
                         <div class="spec-item compact">
                           <span class="spec-label">${parts[0]}:</span>
                           <span class="spec-value">${parts[1]}</span>
                         </div>
                       `
-                    } else {
-                      return `
+        } else {
+          return `
                         <div class="spec-item compact">
                           <span class="spec-label">${upgrade}:</span>
                           <span class="spec-value">Yes</span>
                         </div>
                       `
-                    }
-                  }).join('')}
+        }
+      }).join('')}
                 </div>
               </div>
             </div>
@@ -1488,7 +1471,7 @@ export const usePrintQueue = () => {
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap: 0.25in;
+        gap: 0.35in;
         width: 100%;
         height: 100%;
       }
@@ -1517,7 +1500,7 @@ export const usePrintQueue = () => {
       
       .label-part.top-part {
         width: 3in;
-        height: 3in;
+        height: 3.15in;
         display: flex;
         flex-direction: column;
         margin-bottom: -2px;
@@ -1640,7 +1623,7 @@ export const usePrintQueue = () => {
       
       .spec-item.compact {
         margin-bottom: 0.01in;
-        font-size: 4pt;
+        font-size: 5pt;
       }
       
       .spec-item.upgrades {
@@ -1743,7 +1726,7 @@ export const usePrintQueue = () => {
   // Check system health and capabilities
   const checkHealth = () => {
     const health = checkSystemHealth()
-    
+
     if (!health.healthy) {
       error.value = {
         type: 'BROWSER_ERROR',
@@ -1759,14 +1742,14 @@ export const usePrintQueue = () => {
       }
       return false
     }
-    
+
     return true
   }
 
   // Validate current queue integrity
   const validateCurrentQueue = (): boolean => {
     const validation = validateQueueIntegrity(queue.value)
-    
+
     if (!validation.isValid) {
       error.value = {
         type: 'INVALID_DATA',
@@ -1782,7 +1765,7 @@ export const usePrintQueue = () => {
       }
       return false
     }
-    
+
     return true
   }
 
@@ -1796,7 +1779,7 @@ export const usePrintQueue = () => {
     queue: readonly(queue),
     isLoading: readonly(isLoading),
     error: readonly(error),
-    
+
     // Actions
     addToQueue,
     removeFromQueue,
@@ -1804,18 +1787,18 @@ export const usePrintQueue = () => {
     reorderQueue,
     printQueue,
     clearError,
-    
+
     // Getters
     getQueueStatus,
     getPrintReadiness,
     isItemQueued,
     getLabelByOrderItemId,
     requiresPrintWarning,
-    
+
     // Health and validation
     checkHealth,
     validateCurrentQueue,
-    
+
     // Constants
     MAX_QUEUE_SIZE
   }

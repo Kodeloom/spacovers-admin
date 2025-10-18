@@ -45,7 +45,7 @@
               <span class="spec-value">{{ optimizedInfo.color }}</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Tie Downs:</span>
+              <span class="spec-label">TD's:</span>
               <span class="spec-value">{{ getProductAttribute('tieDownsQty') || '4' }}</span>
             </div>
             <div class="spec-item">
@@ -53,7 +53,7 @@
               <span class="spec-value">{{ optimizedInfo.size }}</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Placement:</span>
+              <span class="spec-label">Location:</span>
               <span class="spec-value">{{ getProductAttribute('tieDownPlacement') === 'HANDLE_SIDE' ? 'Handle Side' : (getProductAttribute('tieDownPlacement') || 'Standard') }}</span>
             </div>
             <div class="spec-item">
@@ -61,7 +61,7 @@
               <span class="spec-value">{{ getProductAttribute('shape') || 'Round' }}</span>
             </div>
             <div class="spec-item">
-              <span class="spec-label">Distance:</span>
+              <span class="spec-label">TD Distance:</span>
               <span class="spec-value">{{ getProductAttribute('distance') || '4' }}"</span>
             </div>
             <div class="spec-item">
@@ -266,7 +266,7 @@ function extractUpgrades(): Array<{name: string, value: string}> {
 
   // Check for upgrade attributes with their values
   const upgradeFields = [
-    { field: 'foamUpgrade', label: 'Foam' },
+    // { field: 'foamUpgrade', label: 'Foam' },
     { field: 'doublePlasticWrapUpgrade', label: 'Double Wrap' },
     { field: 'webbingUpgrade', label: 'Webbing' },
     { field: 'metalForLifterUpgrade', label: 'Metal Lifter' },
