@@ -24,7 +24,7 @@ export interface ReportValidationError {
 }
 
 /**
- * Validate date range parameters with comprehensive error handling
+ * Validate date range parameters with comprehensive error handling and timezone support
  */
 export function validateDateRange(
   startDate?: string | Date,
@@ -51,14 +51,14 @@ export function validateDateRange(
     if (isNaN(start.getTime())) {
       return {
         isValid: false,
-        error: 'Invalid start date format. Please provide a valid ISO date string (e.g., "2024-01-01T00:00:00.000Z")'
+        error: 'Invalid start date format. Please provide a valid ISO date string (e.g., "2024-01-01T00:00:00.000Z") or use the date picker'
       };
     }
 
     if (isNaN(end.getTime())) {
       return {
         isValid: false,
-        error: 'Invalid end date format. Please provide a valid ISO date string (e.g., "2024-12-31T23:59:59.999Z")'
+        error: 'Invalid end date format. Please provide a valid ISO date string (e.g., "2024-12-31T23:59:59.999Z") or use the date picker'
       };
     }
 
@@ -66,36 +66,57 @@ export function validateDateRange(
     if (start > end) {
       return {
         isValid: false,
-        error: 'Start date cannot be after end date'
+        error: 'Start date cannot be after end date. Please check your date selection.'
       };
+    }
+
+    // Check for same day (which is valid but might be unintentional)
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    if (startDay.getTime() === endDay.getTime()) {
+      // This is valid but we'll note it for potential warnings
+      console.info('Single day date range selected');
     }
 
     // Check for reasonable date range (not too far in the past or future)
     const now = new Date();
-    const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
-    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const threeYearsAgo = new Date(now.getFullYear() - 3, now.getMonth(), now.getDate());
+    const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
 
-    if (start < twoYearsAgo) {
+    if (start < threeYearsAgo) {
       return {
         isValid: false,
-        error: 'Start date cannot be more than 2 years in the past'
+        error: 'Start date cannot be more than 3 years in the past. Historical data may not be available.'
       };
     }
 
-    if (end > oneYearFromNow) {
+    if (end > sixMonthsFromNow) {
       return {
         isValid: false,
-        error: 'End date cannot be more than 1 year in the future'
+        error: 'End date cannot be more than 6 months in the future. Future data is not available.'
       };
     }
 
-    // Check maximum range
+    // Check if start date is in the future
+    if (start > now) {
+      return {
+        isValid: false,
+        error: 'Start date cannot be in the future. Please select a past or current date.'
+      };
+    }
+
+    // Check maximum range with performance warnings
     const rangeDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (rangeDays > maxRangeDays) {
       return {
         isValid: false,
-        error: `Date range cannot exceed ${maxRangeDays} days. Current range is ${rangeDays} days.`
+        error: `Date range cannot exceed ${maxRangeDays} days. Current range is ${rangeDays} days. Please reduce the date range for better performance.`
       };
+    }
+
+    // Performance warning for large ranges (but still valid)
+    if (rangeDays > 180) {
+      console.warn(`Large date range selected: ${rangeDays} days. This may impact performance.`);
     }
 
     return {
@@ -109,13 +130,13 @@ export function validateDateRange(
   } catch (error) {
     return {
       isValid: false,
-      error: `Date parsing error: ${error instanceof Error ? error.message : 'Invalid date format'}`
+      error: `Date parsing error: ${error instanceof Error ? error.message : 'Invalid date format'}. Please use the date picker to select valid dates.`
     };
   }
 }
 
 /**
- * Validate user ID parameter
+ * Validate user ID parameter (CUID format)
  */
 export function validateUserId(userId?: string): ValidationResult {
   if (!userId) {
@@ -139,12 +160,13 @@ export function validateUserId(userId?: string): ValidationResult {
     };
   }
 
-  // Basic UUID format validation (optional but recommended)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
+  // CUID format validation (starts with 'c' followed by 24 alphanumeric characters)
+  // Example: cmg5nic400016ujni1xm9qcnl
+  const cuidRegex = /^c[a-z0-9]{24}$/i;
+  if (!cuidRegex.test(userId)) {
     return {
       isValid: false,
-      error: 'userId must be a valid UUID format'
+      error: 'userId must be a valid CUID format (e.g., cmg5nic400016ujni1xm9qcnl)'
     };
   }
 
@@ -155,7 +177,7 @@ export function validateUserId(userId?: string): ValidationResult {
 }
 
 /**
- * Validate station ID parameter
+ * Validate station ID parameter (CUID format)
  */
 export function validateStationId(stationId?: string): ValidationResult {
   if (!stationId) {
@@ -177,6 +199,15 @@ export function validateStationId(stationId?: string): ValidationResult {
     return {
       isValid: false,
       error: 'stationId cannot be empty when provided'
+    };
+  }
+
+  // CUID format validation (starts with 'c' followed by 24 alphanumeric characters)
+  const cuidRegex = /^c[a-z0-9]{24}$/i;
+  if (!cuidRegex.test(stationId)) {
+    return {
+      isValid: false,
+      error: 'stationId must be a valid CUID format (e.g., cmg5nic400016ujni1xm9qcnl)'
     };
   }
 
@@ -229,7 +260,7 @@ export function validateOrderStatus(orderStatus?: string): ValidationResult {
 }
 
 /**
- * Validate customer ID parameter
+ * Validate customer ID parameter (CUID format)
  */
 export function validateCustomerId(customerId?: string): ValidationResult {
   if (!customerId) {
@@ -251,6 +282,15 @@ export function validateCustomerId(customerId?: string): ValidationResult {
     return {
       isValid: false,
       error: 'customerId cannot be empty when provided'
+    };
+  }
+
+  // CUID format validation (starts with 'c' followed by 24 alphanumeric characters)
+  const cuidRegex = /^c[a-z0-9]{24}$/i;
+  if (!cuidRegex.test(customerId)) {
+    return {
+      isValid: false,
+      error: 'customerId must be a valid CUID format (e.g., cmg5nic400016ujni1xm9qcnl)'
     };
   }
 
@@ -321,57 +361,84 @@ export function validatePagination(
 }
 
 /**
- * Handle missing or null processing logs gracefully
+ * Handle missing or null processing logs gracefully with enhanced validation
  */
 export function validateProcessingLogs(logs: any[]): {
   isValid: boolean;
   validLogs: any[];
+  invalidLogs: any[];
   warnings: string[];
 } {
   if (!Array.isArray(logs)) {
     return {
       isValid: false,
       validLogs: [],
+      invalidLogs: [],
       warnings: ['Processing logs data is not in expected array format']
     };
   }
 
   const validLogs: any[] = [];
+  const invalidLogs: any[] = [];
   const warnings: string[] = [];
 
   for (const log of logs) {
     // Check for required fields
     if (!log) {
       warnings.push('Encountered null or undefined processing log entry');
+      invalidLogs.push(log);
       continue;
     }
 
     if (!log.orderItemId) {
       warnings.push('Processing log missing orderItemId - skipping entry');
+      invalidLogs.push(log);
       continue;
     }
 
     if (!log.userId) {
       warnings.push(`Processing log for item ${log.orderItemId} missing userId - skipping entry`);
+      invalidLogs.push(log);
       continue;
     }
 
     if (!log.stationId) {
       warnings.push(`Processing log for item ${log.orderItemId} missing stationId - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
+
+    // Validate that this is a completed processing session
+    if (!log.startTime) {
+      warnings.push(`Processing log for item ${log.orderItemId} missing startTime - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
+
+    if (!log.endTime) {
+      warnings.push(`Processing log for item ${log.orderItemId} missing endTime - skipping entry`);
+      invalidLogs.push(log);
       continue;
     }
 
     // Validate duration
-    if (log.durationInSeconds !== null && log.durationInSeconds !== undefined) {
-      if (typeof log.durationInSeconds !== 'number' || log.durationInSeconds < 0) {
-        warnings.push(`Invalid duration for item ${log.orderItemId} - setting to 0`);
-        log.durationInSeconds = 0;
-      }
+    if (log.durationInSeconds === null || log.durationInSeconds === undefined) {
+      warnings.push(`Processing log for item ${log.orderItemId} missing duration - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
 
-      // Check for unreasonably long durations (more than 24 hours)
-      if (log.durationInSeconds > 86400) {
-        warnings.push(`Unusually long duration (${Math.round(log.durationInSeconds / 3600)} hours) for item ${log.orderItemId}`);
-      }
+    if (typeof log.durationInSeconds !== 'number' || log.durationInSeconds <= 0) {
+      warnings.push(`Invalid duration for item ${log.orderItemId} - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
+
+    // Check for unreasonably long durations (more than 24 hours)
+    if (log.durationInSeconds > 86400) {
+      warnings.push(`Unusually long duration (${Math.round(log.durationInSeconds / 3600)} hours) for item ${log.orderItemId} - excluding from calculations`);
+      invalidLogs.push(log);
+      continue;
     }
 
     // Validate timestamps
@@ -379,6 +446,7 @@ export function validateProcessingLogs(logs: any[]): {
       const startDate = new Date(log.startTime);
       if (isNaN(startDate.getTime())) {
         warnings.push(`Invalid start time for item ${log.orderItemId} - skipping entry`);
+        invalidLogs.push(log);
         continue;
       }
       log.startTime = startDate;
@@ -388,9 +456,30 @@ export function validateProcessingLogs(logs: any[]): {
       const endDate = new Date(log.endTime);
       if (isNaN(endDate.getTime())) {
         warnings.push(`Invalid end time for item ${log.orderItemId} - skipping entry`);
+        invalidLogs.push(log);
         continue;
       }
       log.endTime = endDate;
+    }
+
+    // Validate that endTime is after startTime
+    if (log.startTime && log.endTime && log.startTime >= log.endTime) {
+      warnings.push(`Processing log for item ${log.orderItemId} has invalid time range (start >= end) - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
+
+    // Validate that orderItem exists and is a production item
+    if (!log.orderItem) {
+      warnings.push(`Processing log for item ${log.orderItemId} missing orderItem relation - skipping entry`);
+      invalidLogs.push(log);
+      continue;
+    }
+
+    if (!log.orderItem.isProduct) {
+      warnings.push(`Processing log for item ${log.orderItemId} is not a production item - skipping entry`);
+      invalidLogs.push(log);
+      continue;
     }
 
     validLogs.push(log);
@@ -399,6 +488,7 @@ export function validateProcessingLogs(logs: any[]): {
   return {
     isValid: validLogs.length > 0,
     validLogs,
+    invalidLogs,
     warnings
   };
 }
@@ -553,7 +643,12 @@ export function validateReportRequest(query: Record<string, any>): {
       errors.push(createValidationError(
         'userId',
         userValidation.error!,
-        'INVALID_USER_ID'
+        'INVALID_USER_ID',
+        [
+          'Ensure the user ID is in CUID format (starts with "c" followed by 24 characters)',
+          'Check that the user ID was copied correctly from the system',
+          'Use the employee dropdown to select a valid user'
+        ]
       ));
     } else {
       validatedParams.userId = userValidation.normalizedValue;
@@ -566,7 +661,12 @@ export function validateReportRequest(query: Record<string, any>): {
       errors.push(createValidationError(
         'stationId',
         stationValidation.error!,
-        'INVALID_STATION_ID'
+        'INVALID_STATION_ID',
+        [
+          'Ensure the station ID is in CUID format (starts with "c" followed by 24 characters)',
+          'Check that the station ID was copied correctly from the system',
+          'Use the station dropdown to select a valid station'
+        ]
       ));
     } else {
       validatedParams.stationId = stationValidation.normalizedValue;
@@ -592,7 +692,12 @@ export function validateReportRequest(query: Record<string, any>): {
       errors.push(createValidationError(
         'customerId',
         customerValidation.error!,
-        'INVALID_CUSTOMER_ID'
+        'INVALID_CUSTOMER_ID',
+        [
+          'Ensure the customer ID is in CUID format (starts with "c" followed by 24 characters)',
+          'Check that the customer ID was copied correctly from the system',
+          'Use the customer dropdown to select a valid customer'
+        ]
       ));
     } else {
       validatedParams.customerId = customerValidation.normalizedValue;
@@ -603,5 +708,181 @@ export function validateReportRequest(query: Record<string, any>): {
     isValid: errors.length === 0,
     errors,
     validatedParams
+  };
+}
+/**
+
+ * Validate data quality and provide comprehensive warnings
+ */
+export function validateDataQuality(logs: any[]): {
+  qualityScore: number;
+  warnings: string[];
+  recommendations: string[];
+} {
+  const warnings: string[] = [];
+  const recommendations: string[] = [];
+  let qualityScore = 100;
+
+  if (logs.length === 0) {
+    return {
+      qualityScore: 0,
+      warnings: ['No data available'],
+      recommendations: ['Check date range and filters', 'Ensure employees are logging their work properly']
+    };
+  }
+
+  // Check for missing user information
+  const logsWithoutUser = logs.filter(log => !log.user?.name);
+  if (logsWithoutUser.length > 0) {
+    const percentage = Math.round((logsWithoutUser.length / logs.length) * 100);
+    warnings.push(`${percentage}% of logs have missing user information`);
+    qualityScore -= Math.min(percentage, 20);
+  }
+
+  // Check for missing station information
+  const logsWithoutStation = logs.filter(log => !log.station?.name);
+  if (logsWithoutStation.length > 0) {
+    const percentage = Math.round((logsWithoutStation.length / logs.length) * 100);
+    warnings.push(`${percentage}% of logs have missing station information`);
+    qualityScore -= Math.min(percentage, 20);
+  }
+
+  // Check for very short durations (less than 1 minute)
+  const shortDurationLogs = logs.filter(log => log.durationInSeconds && log.durationInSeconds < 60);
+  if (shortDurationLogs.length > 0) {
+    const percentage = Math.round((shortDurationLogs.length / logs.length) * 100);
+    if (percentage > 10) {
+      warnings.push(`${percentage}% of logs have very short durations (< 1 minute)`);
+      recommendations.push('Review scanning procedures to ensure accurate time tracking');
+      qualityScore -= Math.min(percentage / 2, 10);
+    }
+  }
+
+  // Check for very long durations (more than 8 hours)
+  const longDurationLogs = logs.filter(log => log.durationInSeconds && log.durationInSeconds > 28800);
+  if (longDurationLogs.length > 0) {
+    const percentage = Math.round((longDurationLogs.length / logs.length) * 100);
+    if (percentage > 5) {
+      warnings.push(`${percentage}% of logs have very long durations (> 8 hours)`);
+      recommendations.push('Review time tracking procedures for accuracy');
+      qualityScore -= Math.min(percentage, 15);
+    }
+  }
+
+  // Check for duplicate processing logs (same item, user, station, similar time)
+  const duplicateGroups = new Map<string, any[]>();
+  logs.forEach(log => {
+    const key = `${log.orderItemId}-${log.userId}-${log.stationId}`;
+    if (!duplicateGroups.has(key)) {
+      duplicateGroups.set(key, []);
+    }
+    duplicateGroups.get(key)!.push(log);
+  });
+
+  const duplicates = Array.from(duplicateGroups.values()).filter(group => group.length > 1);
+  if (duplicates.length > 0) {
+    const totalDuplicates = duplicates.reduce((sum, group) => sum + group.length - 1, 0);
+    const percentage = Math.round((totalDuplicates / logs.length) * 100);
+    warnings.push(`${percentage}% of logs appear to be duplicates`);
+    recommendations.push('Review scanning procedures to prevent duplicate entries');
+    qualityScore -= Math.min(percentage, 25);
+  }
+
+  // Ensure quality score doesn't go below 0
+  qualityScore = Math.max(0, qualityScore);
+
+  // Add general recommendations based on quality score
+  if (qualityScore < 70) {
+    recommendations.push('Consider reviewing data collection procedures');
+    recommendations.push('Provide additional training on time tracking systems');
+  }
+
+  if (qualityScore < 50) {
+    recommendations.push('Data quality is poor - results may not be reliable');
+    recommendations.push('Contact system administrator for data quality review');
+  }
+
+  return {
+    qualityScore,
+    warnings,
+    recommendations
+  };
+}
+/**
+
+ * Monitor and log performance metrics for report generation
+ */
+export function logPerformanceMetrics(
+  operation: string,
+  duration: number,
+  recordCount: number,
+  userId?: string
+): void {
+  const metrics = {
+    operation,
+    duration,
+    recordCount,
+    recordsPerSecond: recordCount > 0 ? Math.round(recordCount / (duration / 1000)) : 0,
+    timestamp: new Date().toISOString(),
+    userId
+  };
+
+  // Log performance metrics
+  console.log('Performance metrics:', metrics);
+
+  // Log warnings for slow operations
+  if (duration > 10000) {
+    console.warn(`Slow ${operation} detected: ${duration}ms for ${recordCount} records`);
+  }
+
+  // Log warnings for low throughput
+  if (metrics.recordsPerSecond < 100 && recordCount > 1000) {
+    console.warn(`Low throughput for ${operation}: ${metrics.recordsPerSecond} records/second`);
+  }
+}
+
+/**
+ * Validate query parameters for performance implications
+ */
+export function validateQueryPerformance(params: {
+  startDate?: Date;
+  endDate?: Date;
+  stationId?: string;
+  userId?: string;
+}): {
+  isOptimal: boolean;
+  warnings: string[];
+  suggestions: string[];
+} {
+  const warnings: string[] = [];
+  const suggestions: string[] = [];
+  let isOptimal = true;
+
+  // Check date range size
+  if (params.startDate && params.endDate) {
+    const rangeDays = Math.ceil((params.endDate.getTime() - params.startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (rangeDays > 90) {
+      warnings.push(`Large date range (${rangeDays} days) may impact performance`);
+      suggestions.push('Consider reducing date range to 90 days or less');
+      isOptimal = false;
+    }
+
+    if (rangeDays > 365) {
+      warnings.push(`Very large date range (${rangeDays} days) will likely cause slow performance`);
+      suggestions.push('Reduce date range to 365 days or less for better performance');
+      isOptimal = false;
+    }
+  }
+
+  // Check for missing filters that could improve performance
+  if (!params.stationId && !params.userId) {
+    suggestions.push('Adding station or user filters can improve query performance');
+  }
+
+  return {
+    isOptimal,
+    warnings,
+    suggestions
   };
 }

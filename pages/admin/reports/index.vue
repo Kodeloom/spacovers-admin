@@ -55,27 +55,37 @@
           >
         </div>
         <div v-if="activeTab === 'productivity'">
-          <label for="stationFilter" class="block text-sm font-medium text-gray-700 mb-1">Station</label>
+          <label for="stationFilter" class="block text-sm font-medium text-gray-700 mb-1">
+            Station
+            <span v-if="filters.userId" class="text-xs text-gray-500">(showing all stations)</span>
+            <span class="text-xs text-gray-400 ml-2">({{ (stations || []).length }} available)</span>
+          </label>
           <select
             id="stationFilter"
             v-model="filters.stationId"
+            @change="onStationFilterChange"
             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Stations</option>
-            <option v-for="station in stations" :key="station.id" :value="station.id">
+            <option v-for="station in (stations || [])" :key="station.id" :value="station.id">
               {{ station.name }}
             </option>
           </select>
         </div>
         <div v-if="activeTab === 'productivity'">
-          <label for="userFilter" class="block text-sm font-medium text-gray-700 mb-1">Employee</label>
+          <label for="userFilter" class="block text-sm font-medium text-gray-700 mb-1">
+            Employee
+            <span v-if="filters.stationId" class="text-xs text-gray-500">(showing all employees)</span>
+            <span class="text-xs text-gray-400 ml-2">({{ (users || []).length }} available)</span>
+          </label>
           <select
             id="userFilter"
             v-model="filters.userId"
+            @change="onUserFilterChange"
             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           >
             <option value="">All Employees</option>
-            <option v-for="user in users" :key="user.id" :value="user.id">
+            <option v-for="user in (users || [])" :key="user.id" :value="user.id">
               {{ user.name }}
             </option>
           </select>
@@ -199,15 +209,15 @@
       <div class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
-            <Icon name="heroicons:currency-dollar" class="h-8 w-8 text-yellow-600" />
+            <Icon name="heroicons:chart-bar" class="h-8 w-8 text-yellow-600" />
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">
-              {{ activeTab === 'productivity' ? 'Total Labor Cost' : 'Total Revenue' }}
+              {{ activeTab === 'productivity' ? 'Avg Efficiency' : 'Total Revenue' }}
             </p>
             <p class="text-2xl font-semibold text-gray-900">
               {{ activeTab === 'productivity' 
-                ? '$' + (summaryStats.totalLaborCost || 0).toFixed(2) 
+                ? calculateOverallEfficiency() + ' items/hr'
                 : '$' + (summaryStats.totalRevenue || 0).toFixed(2) }}
             </p>
             </div>
@@ -239,13 +249,42 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Station</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items Processed</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Time</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Time/Item</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Efficiency</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('userName')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Employee</span>
+                  <Icon :name="getSortIcon('userName')" class="h-4 w-4" />
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('stationName')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Station</span>
+                  <Icon :name="getSortIcon('stationName')" class="h-4 w-4" />
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('itemsProcessed')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Items Processed</span>
+                  <Icon :name="getSortIcon('itemsProcessed')" class="h-4 w-4" />
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('totalDuration')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Total Time</span>
+                  <Icon :name="getSortIcon('totalDuration')" class="h-4 w-4" />
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('avgDuration')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Avg Time/Item</span>
+                  <Icon :name="getSortIcon('avgDuration')" class="h-4 w-4" />
+                </button>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <button @click="sortTable('efficiency')" class="flex items-center space-x-1 hover:text-gray-700">
+                  <span>Efficiency</span>
+                  <Icon :name="getSortIcon('efficiency')" class="h-4 w-4" />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -269,7 +308,6 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.totalDuration) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.avgDuration) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.efficiency || 0 }} items/hr</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${{ (row.totalCost || 0).toFixed(2) }}</td>
             </tr>
           </tbody>
         </table>
@@ -409,6 +447,10 @@ const reportError = ref<any>(null);
 const loadingProgress = ref<number | undefined>(undefined);
 const loadingMessage = ref('Please wait while we process your request...');
 
+// Table sorting state
+const sortField = ref<string>('itemsProcessed');
+const sortDirection = ref<'asc' | 'desc'>('desc');
+
 // Employee items modal state
 const employeeItemsModal = reactive({
   isOpen: false,
@@ -416,8 +458,9 @@ const employeeItemsModal = reactive({
   employeeName: null as string | null,
 });
 
-// Fetch filter options
+// Fetch filter options with enhanced filtering logic
 const { data: stations } = useFindManyStation({
+  where: { status: 'ACTIVE' },
   orderBy: { name: 'asc' }
 });
 
@@ -429,6 +472,36 @@ const { data: users } = useFindManyUser({
 const { data: customers } = useFindManyCustomer({
   where: { status: 'ACTIVE' },
   orderBy: { name: 'asc' }
+});
+
+// Debug watchers to see when data loads
+watch(users, (newUsers) => {
+  console.log('👥 Users data updated:', {
+    count: newUsers?.length || 0,
+    users: newUsers?.map(u => ({ id: u.id, name: u.name, status: u.status })) || []
+  });
+}, { immediate: true });
+
+watch(stations, (newStations) => {
+  console.log('🏭 Stations data updated:', {
+    count: newStations?.length || 0,
+    stations: newStations?.map(s => ({ id: s.id, name: s.name, status: s.status })) || []
+  });
+}, { immediate: true });
+
+// Computed properties for filtered options based on current selections
+const filteredUsers = computed(() => {
+  // Since we're already fetching users with status: 'ACTIVE', just return them
+  // Only show users when on productivity tab
+  if (activeTab.value !== 'productivity') return [];
+  return users.value || [];
+});
+
+const filteredStations = computed(() => {
+  // Since we're already fetching stations with status: 'ACTIVE', just return them
+  // Only show stations when on productivity tab
+  if (activeTab.value !== 'productivity') return [];
+  return stations.value || [];
 });
 
 // Set default date range (last 30 days)
@@ -498,15 +571,23 @@ function setDefaultDateRange() {
 }
 
 /**
- * Validate date range inputs
+ * Enhanced date range validation with comprehensive error handling and warnings
  */
 function validateDateRange(): boolean {
+  // Check if both dates are provided
   if (!filters.startDate || !filters.endDate) {
-    toast.error({ title: 'Error', message: 'Please select both start and end dates.' });
+    toast.error({ 
+      title: 'Missing Dates', 
+      message: 'Please select both start and end dates to generate the report.',
+      timeout: 4000
+    });
     return false;
   }
 
   // Automatically convert dates to correct format
+  const originalStartDate = filters.startDate;
+  const originalEndDate = filters.endDate;
+  
   filters.startDate = convertToYYYYMMDD(filters.startDate);
   filters.endDate = convertToYYYYMMDD(filters.endDate);
 
@@ -514,42 +595,112 @@ function validateDateRange(): boolean {
   if (!filters.startDate || !filters.endDate) {
     toast.error({ 
       title: 'Invalid Date Format', 
-      message: 'Please select valid dates using the date picker.' 
+      message: 'Please select valid dates using the date picker. Manually entered dates may not be recognized.',
+      timeout: 5000
     });
+    // Restore original values if conversion failed
+    filters.startDate = originalStartDate;
+    filters.endDate = originalEndDate;
     return false;
   }
 
   const startDate = new Date(filters.startDate);
   const endDate = new Date(filters.endDate);
   
-  // Check if dates are valid
+  // Check if dates are valid after conversion
   if (isNaN(startDate.getTime())) {
-    toast.error({ title: 'Invalid Date', message: 'Start date is not a valid date.' });
+    toast.error({ 
+      title: 'Invalid Start Date', 
+      message: 'The start date is not valid. Please use the date picker to select a proper date.',
+      timeout: 4000
+    });
     return false;
   }
   
   if (isNaN(endDate.getTime())) {
-    toast.error({ title: 'Invalid Date', message: 'End date is not a valid date.' });
+    toast.error({ 
+      title: 'Invalid End Date', 
+      message: 'The end date is not valid. Please use the date picker to select a proper date.',
+      timeout: 4000
+    });
     return false;
   }
   
+  // Check date range logic
   if (startDate > endDate) {
-    toast.error({ title: 'Error', message: 'Start date must be before or equal to end date.' });
-    return false;
-  }
-
-  // Check if date range is too large (more than 1 year)
-  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysDiff > 365) {
-    toast.error({ title: 'Error', message: 'Date range cannot exceed 365 days.' });
+    toast.error({ 
+      title: 'Invalid Date Range', 
+      message: 'Start date must be before or equal to end date. Please check your date selection.',
+      timeout: 4000
+    });
     return false;
   }
 
   // Check if dates are in the future
   const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
   if (startDate > now) {
-    toast.error({ title: 'Error', message: 'Start date cannot be in the future.' });
+    toast.error({ 
+      title: 'Future Start Date', 
+      message: 'Start date cannot be in the future. Please select a past or current date.',
+      timeout: 4000
+    });
     return false;
+  }
+
+  if (endDate > now) {
+    toast.warning({ 
+      title: 'Future End Date', 
+      message: 'End date is in the future. The report will only include data up to today.',
+      timeout: 4000
+    });
+  }
+
+  // Check if date range is too large (more than 1 year)
+  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysDiff > 365) {
+    toast.error({ 
+      title: 'Date Range Too Large', 
+      message: `Date range cannot exceed 365 days. Current range is ${daysDiff} days. Please reduce the range for better performance.`,
+      timeout: 6000
+    });
+    return false;
+  }
+
+  // Performance warnings for large date ranges
+  if (daysDiff > 180) {
+    toast.warning({ 
+      title: 'Large Date Range', 
+      message: `You've selected a ${daysDiff}-day range. This may take longer to process. Consider adding station or employee filters for better performance.`,
+      timeout: 5000
+    });
+  } else if (daysDiff > 90) {
+    toast.info({ 
+      title: 'Moderate Date Range', 
+      message: `Processing ${daysDiff} days of data. Adding filters can improve performance.`,
+      timeout: 3000
+    });
+  }
+
+  // Check for very old dates (more than 2 years ago)
+  const twoYearsAgo = new Date(now.getFullYear() - 2, now.getMonth(), now.getDate());
+  if (startDate < twoYearsAgo) {
+    toast.warning({ 
+      title: 'Historical Data', 
+      message: 'You\'re accessing data from more than 2 years ago. Some historical data may be incomplete.',
+      timeout: 4000
+    });
+  }
+
+  // Single day range notification
+  if (daysDiff === 0) {
+    toast.info({ 
+      title: 'Single Day Report', 
+      message: 'Generating report for a single day. Consider expanding the range for better insights.',
+      timeout: 3000
+    });
   }
 
   return true;
@@ -568,6 +719,33 @@ const debouncedLoadReports = debounce(loadReports, 1000);
 watch([() => filters.startDate, () => filters.endDate], () => {
   if (filters.startDate && filters.endDate) {
     debouncedLoadReports();
+  }
+});
+
+// Watch for filter changes to provide user feedback
+watch(() => filters.stationId, (newStationId, oldStationId) => {
+  if (newStationId !== oldStationId) {
+    if (newStationId && filteredStations.value) {
+      const station = filteredStations.value.find(s => s.id === newStationId);
+      if (station) {
+        console.log(`🏭 Station filter applied: ${station.name}`);
+      }
+    } else if (!newStationId && oldStationId) {
+      console.log('🏭 Station filter removed');
+    }
+  }
+});
+
+watch(() => filters.userId, (newUserId, oldUserId) => {
+  if (newUserId !== oldUserId) {
+    if (newUserId && filteredUsers.value) {
+      const user = filteredUsers.value.find(u => u.id === newUserId);
+      if (user) {
+        console.log(`👤 Employee filter applied: ${user.name}`);
+      }
+    } else if (!newUserId && oldUserId) {
+      console.log('👤 Employee filter removed');
+    }
   }
 });
 
@@ -628,32 +806,45 @@ async function loadReports() {
       filters.endDate = normalizedEndDate;
     }
 
-    // Create UTC date range directly (bypass TimezoneService issues)
+    // Create UTC date range with proper timezone handling
     let utcDateRange;
     try {
       // Create dates and convert to ISO strings for API
-      const startDate = new Date(normalizedStartDate + 'T00:00:00.000Z');
-      const endDate = new Date(normalizedEndDate + 'T23:59:59.999Z');
+      // Use local timezone for start of day and end of day to ensure we capture all data
+      const startDate = new Date(normalizedStartDate + 'T00:00:00.000');
+      const endDate = new Date(normalizedEndDate + 'T23:59:59.999');
+      
+      // Convert to UTC for API consistency
+      const utcStartDate = new Date(startDate.getTime() - (startDate.getTimezoneOffset() * 60000));
+      const utcEndDate = new Date(endDate.getTime() - (endDate.getTimezoneOffset() * 60000));
       
       // Validate the dates
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        throw new Error('Invalid date values');
+      if (isNaN(utcStartDate.getTime()) || isNaN(utcEndDate.getTime())) {
+        throw new Error('Invalid date values after timezone conversion');
       }
       
       utcDateRange = {
-        start: startDate,
-        end: endDate
+        start: utcStartDate,
+        end: utcEndDate
       };
+      
+      console.log('🕐 Date range with timezone handling:', {
+        local: { start: startDate.toISOString(), end: endDate.toISOString() },
+        utc: { start: utcStartDate.toISOString(), end: utcEndDate.toISOString() },
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+      
     } catch (dateError: any) {
       console.error('Date creation error:', dateError);
       reportError.value = {
         statusMessage: 'Invalid date values provided',
-        message: 'Please select valid dates',
+        message: 'Please select valid dates using the date picker',
         data: {
           suggestions: [
             'Use the date picker to select dates',
-            'Ensure dates are not too far in the future',
-            'Try refreshing the page and selecting different dates'
+            'Ensure dates are in the correct format',
+            'Try refreshing the page and selecting different dates',
+            'Check your system timezone settings'
           ]
         }
       };
@@ -683,12 +874,48 @@ async function loadReports() {
         reportData.value = response.data;
         summaryStats.value = response.summary;
         
+        // Handle empty data with helpful suggestions
+        if (response.data.length === 0) {
+          let suggestions = [];
+          
+          if (filters.stationId && filters.userId) {
+            suggestions.push('Try removing either the station or employee filter');
+            suggestions.push('Check if the selected employee worked at the selected station during this period');
+          } else if (filters.stationId) {
+            suggestions.push('Try removing the station filter to see all employee activity');
+            suggestions.push('Check if any employees worked at this station during the selected period');
+          } else if (filters.userId) {
+            suggestions.push('Try removing the employee filter to see all station activity');
+            suggestions.push('Check if the selected employee was active during this period');
+          } else {
+            suggestions.push('Try expanding your date range');
+            suggestions.push('Check if there was any production activity during this period');
+          }
+          
+          toast.info({
+            title: 'No Data Found',
+            message: 'No productivity data found for the current filters. ' + suggestions[0],
+            timeout: 5000
+          });
+        } else {
+          // Show success message with data summary
+          const employeeCount = new Set(response.data.map(r => r.userId)).size;
+          const stationCount = new Set(response.data.map(r => r.stationId)).size;
+          
+          toast.success({
+            title: 'Report Generated',
+            message: `Found data for ${employeeCount} employees across ${stationCount} stations.`,
+            timeout: 3000
+          });
+        }
+        
         // Show warnings if any
         if (response.warnings && response.warnings.length > 0) {
           console.warn('Report warnings:', response.warnings);
           toast.warning({ 
             title: 'Data Quality Notice', 
-            message: `Report generated with ${response.warnings.length} data quality warnings. Check console for details.` 
+            message: `Report generated with ${response.warnings.length} data quality warnings. Check console for details.`,
+            timeout: 4000
           });
         }
       } else {
@@ -743,11 +970,68 @@ async function loadReports() {
   }
 }
 
+/**
+ * Handle station filter changes with validation
+ */
+function onStationFilterChange() {
+  // Validate that the selected station exists
+  if (filters.stationId && filteredStations.value) {
+    const selectedStation = filteredStations.value.find(s => s.id === filters.stationId);
+    if (!selectedStation) {
+      toast.warning({
+        title: 'Station Not Found',
+        message: 'The selected station is no longer available. Filter has been cleared.',
+        timeout: 4000
+      });
+      filters.stationId = '';
+      return;
+    }
+  }
+  
+  // Auto-refresh if we have valid date range
+  if (filters.startDate && filters.endDate) {
+    debouncedLoadReports();
+  }
+}
+
+/**
+ * Handle user filter changes with validation
+ */
+function onUserFilterChange() {
+  // Validate that the selected user exists
+  if (filters.userId && filteredUsers.value) {
+    const selectedUser = filteredUsers.value.find(u => u.id === filters.userId);
+    if (!selectedUser) {
+      toast.warning({
+        title: 'Employee Not Found',
+        message: 'The selected employee is no longer available. Filter has been cleared.',
+        timeout: 4000
+      });
+      filters.userId = '';
+      return;
+    }
+  }
+  
+  // Auto-refresh if we have valid date range
+  if (filters.startDate && filters.endDate) {
+    debouncedLoadReports();
+  }
+}
+
+/**
+ * Clear all filters and reset to defaults
+ */
 function clearFilters() {
   filters.stationId = '';
   filters.userId = '';
   filters.customerId = '';
   setDefaultDateRange();
+  
+  toast.info({
+    title: 'Filters Cleared',
+    message: 'All filters have been reset to default values.',
+    timeout: 2000
+  });
 }
 
 async function exportCSV() {
@@ -884,32 +1168,101 @@ function transformProductivityData(productivityData: any[], filters: any) {
         totalDuration: station.hoursWorked * 3600, // Convert hours to seconds
         avgDuration: station.averageTimePerItem,
         efficiency: station.hoursWorked > 0 ? Math.round((station.itemsProcessed / station.hoursWorked) * 100) / 100 : 0,
-        totalCost: calculateStationLaborCost(station.hoursWorked, employee.userId)
+
       });
     });
   });
   
-  return result.sort((a, b) => b.totalCost - a.totalCost);
+  // Apply current sorting
+  result.sort((a, b) => {
+    let aVal = a[sortField.value];
+    let bVal = b[sortField.value];
+    
+    // Handle string fields
+    if (sortField.value === 'userName' || sortField.value === 'stationName') {
+      aVal = (aVal || '').toLowerCase();
+      bVal = (bVal || '').toLowerCase();
+    }
+    
+    // Handle numeric fields
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDirection.value === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    
+    // Handle string comparison
+    if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1;
+    return 0;
+  });
+  
+  return result;
+}
+
+
+
+/**
+ * Calculate overall efficiency (items per hour across all employees)
+ */
+function calculateOverallEfficiency(): string {
+  if (!reportData.value || reportData.value.length === 0 || !summaryStats.value) {
+    return '0';
+  }
+  
+  const totalItems = summaryStats.value.totalItemsProcessed || 0;
+  const totalTimeHours = (summaryStats.value.totalProductionTime || 0) / 3600;
+  
+  if (totalTimeHours === 0) {
+    return '0';
+  }
+  
+  const efficiency = totalItems / totalTimeHours;
+  return Math.round(efficiency * 100) / 100 + '';
 }
 
 /**
- * Calculate total labor cost from productivity data
+ * Sort table by specified field
  */
-function calculateTotalLaborCost(productivityData: any[]): number {
-  return productivityData.reduce((total, employee) => {
-    return total + employee.stationBreakdown.reduce((stationTotal: number, station: any) => {
-      return stationTotal + calculateStationLaborCost(station.hoursWorked, employee.userId);
-    }, 0);
-  }, 0);
+function sortTable(field: string) {
+  if (sortField.value === field) {
+    // Toggle direction if same field
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    // Set new field and default to descending for numeric fields
+    sortField.value = field;
+    sortDirection.value = ['itemsProcessed', 'totalDuration', 'avgDuration', 'efficiency'].includes(field) ? 'desc' : 'asc';
+  }
+  
+  // Apply sorting to reportData
+  if (reportData.value && reportData.value.length > 0) {
+    reportData.value.sort((a, b) => {
+      let aVal = a[field];
+      let bVal = b[field];
+      
+      // Handle string fields
+      if (field === 'userName' || field === 'stationName') {
+        aVal = (aVal || '').toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+      }
+      
+      // Handle numeric fields
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection.value === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      // Handle string comparison
+      if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 }
 
 /**
- * Calculate labor cost for a station (placeholder - would need user hourly rate data)
- * For now, using a default rate since we don't have access to user hourly rates in the metrics service
+ * Get sort icon for table header
  */
-function calculateStationLaborCost(hoursWorked: number, userId: string): number {
-  const defaultHourlyRate = 25; // Default hourly rate - should be fetched from user data
-  return hoursWorked * defaultHourlyRate;
+function getSortIcon(field: string): string {
+  if (sortField.value !== field) return 'heroicons:chevron-up-down';
+  return sortDirection.value === 'asc' ? 'heroicons:chevron-up' : 'heroicons:chevron-down';
 }
 
 /**

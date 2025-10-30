@@ -3,6 +3,22 @@ import { TimezoneService } from '~/utils/timezoneService';
 import { validateReportRequest } from '~/utils/reportValidation';
 import { logError } from '~/utils/errorHandling';
 
+// Helper function to format duration in seconds to readable format for CSV
+function formatDurationForCSV(durationInSeconds: number): string {
+  if (!durationInSeconds || durationInSeconds <= 0) {
+    return '0m';
+  }
+  
+  const hours = Math.floor(durationInSeconds / 3600);
+  const minutes = Math.floor((durationInSeconds % 3600) / 60);
+  
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  } else {
+    return `${minutes}m`;
+  }
+}
+
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event);
@@ -52,38 +68,45 @@ export default defineEventHandler(async (event) => {
         });
       }
 
-      // Convert to CSV with corrected field names and calculations
+      // Convert to CSV with corrected field names and calculations (labor cost removed)
       const headers = [
         'Employee Name',
         'Station',
-        'Items Processed', // This now correctly shows unique items processed
-        'Total Time (hours)',
-        'Average Time per Item (minutes)',
-        'Efficiency (items/hour)',
-        'Total Labor Cost ($)'
+        'Items Processed',
+        'Total Time',
+        'Average Time per Item',
+        'Efficiency (items/hour)'
       ];
 
       const rows = productivityResponse.data.map((row: any) => [
         row.userName || 'Unknown User',
         row.stationName || 'Unknown Station',
-        row.itemsProcessed || 0, // Unique items processed (corrected calculation)
-        row.totalDuration ? (row.totalDuration / 3600).toFixed(2) : '0.00',
-        row.avgDuration ? (row.avgDuration / 60).toFixed(1) : '0.0',
-        row.efficiency || 0,
-        row.totalCost ? row.totalCost.toFixed(2) : '0.00'
+        row.itemsProcessed || 0,
+        formatDurationForCSV(row.totalDuration || 0),
+        formatDurationForCSV(row.avgDuration || 0),
+        row.efficiency ? `${row.efficiency.toFixed(1)}` : '0.0'
       ]);
 
       csvData = [headers, ...rows].map(row => 
         row.map(cell => `"${cell}"`).join(',')
       ).join('\n');
 
-      // Include date range in filename if available
+      // Include date range and filters in filename
       const dateRange = productivityResponse.dateRange;
       const dateStr = dateRange?.startDate && dateRange?.endDate 
         ? `${dateRange.startDate.split('T')[0]}_to_${dateRange.endDate.split('T')[0]}`
         : new Date().toISOString().split('T')[0];
       
-      filename = `productivity-report-${dateStr}.csv`;
+      // Add filter information to filename
+      let filterSuffix = '';
+      if (filters.stationId) {
+        filterSuffix += `_station-${filters.stationId}`;
+      }
+      if (filters.userId) {
+        filterSuffix += `_employee-${filters.userId}`;
+      }
+      
+      filename = `productivity-report-${dateStr}${filterSuffix}.csv`;
 
     } else if (reportType === 'lead-time') {
       // Get lead time data using the corrected API endpoint
