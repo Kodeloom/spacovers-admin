@@ -390,9 +390,9 @@ export const usePrintQueue = () => {
     if (attrs?.extraLongSkirt === 'Yes') {
       upgrades.push('Extra Long Skirt')
     }
-    if (attrs?.packaging === true) {
-      upgrades.push('Packaging')
-    }
+    // if (attrs?.packaging === true) {
+    //   upgrades.push('Packaging')
+    // }
 
     // Map core attributes that always show (regardless of value)
     const color = attrs?.color || 'Standard'
@@ -1326,7 +1326,7 @@ export const usePrintQueue = () => {
                   </div>
                   <div class="spec-item">
                     <span class="spec-label">Foam:</span>
-                    <span class="spec-value">${safeFoam}"</span>
+                    <span class="spec-value">${safeFoam}</span>
                   </div>
                   ${safeUpgrades.slice(Math.ceil(safeUpgrades.length / 2)).map(upgrade => {
         // Parse upgrade to separate name and value
@@ -1423,7 +1423,7 @@ export const usePrintQueue = () => {
                   </div>
                   <div class="spec-item compact">
                     <span class="spec-label">Foam:</span>
-                    <span class="spec-value">${safeFoam}"</span>
+                    <span class="spec-value">${safeFoam}</span>
                   </div>
                   ${safeUpgrades.filter(upgrade =>
         upgrade.includes('Double Wrap') || upgrade.includes('Metal Lifter')
