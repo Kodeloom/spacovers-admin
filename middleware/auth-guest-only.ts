@@ -1,13 +1,18 @@
-import { defineNuxtRouteMiddleware, navigateTo, useFetch  } from '#app';
+import { defineNuxtRouteMiddleware, navigateTo } from '#app';
 import { authClient } from '~/lib/auth-client';
 
 export default defineNuxtRouteMiddleware(async (_to, _from) => {
-  // Fetch session data using the pattern from Better-Auth docs for Nuxt middleware
-  const { data: sessionData } = await authClient.useSession(useFetch);
-
-  // If the user is authenticated (sessionData exists and has a user)
-  if (sessionData.value?.user) {
-    // Redirect them to the home page or another appropriate page
-    return navigateTo('/');
+  // Check if user is already authenticated
+  try {
+    const sessionState = authClient.useSession();
+    
+    // If the user is authenticated (sessionData exists and has a user)
+    if (sessionState.value?.data?.user) {
+      // Redirect them to the home page or another appropriate page
+      return navigateTo('/');
+    }
+  } catch (error) {
+    // If there's an error checking session, allow access to login page
+    console.log('Session check error in auth-guest-only middleware:', error);
   }
 }); 

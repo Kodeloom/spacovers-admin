@@ -37,18 +37,39 @@
           </div>
         </div>
 
-        <div v-if="errorMessage" class="text-red-500 text-sm text-center">
-          {{ errorMessage }}
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="p-3 bg-red-50 border border-red-200 rounded-md">
+          <div class="flex items-center">
+            <Icon name="heroicons:exclamation-circle" class="h-5 w-5 text-red-400 mr-2" />
+            <p class="text-sm text-red-800">{{ errorMessage }}</p>
+          </div>
+        </div>
+
+        <!-- Success Message -->
+        <div v-if="successMessage" class="p-3 bg-green-50 border border-green-200 rounded-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <Icon name="heroicons:check-circle" class="h-5 w-5 text-green-400 mr-2" />
+              <p class="text-sm text-green-800">{{ successMessage }}</p>
+            </div>
+            <button 
+              v-if="showRefreshOption"
+              @click="() => window.location.reload()"
+              class="ml-3 text-sm font-medium text-green-700 hover:text-green-600 underline"
+            >
+              Refresh Page
+            </button>
+          </div>
         </div>
 
         <div>
           <button
             type="submit"
             :disabled="loading"
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span v-if="loading" class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <!-- Loading icon can go here -->
+              <Icon name="heroicons:arrow-path" class="h-4 w-4 animate-spin" />
             </span>
             {{ loading ? 'Signing in...' : 'Sign in' }}
           </button>
@@ -64,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { authClient } from '~/lib/auth-client';
 import { useRouter, useRoute } from 'vue-router';
 import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
@@ -79,6 +100,7 @@ interface AuthError {
       message?: string;
     };
   };
+  statusCode?: number;
 }
 
 definePageMeta({
@@ -89,13 +111,20 @@ definePageMeta({
 const email = ref('admin@example.com');
 const password = ref('');
 const errorMessage = ref('');
+const successMessage = ref('');
 const loading = ref(false);
+const showRefreshOption = ref(false);
 const router = useRouter();
 const route = useRoute();
 
+// Get session state for reactive updates
+const sessionState = authClient.useSession();
+
 const handleLogin = async () => {
   errorMessage.value = '';
+  successMessage.value = '';
   loading.value = true;
+  
   try {
     // Attempt to sign in
     const response = await authClient.signIn.email({
@@ -103,32 +132,80 @@ const handleLogin = async () => {
       password: password.value,
     });
 
-    // Wait a moment for the session to be established
-    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('Login response:', response);
+
+    // Show success message
+    successMessage.value = 'Login successful! Redirecting...';
+
+    // Wait for session to be properly established
+    let attempts = 0;
+    const maxAttempts = 10;
     
-    // Check for a redirect query parameter
-    const redirectPath = route.query.redirect as string | undefined;
-    if (redirectPath) {
-      await navigateTo(redirectPath);
-    } else {
-      // Use role-based routing to determine where to send the user
-      const { getDefaultRoute } = useRoleBasedRouting();
-      const defaultRoute = getDefaultRoute.value;
-      await navigateTo(defaultRoute);
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await nextTick();
+      
+      // Check if session is established
+      if (sessionState.value?.data?.user) {
+        console.log('Session established:', sessionState.value.data.user);
+        break;
+      }
+      
+      attempts++;
+      console.log(`Waiting for session... attempt ${attempts}/${maxAttempts}`);
+    }
+
+    if (!sessionState.value?.data?.user) {
+      // Show refresh option instead of throwing error
+      showRefreshOption.value = true;
+      successMessage.value = 'Login successful! If you are not redirected automatically, please refresh the page.';
+      return;
+    }
+
+    // Wait a bit more to ensure everything is ready
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    try {
+      // Check for a redirect query parameter
+      const redirectPath = route.query.redirect as string | undefined;
+      if (redirectPath) {
+        console.log('Redirecting to:', redirectPath);
+        await navigateTo(redirectPath);
+      } else {
+        // Use role-based routing to determine where to send the user
+        const { getDefaultRoute } = useRoleBasedRouting();
+        const defaultRoute = getDefaultRoute.value;
+        console.log('Redirecting to default route:', defaultRoute);
+        await navigateTo(defaultRoute);
+      }
+    } catch (navError) {
+      console.error('Navigation error:', navError);
+      showRefreshOption.value = true;
+      successMessage.value = 'Login successful! Please refresh the page to continue.';
     }
 
   } catch (e: unknown) {
-    const error = e as AuthError; // Type assertion
+    const error = e as AuthError;
     console.error('Login error:', error);
-    // Try to extract a meaningful error message
-    if (error && error.data && typeof error.data.message === 'string') {
-        errorMessage.value = error.data.message;
-    } else if (error && error.response && error.response._data && typeof error.response._data.message === 'string') {
-        errorMessage.value = error.response._data.message;
-    } else if (error instanceof Error && typeof error.message === 'string') { 
-        errorMessage.value = error.message;
+    
+    // Clear success message on error
+    successMessage.value = '';
+    
+    // Provide specific error messages based on error type
+    if (error?.statusCode === 401) {
+      errorMessage.value = 'Invalid email or password. Please check your credentials and try again.';
+    } else if (error?.statusCode === 404) {
+      errorMessage.value = 'User not found. Please check your email address.';
+    } else if (error?.statusCode === 429) {
+      errorMessage.value = 'Too many login attempts. Please wait a moment and try again.';
+    } else if (error?.data?.message) {
+      errorMessage.value = error.data.message;
+    } else if (error?.response?._data?.message) {
+      errorMessage.value = error.response._data.message;
+    } else if (error instanceof Error && error.message) {
+      errorMessage.value = error.message;
     } else {
-        errorMessage.value = 'Failed to sign in. Please check your credentials or contact support.';
+      errorMessage.value = 'Login failed. Please check your credentials and try again.';
     }
   } finally {
     loading.value = false;
