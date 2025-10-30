@@ -855,6 +855,10 @@ const metadata = {
                     name: "purchaseOrderNumber",
                     type: "String",
                     isOptional: true,
+                }, poNumber: {
+                    name: "poNumber",
+                    type: "String",
+                    isOptional: true,
                 }, estimateId: {
                     name: "estimateId",
                     type: "String",
@@ -1222,6 +1226,12 @@ const metadata = {
                     isDataModel: true,
                     isOptional: true,
                     backLink: 'orderItem',
+                }, printQueueItem: {
+                    name: "printQueueItem",
+                    type: "PrintQueue",
+                    isDataModel: true,
+                    isOptional: true,
+                    backLink: 'orderItem',
                 },
             }, uniqueConstraints: {
                 id: {
@@ -1377,6 +1387,14 @@ const metadata = {
                     type: "String",
                     isOptional: true,
                     attributes: [{ "name": "@default", "args": [{ "value": "0" }] }],
+                }, tieDownLength: {
+                    name: "tieDownLength",
+                    type: "String",
+                    isOptional: true,
+                }, poNumber: {
+                    name: "poNumber",
+                    type: "String",
+                    isOptional: true,
                 }, notes: {
                     name: "notes",
                     type: "String",
@@ -1443,6 +1461,57 @@ const metadata = {
                     name: "updatedAt",
                     type: "DateTime",
                     attributes: [{ "name": "@updatedAt", "args": [] }],
+                },
+            }, uniqueConstraints: {
+                id: {
+                    name: "id",
+                    fields: ["id"]
+                }, orderItemId: {
+                    name: "orderItemId",
+                    fields: ["orderItemId"]
+                },
+            },
+        },
+        printQueue: {
+            name: 'PrintQueue', fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    isId: true,
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, orderItemId: {
+                    name: "orderItemId",
+                    type: "String",
+                    isForeignKey: true,
+                    relationField: 'orderItem',
+                }, orderItem: {
+                    name: "orderItem",
+                    type: "OrderItem",
+                    isDataModel: true,
+                    backLink: 'printQueueItem',
+                    isRelationOwner: true,
+                    onDeleteAction: 'Cascade',
+                    foreignKeyMapping: { "id": "orderItemId" },
+                }, isPrinted: {
+                    name: "isPrinted",
+                    type: "Boolean",
+                    attributes: [{ "name": "@default", "args": [{ "value": false }] }],
+                }, addedAt: {
+                    name: "addedAt",
+                    type: "DateTime",
+                    attributes: [{ "name": "@default", "args": [] }],
+                }, printedAt: {
+                    name: "printedAt",
+                    type: "DateTime",
+                    isOptional: true,
+                }, addedBy: {
+                    name: "addedBy",
+                    type: "String",
+                    isOptional: true,
+                }, printedBy: {
+                    name: "printedBy",
+                    type: "String",
+                    isOptional: true,
                 },
             }, uniqueConstraints: {
                 id: {
@@ -2122,7 +2191,7 @@ const metadata = {
         permission: ['RolePermission'],
         station: ['RoleStation'],
         order: ['OrderItem', 'OrderStatusLog'],
-        orderItem: ['ItemProcessingLog', 'ProductAttribute', 'ItemStatusLog'],
+        orderItem: ['ItemProcessingLog', 'ProductAttribute', 'PrintQueue', 'ItemStatusLog'],
         estimate: ['EstimateItem'],
 
     },
