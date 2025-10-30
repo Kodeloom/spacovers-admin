@@ -71,13 +71,12 @@ const props = defineProps<Props>();
 
 const splitLabelRefs = ref<Record<string, HTMLElement>>({});
 
-// Initialize print queue
+// Initialize database print queue
 const {
-  addToQueue,
   isItemQueued,
   getQueueStatus,
-  error: queueError
-} = usePrintQueue();
+  refetchPrintQueue
+} = useDatabasePrintQueue();
 
 const queueStatus = getQueueStatus();
 
@@ -114,54 +113,77 @@ function setSplitLabelRef(el: any, itemId: string) {
   }
 }
 
-// Handler for adding single item to print queue
+// Handler for adding single item to print queue (database)
 async function handleAddToQueue(orderItem: any) {
   if (isItemQueued(orderItem.id)) {
     return; // Item already in queue
   }
 
-  // Transform order item to include required relations for print queue
-  const orderItemWithRelations = {
-    ...orderItem,
-    order: {
-      ...props.order,
-      customer: props.order.customer
-    },
-    item: orderItem.item
-  };
+  try {
+    const response = await $fetch<{ success: boolean; message: string }>('/api/admin/print-queue/add-item', {
+      method: 'POST',
+      body: {
+        orderItemId: orderItem.id
+      }
+    });
 
-  const success = await addToQueue(orderItemWithRelations);
-
-  if (!success && queueError.value) {
-    // Show error message to user
-    alert(`Failed to add item to queue: ${queueError.value.message}`);
+    if (response.success) {
+      console.log('Item added to print queue:', response.message);
+      // Refresh the queue to update UI
+      await refetchPrintQueue();
+    } else {
+      alert(`Failed to add item to queue: ${response.message}`);
+    }
+  } catch (error) {
+    console.error('Error adding item to print queue:', error);
+    alert('Failed to add item to queue. Please try again.');
   }
 }
 
-// Handler for adding all production items to print queue
+// Handler for adding all production items to print queue (database)
 async function handleAddAllToQueue() {
   if (allItemsQueued.value) {
     return; // All items already in queue
   }
 
   const itemsToAdd = productionItems.value.filter((item: any) => !isItemQueued(item.id));
+  let successCount = 0;
+  let errorCount = 0;
 
   for (const orderItem of itemsToAdd) {
-    const orderItemWithRelations = {
-      ...orderItem,
-      order: {
-        ...props.order,
-        customer: props.order.customer
-      },
-      item: orderItem.item
-    };
+    try {
+      const response = await $fetch<{ success: boolean; message: string }>('/api/admin/print-queue/add-item', {
+        method: 'POST',
+        body: {
+          orderItemId: orderItem.id
+        }
+      });
 
-    const success = await addToQueue(orderItemWithRelations);
-
-    if (!success && queueError.value) {
-      // Show error for this specific item but continue with others
-      console.error(`Failed to add ${orderItem.item?.name} to queue:`, queueError.value.message);
+      if (response.success) {
+        successCount++;
+        console.log(`Added ${orderItem.item?.name} to print queue`);
+      } else {
+        errorCount++;
+        console.error(`Failed to add ${orderItem.item?.name} to queue:`, response.message);
+      }
+    } catch (error) {
+      errorCount++;
+      console.error(`Failed to add ${orderItem.item?.name} to queue:`, error);
     }
+  }
+
+  // Refresh the queue to update UI
+  if (successCount > 0) {
+    await refetchPrintQueue();
+  }
+
+  // Show summary message
+  if (successCount > 0 && errorCount === 0) {
+    console.log(`Successfully added ${successCount} item${successCount === 1 ? '' : 's'} to print queue`);
+  } else if (successCount > 0 && errorCount > 0) {
+    alert(`Added ${successCount} item${successCount === 1 ? '' : 's'} to print queue, but ${errorCount} failed. Please check the console for details.`);
+  } else if (errorCount > 0) {
+    alert(`Failed to add ${errorCount} item${errorCount === 1 ? '' : 's'} to print queue. Please try again.`);
   }
 }
 </script>
