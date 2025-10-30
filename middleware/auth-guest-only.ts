@@ -2,14 +2,23 @@ import { defineNuxtRouteMiddleware, navigateTo } from '#app';
 import { authClient } from '~/lib/auth-client';
 
 export default defineNuxtRouteMiddleware(async (_to, _from) => {
+  // Skip middleware on server-side to avoid hydration issues
+  if (process.server) {
+    return;
+  }
+
   // Check if user is already authenticated
   try {
     const sessionState = authClient.useSession();
     
+    // Give some time for session to load on client-side
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // If the user is authenticated (sessionData exists and has a user)
     if (sessionState.value?.data?.user) {
-      // Redirect them to the home page or another appropriate page
-      return navigateTo('/');
+      console.log('User already authenticated, redirecting to admin');
+      // Redirect them to the admin page
+      return navigateTo('/admin');
     }
   } catch (error) {
     // If there's an error checking session, allow access to login page

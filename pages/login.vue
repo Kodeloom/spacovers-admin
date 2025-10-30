@@ -135,60 +135,20 @@ const handleLogin = async () => {
     console.log('Login response:', response);
 
     // Check if the response indicates an error (some auth libraries return error in response)
-    if (response && typeof response === 'object' && 'error' in response) {
+    if (response && typeof response === 'object' && 'error' in response && response.error) {
       throw new Error(response.error as string || 'Authentication failed');
     }
 
-    // Wait for session to be properly established before showing success
-    let attempts = 0;
-    const maxAttempts = 10;
-    let sessionEstablished = false;
-    
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await nextTick();
-      
-      // Check if session is established
-      if (sessionState.value?.data?.user) {
-        console.log('Session established:', sessionState.value.data.user);
-        sessionEstablished = true;
-        break;
-      }
-      
-      attempts++;
-      console.log(`Waiting for session... attempt ${attempts}/${maxAttempts}`);
-    }
-
-    // Only show success message if session is actually established
-    if (!sessionEstablished) {
-      throw new Error('Authentication failed - session not established. Please check your credentials.');
-    }
-
-    // Double-check authentication by verifying the session with the server
-    try {
-      const sessionCheck = await $fetch('/api/auth/get-session', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!sessionCheck?.user) {
-        throw new Error('Authentication failed - invalid session. Please check your credentials.');
-      }
-      
-      console.log('Session verified with server:', sessionCheck.user);
-    } catch (sessionError) {
-      console.error('Session verification failed:', sessionError);
-      throw new Error('Authentication failed - could not verify session. Please check your credentials.');
-    }
-
-    // Show success message only after confirming authentication worked
+    // Show success message immediately after successful auth response
     successMessage.value = 'Login successful! Redirecting...';
+
+    // Wait a moment for session to be established
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Wait a bit more to ensure everything is ready
     await new Promise(resolve => setTimeout(resolve, 300));
     
+    // Navigate to appropriate page
     try {
       // Check for a redirect query parameter
       const redirectPath = route.query.redirect as string | undefined;
@@ -196,14 +156,13 @@ const handleLogin = async () => {
         console.log('Redirecting to:', redirectPath);
         await navigateTo(redirectPath);
       } else {
-        // Use role-based routing to determine where to send the user
-        const { getDefaultRoute } = useRoleBasedRouting();
-        const defaultRoute = getDefaultRoute.value;
-        console.log('Redirecting to default route:', defaultRoute);
-        await navigateTo(defaultRoute);
+        // Default redirect to admin dashboard
+        console.log('Redirecting to admin dashboard');
+        await navigateTo('/');
       }
     } catch (navError) {
       console.error('Navigation error:', navError);
+      // If navigation fails, show refresh option
       showRefreshOption.value = true;
       successMessage.value = 'Login successful! Please refresh the page to continue.';
     }
