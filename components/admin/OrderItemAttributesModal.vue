@@ -24,16 +24,47 @@
         </div>
       </div>
 
-      <!-- Product Attributes Form -->
-      <ProductAttributesForm
-        v-model="attributesForm"
-        :item-index="0"
-        :customer-id="orderItem.order?.customerId"
-        :is-verified="isVerified"
-        :user-role="userRole"
-        @validation-change="handleValidationChange"
-        @po-duplicate-confirmed="handlePODuplicateConfirmed"
-      />
+      <!-- Read-only Warning for Verified Items -->
+      <div v-if="isVerified && userRole !== 'Super Admin'" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="flex items-center">
+          <Icon name="heroicons:lock-closed" class="h-5 w-5 text-blue-600 mr-3" />
+          <div>
+            <h4 class="text-sm font-medium text-blue-900">Attributes Locked (Verified)</h4>
+            <p class="text-sm text-blue-800">These product attributes have been verified and cannot be modified to ensure production accuracy.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Super Admin Override Warning -->
+      <div v-else-if="isVerified && userRole === 'Super Admin'" class="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+        <div class="flex items-center">
+          <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 text-orange-600 mr-3" />
+          <div>
+            <h4 class="text-sm font-medium text-orange-900">Super Admin Override Active</h4>
+            <p class="text-sm text-orange-800">You are editing verified attributes on an approved order. This action will be logged for audit purposes.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Attributes Form or Display -->
+      <div v-if="isReadOnlyMode">
+        <ProductAttributesDisplay 
+          :attributes="orderItem.productAttributes || {}"
+          :is-read-only="true"
+          :read-only-reason="'verified-approved'"
+        />
+      </div>
+      <div v-else>
+        <ProductAttributesForm
+          v-model="attributesForm"
+          :item-index="0"
+          :customer-id="orderItem.order?.customerId"
+          :is-verified="isVerified"
+          :user-role="userRole"
+          @validation-change="handleValidationChange"
+          @po-duplicate-confirmed="handlePODuplicateConfirmed"
+        />
+      </div>
 
       <!-- Save Status -->
       <div v-if="saveStatus?.message" class="p-4 rounded-lg" :class="saveStatus.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
@@ -135,9 +166,9 @@ const isSaving = ref(false)
 const saveStatus = ref<{ type: 'success' | 'error', message: string } | null>(null)
 
 // Get user session data
-const { data: sessionData } = await authClient.useSession(useFetch)
+const sessionState = authClient.useSession()
 const userRole = computed(() => {
-  const user = sessionData.value?.user
+  const user = sessionState.value?.data?.user
   if (user?.roles && Array.isArray(user.roles)) {
     const adminRole = user.roles.find((userRole: any) => 
       ['Super Admin', 'Admin', 'Manager'].includes(userRole.role?.name)
@@ -150,6 +181,11 @@ const userRole = computed(() => {
 // Check if item is verified
 const isVerified = computed(() => {
   return props.orderItem?.productAttributes?.verified || false
+})
+
+// Check if modal should be in read-only mode
+const isReadOnlyMode = computed(() => {
+  return isVerified.value && userRole.value !== 'Super Admin'
 })
 
 // Watch for orderItem changes and populate form
