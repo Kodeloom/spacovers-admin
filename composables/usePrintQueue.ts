@@ -27,6 +27,15 @@ export interface SplitLabelData {
   size: string
   type: string
   color: string
+  shape: string
+  radiusSize: string
+  skirtType: string
+  skirtLength: string
+  tieDownsQty: string
+  tieDownPlacement: string
+  tieDownLength: string
+  distance: string
+  foam: string
   date: string
   barcode: string
   upgrades: string[]
@@ -395,6 +404,7 @@ export const usePrintQueue = () => {
     const skirtLength = attrs?.skirtLength || '0'
     const tieDownsQty = attrs?.tieDownsQty || '0'
     const tieDownPlacement = attrs?.tieDownPlacement === 'HANDLE_SIDE' ? 'Handle Side' : (attrs?.tieDownPlacement || 'Standard')
+    const tieDownLength = (attrs as any)?.tieDownLength || '-'
     const distance = attrs?.distance || '0'
 
     // Size logic: show width x length if both available, otherwise show size
@@ -421,11 +431,12 @@ export const usePrintQueue = () => {
       }
     }
 
-    const type = getProductTypeDisplay(attrs?.productType)
+    const type = getProductTypeDisplay(attrs?.productType || '')
 
     return {
       orderItem,
       customer: orderItem.order.customer.name,
+      thickness: '', // Legacy field, keeping for compatibility
       type,
       color,
       size: sizeDisplay,
@@ -435,6 +446,7 @@ export const usePrintQueue = () => {
       skirtLength,
       tieDownsQty,
       tieDownPlacement,
+      tieDownLength,
       distance,
       foam,
       date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
@@ -1208,6 +1220,7 @@ export const usePrintQueue = () => {
       const safeSkirtLength = sanitizeText(labelData.skirtLength)
       const safeTieDownsQty = sanitizeText(labelData.tieDownsQty)
       const safeTieDownPlacement = sanitizeText(labelData.tieDownPlacement)
+      const safeTieDownLength = sanitizeText(labelData.tieDownLength || '-')
       const safeDistance = sanitizeText(labelData.distance)
       const safeFoam = sanitizeText(labelData.foam)
 
@@ -1308,6 +1321,10 @@ export const usePrintQueue = () => {
                     <span class="spec-value">${safeDistance}"</span>
                   </div>
                   <div class="spec-item">
+                    <span class="spec-label">TD Length:</span>
+                    <span class="spec-value">${safeTieDownLength}</span>
+                  </div>
+                  <div class="spec-item">
                     <span class="spec-label">Foam:</span>
                     <span class="spec-value">${safeFoam}"</span>
                   </div>
@@ -1399,6 +1416,10 @@ export const usePrintQueue = () => {
                   <div class="spec-item compact">
                     <span class="spec-label">Distance:</span>
                     <span class="spec-value">${safeDistance}"</span>
+                  </div>
+                  <div class="spec-item compact">
+                    <span class="spec-label">TD Len:</span>
+                    <span class="spec-value">${safeTieDownLength}</span>
                   </div>
                   <div class="spec-item compact">
                     <span class="spec-label">Foam:</span>
