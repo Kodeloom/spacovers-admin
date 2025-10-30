@@ -4,7 +4,7 @@ import { PerformanceMonitor } from '~/utils/performanceMonitor';
 
 /**
  * Orders Metrics API Endpoint
- * Returns orders page metrics with optional filtering support
+ * Returns orders page KPI metrics with optional filtering support
  * 
  * Query Parameters:
  * - status: Array of order statuses to filter by (e.g., ?status=PENDING&status=ORDER_PROCESSING)
@@ -13,7 +13,7 @@ import { PerformanceMonitor } from '~/utils/performanceMonitor';
  * - customerId: Customer ID to filter by
  * - priority: Array of priorities to filter by (e.g., ?priority=HIGH&priority=MEDIUM)
  * 
- * Requirements: 12.1, 12.2, 12.3
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5
  */
 export default defineEventHandler(async (event) => {
   try {
@@ -30,10 +30,10 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const filters = parseOrderFilters(query);
 
-    // Calculate orders page metrics using the MetricsService with performance tracking
+    // Calculate orders page KPI metrics using the MetricsService with performance tracking
     const trackedGetMetrics = PerformanceMonitor.trackPerformance(
-      'orders_metrics',
-      () => MetricsService.getOrdersPageMetrics(filters)
+      'orders_kpi_metrics',
+      () => MetricsService.getOrdersKPIMetrics(filters)
     );
     const metrics = await trackedGetMetrics();
 
@@ -53,27 +53,33 @@ export default defineEventHandler(async (event) => {
       throw error;
     }
     
-    // For any other errors, return a generic 500 error with fallback metrics
+    // For any other errors, return a generic 500 error with fallback KPI metrics
     throw createError({
       statusCode: 500,
-      statusMessage: 'Error calculating orders metrics',
+      statusMessage: 'Error calculating orders KPI metrics',
       data: {
         success: false,
-        error: 'Failed to calculate orders metrics',
+        error: 'Failed to calculate orders KPI metrics',
         fallbackData: {
+          // Order Status KPIs
+          ordersPending: 0,
+          ordersApproved: 0,
+          ordersInProgress: 0,
+          ordersReadyToShip: 0,
+          ordersCompleted: 0,
+          
+          // Production Item KPIs
+          itemsInProduction: 0,
+          itemsNotStarted: 0,
+          itemsCompleted: 0,
+          
+          // Performance KPIs
+          avgLeadTimeHours: 0,
+          
+          // Legacy fields for backward compatibility
           statusCounts: {},
           totalValue: 0,
-          averageOrderValue: 0,
-          totalOrders: 0,
-          productionMetrics: {
-            notStarted: 0,
-            cutting: 0,
-            sewing: 0,
-            foamCutting: 0,
-            packaging: 0,
-            finished: 0,
-            ready: 0
-          }
+          averageOrderValue: 0
         },
         timestamp: new Date().toISOString()
       }
