@@ -134,12 +134,15 @@ const handleLogin = async () => {
 
     console.log('Login response:', response);
 
-    // Show success message
-    successMessage.value = 'Login successful! Redirecting...';
+    // Check if the response indicates an error (some auth libraries return error in response)
+    if (response && typeof response === 'object' && 'error' in response) {
+      throw new Error(response.error as string || 'Authentication failed');
+    }
 
-    // Wait for session to be properly established
+    // Wait for session to be properly established before showing success
     let attempts = 0;
     const maxAttempts = 10;
+    let sessionEstablished = false;
     
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -148,6 +151,7 @@ const handleLogin = async () => {
       // Check if session is established
       if (sessionState.value?.data?.user) {
         console.log('Session established:', sessionState.value.data.user);
+        sessionEstablished = true;
         break;
       }
       
@@ -155,12 +159,32 @@ const handleLogin = async () => {
       console.log(`Waiting for session... attempt ${attempts}/${maxAttempts}`);
     }
 
-    if (!sessionState.value?.data?.user) {
-      // Show refresh option instead of throwing error
-      showRefreshOption.value = true;
-      successMessage.value = 'Login successful! If you are not redirected automatically, please refresh the page.';
-      return;
+    // Only show success message if session is actually established
+    if (!sessionEstablished) {
+      throw new Error('Authentication failed - session not established. Please check your credentials.');
     }
+
+    // Double-check authentication by verifying the session with the server
+    try {
+      const sessionCheck = await $fetch('/api/auth/get-session', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!sessionCheck?.user) {
+        throw new Error('Authentication failed - invalid session. Please check your credentials.');
+      }
+      
+      console.log('Session verified with server:', sessionCheck.user);
+    } catch (sessionError) {
+      console.error('Session verification failed:', sessionError);
+      throw new Error('Authentication failed - could not verify session. Please check your credentials.');
+    }
+
+    // Show success message only after confirming authentication worked
+    successMessage.value = 'Login successful! Redirecting...';
 
     // Wait a bit more to ensure everything is ready
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -188,8 +212,9 @@ const handleLogin = async () => {
     const error = e as AuthError;
     console.error('Login error:', error);
     
-    // Clear success message on error
+    // Clear success message and refresh option on error
     successMessage.value = '';
+    showRefreshOption.value = false;
     
     // Provide specific error messages based on error type
     if (error?.statusCode === 401) {
@@ -198,12 +223,14 @@ const handleLogin = async () => {
       errorMessage.value = 'User not found. Please check your email address.';
     } else if (error?.statusCode === 429) {
       errorMessage.value = 'Too many login attempts. Please wait a moment and try again.';
+    } else if (error instanceof Error && error.message.includes('Authentication failed')) {
+      errorMessage.value = error.message;
     } else if (error?.data?.message) {
       errorMessage.value = error.data.message;
     } else if (error?.response?._data?.message) {
       errorMessage.value = error.response._data.message;
     } else if (error instanceof Error && error.message) {
-      errorMessage.value = error.message;
+      errorMessage.value = `Login failed: ${error.message}`;
     } else {
       errorMessage.value = 'Login failed. Please check your credentials and try again.';
     }
