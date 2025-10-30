@@ -49,6 +49,31 @@ export interface OrdersPageMetrics {
 }
 
 /**
+ * Interface for orders KPI dashboard metrics data
+ */
+export interface OrdersKPIMetrics {
+  // Order Status KPIs
+  ordersPending: number;
+  ordersApproved: number;
+  ordersInProgress: number;
+  ordersReadyToShip: number;
+  ordersCompleted: number;
+  
+  // Production Item KPIs
+  itemsInProduction: number;
+  itemsNotStarted: number;
+  itemsCompleted: number;
+  
+  // Performance KPIs
+  avgLeadTimeHours: number;
+  
+  // Legacy fields for backward compatibility
+  statusCounts: Record<string, number>;
+  totalValue: number;
+  averageOrderValue: number;
+}
+
+/**
  * Interface for date range filtering in metrics
  */
 export interface MetricsDateRange {
@@ -362,7 +387,7 @@ export class MetricsService {
   /**
    * Get count of items that have not started production
    * Only counts production items (isProduct: true) with NOT_STARTED_PRODUCTION status
-   * As per requirements 6.1, 6.2, 6.3, 6.4, 6.5
+   * As per requirements 3.2, 3.4, 3.5, 8.1, 8.2, 8.3, 8.4, 8.5
    * @param filters - Optional filters to apply to the calculation
    * @returns Promise<number> - Items not started count, 0 on error
    */
@@ -389,13 +414,12 @@ export class MetricsService {
         orderWhereClause.priority = { in: filters.priority };
       }
 
-      // Count items not started with proper filtering
+      // Requirement 3.2: Count items with NOT_STARTED_PRODUCTION status
+      // Requirement 3.4: Only count production items (isProduct: true)
       const count = await prisma.orderItem.count({
         where: {
-          // Requirement 6.2: Only items with NOT_STARTED_PRODUCTION status
           itemStatus: 'NOT_STARTED_PRODUCTION',
-          // Requirement 6.1, 6.5: Only count production items
-          isProduct: true,
+          isProduct: true, // Requirement 3.4: Only count production items
           // Apply order filters if provided
           ...(Object.keys(orderWhereClause).length > 0 && {
             order: orderWhereClause
@@ -403,9 +427,11 @@ export class MetricsService {
         }
       });
 
-      return count;
+      // Requirement 8.1, 8.2: Ensure count is valid
+      return this.safeNumber(count, 0);
     } catch (error) {
       console.error('Error calculating items not started:', error);
+      // Requirement 8.1, 8.2, 8.3, 8.4, 8.5: Proper error handling with fallback values
       return 0;
     }
   }
@@ -725,6 +751,358 @@ export class MetricsService {
   }
 
   /**
+   * Get orders KPI dashboard metrics with caching and optimized queries
+   * Calculates new KPI metrics for order statuses, production items, and lead times
+   * As per requirements 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 8.1, 8.2, 8.3, 8.4, 8.5
+   * @param filters - Optional filters to apply to the metrics calculation
+   * @returns Promise<OrdersKPIMetrics> - Orders KPI metrics with fallback values
+   */
+  static async getOrdersKPIMetrics(filters?: OrderFilters): Promise<OrdersKPIMetrics> {
+    const startTime = Date.now();
+    let cacheHit = false;
+    
+    try {
+      // Check cache first for performance optimization (Requirement 8.1)
+      const cacheKey = CacheService.getOrdersKPICacheKey(filters);
+      const cachedData = CacheService.get<OrdersKPIMetrics>(cacheKey);
+      
+      if (cachedData) {
+        cacheHit = true;
+        PerformanceMonitor.recordQuery('getOrdersKPIMetrics', Date.now() - startTime, true, undefined, filters);
+        return cachedData;
+      }
+
+      // Calculate individual KPI metrics using Promise.allSettled for robust error handling
+      // Requirement 8.3: Maintain consistent performance even if some metrics fail
+      const [
+        ordersPending,
+        ordersApproved,
+        ordersInProgress,
+        ordersReadyToShip,
+        ordersCompleted,
+        itemsInProduction,
+        itemsNotStarted,
+        itemsCompleted,
+        avgLeadTimeHours,
+        legacyMetrics
+      ] = await Promise.allSettled([
+        this.getOrdersByStatus('PENDING', filters),      // Requirement 2.1
+        this.getOrdersByStatus('APPROVED', filters),     // Requirement 2.1
+        this.getOrdersByStatus('ORDER_PROCESSING', filters), // Requirement 2.1
+        this.getOrdersByStatus('READY_TO_SHIP', filters),    // Requirement 2.1
+        this.getOrdersByStatus('COMPLETED', filters),    // Requirement 2.1
+        this.getItemsInProduction(filters),              // Requirement 3.1
+        this.getItemsNotStarted(filters),                // Requirement 3.2
+        this.getItemsCompleted(filters),                 // Requirement 3.3
+        this.getAverageLeadTimeHours(filters),           // Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+        this.getOrdersPageMetrics(filters)               // For backward compatibility (Requirement 10.2)
+      ]);
+
+      const result: OrdersKPIMetrics = {
+        // Order Status KPIs (Requirements 2.1, 2.2, 2.3, 2.4, 2.5)
+        ordersPending: this.extractValue(ordersPending, 0),
+        ordersApproved: this.extractValue(ordersApproved, 0),
+        ordersInProgress: this.extractValue(ordersInProgress, 0),
+        ordersReadyToShip: this.extractValue(ordersReadyToShip, 0),
+        ordersCompleted: this.extractValue(ordersCompleted, 0),
+        
+        // Production Item KPIs (Requirements 3.1, 3.2, 3.3, 3.4, 3.5)
+        itemsInProduction: this.extractValue(itemsInProduction, 0),
+        itemsNotStarted: this.extractValue(itemsNotStarted, 0),
+        itemsCompleted: this.extractValue(itemsCompleted, 0),
+        
+        // Performance KPIs (Requirements 1.1, 1.2, 1.3, 1.4, 1.5)
+        avgLeadTimeHours: this.extractValue(avgLeadTimeHours, 0),
+        
+        // Legacy fields for backward compatibility (Requirement 10.2)
+        statusCounts: this.extractValue(legacyMetrics, this.getDefaultOrdersPageMetrics()).statusCounts,
+        totalValue: this.extractValue(legacyMetrics, this.getDefaultOrdersPageMetrics()).totalValue,
+        averageOrderValue: this.extractValue(legacyMetrics, this.getDefaultOrdersPageMetrics()).averageOrderValue
+      };
+
+      // Cache the result for performance optimization (Requirement 8.1)
+      CacheService.set(cacheKey, result);
+      
+      // Record performance metrics (Requirement 8.4)
+      const executionTime = Date.now() - startTime;
+      PerformanceMonitor.recordQuery('getOrdersKPIMetrics', executionTime, false, undefined, filters);
+      
+      // Log warning if execution time exceeds 3 seconds (Requirement 8.4)
+      if (executionTime > 3000) {
+        console.warn(`Orders KPI metrics calculation took ${executionTime}ms, exceeding 3 second target`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error calculating orders KPI metrics:', error);
+      PerformanceMonitor.recordQuery('getOrdersKPIMetrics', Date.now() - startTime, cacheHit, undefined, filters);
+      // Requirement 8.5: Display appropriate error messages instead of incorrect data
+      return this.getDefaultOrdersKPIMetrics();
+    }
+  }
+
+  /**
+   * Get count of orders by specific status with optional filtering
+   * As per requirements 2.1, 2.2, 2.3, 2.4, 2.5, 8.1, 8.2, 8.3, 8.4, 8.5
+   * @param status - Order status to count
+   * @param filters - Optional filters to apply
+   * @returns Promise<number> - Order count for the specified status
+   */
+  static async getOrdersByStatus(status: string, filters?: OrderFilters): Promise<number> {
+    try {
+      // Validate status parameter
+      if (!status || typeof status !== 'string') {
+        console.warn('Invalid status parameter provided to getOrdersByStatus:', status);
+        return 0;
+      }
+
+      // Build where clause
+      const whereClause: any = {
+        orderStatus: status.toUpperCase() // Ensure consistent case
+      };
+      
+      if (filters?.dateFrom || filters?.dateTo) {
+        whereClause.createdAt = {};
+        if (filters.dateFrom) whereClause.createdAt.gte = filters.dateFrom;
+        if (filters.dateTo) whereClause.createdAt.lte = filters.dateTo;
+      }
+      
+      if (filters?.customerId) {
+        whereClause.customerId = filters.customerId;
+      }
+      
+      if (filters?.priority && filters.priority.length > 0) {
+        whereClause.priority = { in: filters.priority };
+      }
+
+      const count = await prisma.order.count({
+        where: whereClause
+      });
+
+      // Requirement 8.1, 8.2: Ensure count is valid
+      return this.safeNumber(count, 0);
+    } catch (error) {
+      console.error(`Error calculating orders by status ${status}:`, error);
+      // Requirement 8.1, 8.2, 8.3, 8.4, 8.5: Proper error handling with fallback values
+      return 0;
+    }
+  }
+
+  /**
+   * Get count of production items currently in production
+   * Only counts items with isProduct: true and status in CUTTING, SEWING, FOAM_CUTTING, PACKAGING
+   * Excludes NOT_STARTED_PRODUCTION, PRODUCT_FINISHED, READY as per requirements 3.1, 3.2, 3.3, 3.4, 3.5
+   * @param filters - Optional filters to apply to the calculation
+   * @returns Promise<number> - Items in production count, 0 on error
+   */
+  static async getItemsInProduction(filters?: OrderFilters): Promise<number> {
+    try {
+      // Build where clause for orders if filters are provided
+      const orderWhereClause: any = {};
+      
+      if (filters?.status && filters.status.length > 0) {
+        orderWhereClause.orderStatus = { in: filters.status };
+      }
+      
+      if (filters?.dateFrom || filters?.dateTo) {
+        orderWhereClause.createdAt = {};
+        if (filters.dateFrom) orderWhereClause.createdAt.gte = filters.dateFrom;
+        if (filters.dateTo) orderWhereClause.createdAt.lte = filters.dateTo;
+      }
+      
+      if (filters?.customerId) {
+        orderWhereClause.customerId = filters.customerId;
+      }
+      
+      if (filters?.priority && filters.priority.length > 0) {
+        orderWhereClause.priority = { in: filters.priority };
+      }
+
+      // Requirement 3.1: Count items in production - exclude NOT_STARTED_PRODUCTION, PRODUCT_FINISHED, READY
+      // Requirement 3.4: Only count production items (isProduct: true)
+      const count = await prisma.orderItem.count({
+        where: {
+          itemStatus: {
+            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING']
+          },
+          isProduct: true, // Requirement 3.4: Only count production items
+          // Apply order filters if provided
+          ...(Object.keys(orderWhereClause).length > 0 && {
+            order: orderWhereClause
+          })
+        }
+      });
+
+      // Requirement 8.1, 8.2: Ensure count is valid
+      return this.safeNumber(count, 0);
+    } catch (error) {
+      console.error('Error calculating items in production:', error);
+      // Requirement 8.1, 8.2, 8.3, 8.4, 8.5: Proper error handling with fallback values
+      return 0;
+    }
+  }
+
+  /**
+   * Get count of production items that are completed
+   * Only counts items with isProduct: true and status PRODUCT_FINISHED or READY
+   * As per requirements 3.3, 3.4, 3.5, 8.1, 8.2, 8.3, 8.4, 8.5
+   * @param filters - Optional filters to apply to the calculation
+   * @returns Promise<number> - Items completed count, 0 on error
+   */
+  static async getItemsCompleted(filters?: OrderFilters): Promise<number> {
+    try {
+      // Build where clause for orders if filters are provided
+      const orderWhereClause: any = {};
+      
+      if (filters?.status && filters.status.length > 0) {
+        orderWhereClause.orderStatus = { in: filters.status };
+      }
+      
+      if (filters?.dateFrom || filters?.dateTo) {
+        orderWhereClause.createdAt = {};
+        if (filters.dateFrom) orderWhereClause.createdAt.gte = filters.dateFrom;
+        if (filters.dateTo) orderWhereClause.createdAt.lte = filters.dateTo;
+      }
+      
+      if (filters?.customerId) {
+        orderWhereClause.customerId = filters.customerId;
+      }
+      
+      if (filters?.priority && filters.priority.length > 0) {
+        orderWhereClause.priority = { in: filters.priority };
+      }
+
+      // Requirement 3.3: Count completed items (PRODUCT_FINISHED or READY)
+      // Requirement 3.4: Only count production items (isProduct: true)
+      const count = await prisma.orderItem.count({
+        where: {
+          itemStatus: {
+            in: ['PRODUCT_FINISHED', 'READY']
+          },
+          isProduct: true, // Requirement 3.4: Only count production items
+          // Apply order filters if provided
+          ...(Object.keys(orderWhereClause).length > 0 && {
+            order: orderWhereClause
+          })
+        }
+      });
+
+      // Requirement 8.1, 8.2: Ensure count is valid
+      return this.safeNumber(count, 0);
+    } catch (error) {
+      console.error('Error calculating items completed:', error);
+      // Requirement 8.1, 8.2, 8.3, 8.4, 8.5: Proper error handling with fallback values
+      return 0;
+    }
+  }
+
+  /**
+   * Calculate average lead time in hours for completed items in the last 60 days
+   * Lead time is calculated from CUTTING station start to completion (READY/PRODUCT_FINISHED)
+   * As per requirements 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.3, 3.4, 3.5
+   * @param filters - Optional filters to apply to the calculation
+   * @returns Promise<number> - Average lead time in hours, 0 on error
+   */
+  static async getAverageLeadTimeHours(filters?: OrderFilters): Promise<number> {
+    try {
+      // Calculate date range for last 60 days as per requirement 1.1
+      const now = new Date();
+      const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
+
+      // Build where clause for orders if filters are provided
+      const orderWhereClause: any = {};
+      
+      if (filters?.status && filters.status.length > 0) {
+        orderWhereClause.orderStatus = { in: filters.status };
+      }
+      
+      if (filters?.dateFrom || filters?.dateTo) {
+        orderWhereClause.createdAt = {};
+        if (filters.dateFrom) orderWhereClause.createdAt.gte = filters.dateFrom;
+        if (filters.dateTo) orderWhereClause.createdAt.lte = filters.dateTo;
+      }
+      
+      if (filters?.customerId) {
+        orderWhereClause.customerId = filters.customerId;
+      }
+      
+      if (filters?.priority && filters.priority.length > 0) {
+        orderWhereClause.priority = { in: filters.priority };
+      }
+
+      // Get completed items with their processing logs from the last 60 days
+      // Only include production items (isProduct: true) as per requirement 1.5
+      const completedItems = await prisma.orderItem.findMany({
+        where: {
+          itemStatus: {
+            in: ['PRODUCT_FINISHED', 'READY']
+          },
+          isProduct: true, // Requirement 1.5: Only count production items
+          updatedAt: {
+            gte: sixtyDaysAgo,
+            lte: now
+          },
+          // Apply order filters if provided
+          ...(Object.keys(orderWhereClause).length > 0 && {
+            order: orderWhereClause
+          })
+        },
+        include: {
+          itemProcessingLogs: {
+            include: {
+              station: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            orderBy: {
+              startTime: 'asc'
+            }
+          }
+        }
+      });
+
+      if (completedItems.length === 0) {
+        return 0;
+      }
+
+      let totalLeadTimeHours = 0;
+      let validItemsCount = 0;
+
+      for (const item of completedItems) {
+        // Requirement 1.2: Lead time should track from CUTTING to completion
+        // Find the first CUTTING station processing log
+        const cuttingLog = item.itemProcessingLogs.find(log => 
+          log.station?.name?.toUpperCase().includes('CUTTING') || 
+          log.station?.name?.toUpperCase() === 'CUTTING'
+        );
+        
+        if (cuttingLog && cuttingLog.startTime && item.updatedAt) {
+          const leadTimeMs = item.updatedAt.getTime() - cuttingLog.startTime.getTime();
+          const leadTimeHours = leadTimeMs / (1000 * 60 * 60);
+          
+          // Sanity check - lead time shouldn't be more than 30 days (720 hours)
+          // Requirement 1.3: Proper validation and error handling
+          if (leadTimeHours > 0 && leadTimeHours <= (30 * 24)) {
+            totalLeadTimeHours += leadTimeHours;
+            validItemsCount++;
+          } else if (leadTimeHours > (30 * 24)) {
+            console.warn(`Unusually long lead time detected: ${leadTimeHours} hours for item ${item.id}`);
+          }
+        }
+      }
+
+      // Requirement 1.4: Return 0 if no valid items found
+      return validItemsCount > 0 ? Math.round((totalLeadTimeHours / validItemsCount) * 100) / 100 : 0;
+    } catch (error) {
+      console.error('Error calculating average lead time hours:', error);
+      // Requirement 8.1, 8.2, 8.3, 8.4, 8.5: Proper error handling with fallback values
+      return 0;
+    }
+  }
+
+  /**
    * Get default orders page metrics with all values set to 0
    * Used as fallback when orders page metric calculations fail
    * @returns OrdersPageMetrics - Default orders page metrics object
@@ -745,6 +1123,35 @@ export class MetricsService {
         finished: 0,
         ready: 0
       }
+    };
+  }
+
+  /**
+   * Get default orders KPI metrics with all values set to 0
+   * Used as fallback when orders KPI metric calculations fail
+   * @returns OrdersKPIMetrics - Default orders KPI metrics object
+   */
+  private static getDefaultOrdersKPIMetrics(): OrdersKPIMetrics {
+    return {
+      // Order Status KPIs
+      ordersPending: 0,
+      ordersApproved: 0,
+      ordersInProgress: 0,
+      ordersReadyToShip: 0,
+      ordersCompleted: 0,
+      
+      // Production Item KPIs
+      itemsInProduction: 0,
+      itemsNotStarted: 0,
+      itemsCompleted: 0,
+      
+      // Performance KPIs
+      avgLeadTimeHours: 0,
+      
+      // Legacy fields for backward compatibility
+      statusCounts: {},
+      totalValue: 0,
+      averageOrderValue: 0
     };
   }
 
@@ -1373,9 +1780,6 @@ export class MetricsService {
             not: null
           },
           durationInSeconds: {
-            not: null
-          },
-          orderItemId: {
             not: null
           }
         },

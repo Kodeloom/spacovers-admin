@@ -18,8 +18,15 @@ export class CacheInvalidationService {
    * Invalidate caches when order data changes
    * @param operation - Type of operation (create, update, delete)
    * @param orderId - Optional order ID for targeted invalidation
+   * @param customerId - Optional customer ID for PO validation cache invalidation
+   * @param poNumber - Optional PO number for targeted PO validation cache invalidation
    */
-  static invalidateOrderCaches(operation: 'create' | 'update' | 'delete', orderId?: string): void {
+  static invalidateOrderCaches(
+    operation: 'create' | 'update' | 'delete', 
+    orderId?: string,
+    customerId?: string,
+    poNumber?: string
+  ): void {
     console.log(`Invalidating order caches for operation: ${operation}${orderId ? ` (ID: ${orderId})` : ''}`);
     
     // Get invalidation patterns for orders
@@ -29,6 +36,21 @@ export class CacheInvalidationService {
     patterns.forEach(pattern => {
       CacheService.invalidatePattern(pattern);
     });
+
+    // Invalidate PO validation cache if PO number or customer info is available
+    if (customerId) {
+      if (poNumber) {
+        // Invalidate specific PO validation cache
+        CacheService.invalidatePattern(`po-validation:${customerId}:${poNumber}`);
+      } else {
+        // Invalidate all PO validation cache for customer
+        CacheService.invalidatePattern(`po-validation:${customerId}:`);
+      }
+    }
+
+    // Invalidate print queue cache since orders affect queue
+    CacheService.invalidatePattern('print-queue');
+    CacheService.invalidatePattern('queue-status');
     
     // Log cache invalidation
     console.log(`Cache invalidation complete for patterns: ${patterns.join(', ')}`);
@@ -38,8 +60,15 @@ export class CacheInvalidationService {
    * Invalidate caches when order item data changes
    * @param operation - Type of operation (create, update, delete)
    * @param orderItemId - Optional order item ID for targeted invalidation
+   * @param customerId - Optional customer ID for PO validation cache invalidation
+   * @param poNumber - Optional PO number for targeted PO validation cache invalidation
    */
-  static invalidateOrderItemCaches(operation: 'create' | 'update' | 'delete', orderItemId?: string): void {
+  static invalidateOrderItemCaches(
+    operation: 'create' | 'update' | 'delete', 
+    orderItemId?: string,
+    customerId?: string,
+    poNumber?: string
+  ): void {
     console.log(`Invalidating order item caches for operation: ${operation}${orderItemId ? ` (ID: ${orderItemId})` : ''}`);
     
     // Get invalidation patterns for order items
@@ -49,6 +78,21 @@ export class CacheInvalidationService {
     patterns.forEach(pattern => {
       CacheService.invalidatePattern(pattern);
     });
+
+    // Invalidate PO validation cache if PO number or customer info is available
+    if (customerId) {
+      if (poNumber) {
+        // Invalidate specific PO validation cache
+        CacheService.invalidatePattern(`po-validation:${customerId}:${poNumber}`);
+      } else {
+        // Invalidate all PO validation cache for customer
+        CacheService.invalidatePattern(`po-validation:${customerId}:`);
+      }
+    }
+
+    // Invalidate print queue cache since order items affect queue
+    CacheService.invalidatePattern('print-queue');
+    CacheService.invalidatePattern('queue-status');
     
     // Log cache invalidation
     console.log(`Cache invalidation complete for patterns: ${patterns.join(', ')}`);
@@ -72,6 +116,48 @@ export class CacheInvalidationService {
     
     // Log cache invalidation
     console.log(`Cache invalidation complete for patterns: ${patterns.join(', ')}`);
+  }
+
+  /**
+   * Invalidate caches when print queue data changes
+   * @param operation - Type of operation (create, update, delete)
+   * @param queueItemId - Optional queue item ID for targeted invalidation
+   */
+  static invalidatePrintQueueCaches(operation: 'create' | 'update' | 'delete', queueItemId?: string): void {
+    console.log(`Invalidating print queue caches for operation: ${operation}${queueItemId ? ` (ID: ${queueItemId})` : ''}`);
+    
+    // Invalidate all print queue related cache patterns
+    const patterns = [
+      'print-queue',
+      'queue-status',
+      'queue-batch',
+      'print-queue-count'
+    ];
+    
+    patterns.forEach(pattern => {
+      CacheService.invalidatePattern(pattern);
+    });
+    
+    console.log(`Print queue cache invalidation complete for patterns: ${patterns.join(', ')}`);
+  }
+
+  /**
+   * Invalidate PO validation caches
+   * @param customerId - Customer ID for targeted invalidation
+   * @param poNumber - Optional PO number for specific invalidation
+   */
+  static invalidatePOValidationCaches(customerId: string, poNumber?: string): void {
+    console.log(`Invalidating PO validation caches for customer: ${customerId}${poNumber ? ` PO: ${poNumber}` : ''}`);
+    
+    if (poNumber) {
+      // Invalidate specific PO number cache entries
+      CacheService.invalidatePattern(`po-validation:${customerId}:${poNumber.trim()}`);
+    } else {
+      // Invalidate all PO validation cache entries for customer
+      CacheService.invalidatePattern(`po-validation:${customerId}:`);
+    }
+    
+    console.log('PO validation cache invalidation complete');
   }
 
   /**

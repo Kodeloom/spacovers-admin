@@ -187,6 +187,21 @@ export class CacheService {
   }
 
   /**
+   * Generate cache key for orders KPI metrics with filters
+   * @param filters - Order filters object
+   */
+  static getOrdersKPICacheKey(filters?: any): string {
+    if (!filters || Object.keys(filters).length === 0) {
+      return 'metrics:orders:kpi:all';
+    }
+
+    // Create a stable key from filters
+    const filterKey = JSON.stringify(filters, Object.keys(filters).sort());
+    const hash = this.simpleHash(filterKey);
+    return `metrics:orders:kpi:${hash}`;
+  }
+
+  /**
    * Generate cache key for reports metrics with date range
    * @param startDate - Start date
    * @param endDate - End date
