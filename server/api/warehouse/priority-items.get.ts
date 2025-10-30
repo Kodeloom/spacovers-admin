@@ -72,10 +72,10 @@ export default defineEventHandler(async (event) => {
     // Requirements: 8.1, 8.3 - Efficient database query with proper indexing
     const priorityItems = await prisma.orderItem.findMany({
       where: {
-        // Filter for items across all production stations (from CUTTING until READY)
+        // Filter for items across all production stages (from ready to start until finished)
         // This uses the idx_order_items_priority_status_created index
         itemStatus: {
-          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
+          in: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED']
         },
         // Only show production items (items that have ProductAttributes)
         productAttributes: {
@@ -290,7 +290,7 @@ export default defineEventHandler(async (event) => {
       orderNumber: item.order.salesOrderNumber || item.order.id.slice(-8),
       itemName: createAttributeDescription(item), // Use attribute description instead of item name
       customerName: item.order.customer?.name || 'Unknown Customer',
-      status: item.itemStatus, // Show actual status (CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING)
+      status: item.itemStatus, // Show actual status (NOT_STARTED_PRODUCTION, CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING, PRODUCT_FINISHED)
       priority: item.order.priority, // Include priority for grouping
       isUrgent: item.order.priority === 'HIGH', // Only HIGH priority items are urgent
       createdAt: item.createdAt.toISOString(),
