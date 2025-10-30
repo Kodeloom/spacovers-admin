@@ -60,6 +60,7 @@ enum OrderItemProcessingStatus {
 }
 
 enum OrderPriority {
+  NO_PRIORITY
   LOW
   MEDIUM
   HIGH
@@ -278,6 +279,7 @@ model Order {
   customerId           String
   salesOrderNumber     String?
   purchaseOrderNumber  String?
+  poNumber             String?
   estimateId           String?             @unique()
   transactionDate      DateTime?
   dueDate              DateTime?
@@ -317,6 +319,11 @@ model Order {
   emailNotifications   EmailNotification[]
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt()
+
+  @@index([customerId, poNumber])
+  @@index([poNumber])
+  @@index([customerId, orderStatus])
+  @@index([orderStatus, createdAt])
 }
 
 model OrderItem {
@@ -357,8 +364,12 @@ model OrderItem {
   itemProcessingLogs       ItemProcessingLog[]
   itemStatusLogs           ItemStatusLog[]
   productAttributes        ProductAttribute?
+  printQueueItem           PrintQueue?
 
   @@unique([orderId, quickbooksOrderLineId])
+  @@index([orderId, itemStatus])
+  @@index([itemStatus, createdAt])
+  @@index([isProduct, itemStatus])
 }
 
 model ItemProcessingLog {
@@ -393,6 +404,8 @@ model ProductAttribute {
   tieDownsQty              String?
   tieDownPlacement         TieDownPlacement?
   distance                 String?           @default("0")
+  tieDownLength            String?
+  poNumber                 String?
   notes                    String?           @db.Text()
   foamUpgrade              String?
   doublePlasticWrapUpgrade String?           @default("No")
@@ -408,6 +421,26 @@ model ProductAttribute {
   parsingErrors            String[]
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt()
+
+  @@index([poNumber])
+  @@index([orderItemId, poNumber])
+}
+
+model PrintQueue {
+  id          String    @id() @default(cuid())
+  orderItemId String    @unique()
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  isPrinted   Boolean   @default(false)
+  addedAt     DateTime  @default(now())
+  printedAt   DateTime?
+  addedBy     String?
+  printedBy   String?
+
+  @@index([isPrinted, addedAt])
+  @@index([addedAt])
+  @@index([addedBy])
+  @@index([printedAt])
+  @@map("print_queue")
 }
 
 model AuditLog {
