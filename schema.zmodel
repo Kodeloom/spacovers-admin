@@ -70,6 +70,7 @@ enum OrderItemProcessingStatus { // Renamed for clarity
 }
 
 enum OrderPriority {
+  NO_PRIORITY
   LOW
   MEDIUM
   HIGH
@@ -392,6 +393,7 @@ model Order {
   customerId           String
   salesOrderNumber     String?
   purchaseOrderNumber  String?
+  poNumber             String?
   
   // Link to the source Estimate
   estimateId           String?           @unique
@@ -439,6 +441,12 @@ model Order {
 
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
+
+  // Database indexes for performance optimization
+  @@index([customerId, poNumber])
+  @@index([poNumber])
+  @@index([customerId, orderStatus])
+  @@index([orderStatus, createdAt])
 
   // Access Control Policies - PERMISSION-BASED (Core warehouse operations)
   // Create orders: Customer service, admins
@@ -499,8 +507,14 @@ model OrderItem {
   itemProcessingLogs    ItemProcessingLog[]
   itemStatusLogs        ItemStatusLog[]
   productAttributes     ProductAttribute?
+  printQueueItem        PrintQueue?
 
   @@unique([orderId, quickbooksOrderLineId])
+  // Database indexes for performance optimization
+  @@index([orderId, itemStatus])
+  @@index([itemStatus, createdAt])
+  @@index([isProduct, itemStatus])
+  
   @@allow('create', auth() != null)
   @@allow('read', auth() != null)
   @@allow('update', auth() != null)
@@ -553,6 +567,8 @@ model ProductAttribute {
   tieDownsQty               String?
   tieDownPlacement          TieDownPlacement?
   distance                  String? @default("0")
+  tieDownLength             String?
+  poNumber                  String?
   notes                     String?                   @db.Text
   
   // Upgrades (Yes/No with defaults)
@@ -575,10 +591,36 @@ model ProductAttribute {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
+  // Database indexes for PO validation performance
+  @@index([poNumber])
+  @@index([orderItemId, poNumber])
+  
   @@allow('create', auth() != null)
   @@allow('read', auth() != null)
   @@allow('update', auth() != null)
   @@allow('delete', auth() != null)
+}
+
+model PrintQueue {
+  id          String   @id @default(cuid())
+  orderItemId String   @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  isPrinted   Boolean  @default(false)
+  addedAt     DateTime @default(now())
+  printedAt   DateTime?
+  addedBy     String?  // User ID who added to queue
+  printedBy   String?  // User ID who marked as printed
+  
+  @@index([isPrinted, addedAt])
+  @@index([addedAt])
+  @@index([addedBy])
+  @@index([printedAt])
+  @@map("print_queue")
+
+  // Access Control Policies - ROLE-BASED (Office employees, admins, super admins)
+  @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
+  @@allow('create,read,update', auth() != null && auth().roles?[role.name == "Office Employee"])
+  @@allow('read', auth() != null && auth().roles?[role.name in ["Manager", "Warehouse Staff"]])
 }
 
 model AuditLog {
