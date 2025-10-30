@@ -246,6 +246,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch, nextTick } from 'vue'
+
 interface Props {
     modelValue?: any
     itemIndex: number
@@ -294,14 +296,28 @@ const currentFoamUpgradeValue = computed(() => {
     return productAttributes.value.foamUpgrade
 })
 
+// Flag to prevent recursive updates
+const isUpdatingFromParent = ref(false)
+
 // Watch for changes and emit updates
 watch(productAttributes, (newValue) => {
-    emit('update:modelValue', newValue)
+    // Only emit if we're not currently updating from parent
+    if (!isUpdatingFromParent.value) {
+        emit('update:modelValue', newValue)
+    }
 }, { deep: true })
 
 // Watch for modelValue changes from parent
 watch(() => props.modelValue, (newValue) => {
-    if (newValue) {
+    if (newValue && !isUpdatingFromParent.value) {
+        // Set flag to prevent recursive updates
+        isUpdatingFromParent.value = true
+        
+        // Use nextTick to ensure the update is complete before resetting flag
+        nextTick(() => {
+            isUpdatingFromParent.value = false
+        })
+        
         productAttributes.value = { ...newValue }
 
         // Auto-detect custom shape: if shape value is not in predefined list, treat as custom
@@ -343,7 +359,7 @@ const updateCustomFoamUpgrade = () => {
 
 // Handle custom shape - store in separate field to avoid conflicts
 watch(customShape, (newValue) => {
-    if (productAttributes.value.shape === 'custom') {
+    if (productAttributes.value.shape === 'custom' && !isUpdatingFromParent.value) {
         // Store the custom shape value in a separate field
         productAttributes.value.customShapeValue = newValue
     }
@@ -351,7 +367,7 @@ watch(customShape, (newValue) => {
 
 // Handle custom foam upgrade
 watch(customFoamUpgrade, (newValue) => {
-    if (productAttributes.value.foamUpgrade === 'custom') {
+    if (productAttributes.value.foamUpgrade === 'custom' && !isUpdatingFromParent.value) {
         // Store the custom foam upgrade value in a separate field
         productAttributes.value.customFoamUpgradeValue = newValue
     }
@@ -359,20 +375,22 @@ watch(customFoamUpgrade, (newValue) => {
 
 // Auto-calculate size for Rectangle shape
 watch([() => productAttributes.value.length, () => productAttributes.value.width, () => productAttributes.value.shape], () => {
-    if (productAttributes.value.shape === 'Rectangle' && productAttributes.value.length && productAttributes.value.width) {
+    if (productAttributes.value.shape === 'Rectangle' && productAttributes.value.length && productAttributes.value.width && !isUpdatingFromParent.value) {
         productAttributes.value.size = `${productAttributes.value.length}X${productAttributes.value.width}`
     }
 })
 
 // Auto-set radius to 0 for Round and Octagon shapes
 watch(() => productAttributes.value.shape, (newShape) => {
-    if (newShape === 'Round' || newShape === 'Octagon') {
-        productAttributes.value.radiusSize = '0'
-    }
+    if (!isUpdatingFromParent.value) {
+        if (newShape === 'Round' || newShape === 'Octagon') {
+            productAttributes.value.radiusSize = '0'
+        }
 
-    // For Round shape, auto-set skirt type to Connected
-    if (newShape === 'Round') {
-        productAttributes.value.skirtType = 'CONN'
+        // For Round shape, auto-set skirt type to Connected
+        if (newShape === 'Round') {
+            productAttributes.value.skirtType = 'CONN'
+        }
     }
 })
 </script>
