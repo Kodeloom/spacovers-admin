@@ -23,7 +23,7 @@ async function validateProductionItems() {
       where: {
         isProduct: false,
         itemStatus: {
-          in: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
+          in: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
         }
       },
       select: {
@@ -51,7 +51,7 @@ async function validateProductionItems() {
       where: {
         isProduct: true,
         itemStatus: {
-          notIn: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
+          notIn: ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
         }
       },
       select: {

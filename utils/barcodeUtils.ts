@@ -28,9 +28,12 @@ export const STATUS_TRANSITIONS: StatusTransition[] = [
   { from: 'SEWING', to: 'FOAM_CUTTING', station: 'Sewing' },
   
   // Step 4: Foam Cutting station completes work
-  { from: 'FOAM_CUTTING', to: 'PACKAGING', station: 'Foam Cutting' },
+  { from: 'FOAM_CUTTING', to: 'STUFFING', station: 'Foam Cutting' },
   
-  // Step 5: Packaging station completes work
+  // Step 5: Stuffing station completes work
+  { from: 'STUFFING', to: 'PACKAGING', station: 'Stuffing' },
+  
+  // Step 6: Packaging station completes work
   { from: 'PACKAGING', to: 'PRODUCT_FINISHED', station: 'Packaging' },
   
   // Step 6: Office confirms finished product ready for delivery/pickup

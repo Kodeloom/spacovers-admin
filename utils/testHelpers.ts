@@ -190,7 +190,8 @@ export class WorkflowSimulator {
       'NOT_STARTED_PRODUCTION': 'CUTTING',
       'CUTTING': 'SEWING',
       'SEWING': 'FOAM_CUTTING',
-      'FOAM_CUTTING': 'PACKAGING',
+      'FOAM_CUTTING': 'STUFFING',
+      'STUFFING': 'PACKAGING',
       'PACKAGING': 'PRODUCT_FINISHED',
       'PRODUCT_FINISHED': 'READY'
     };
@@ -284,7 +285,7 @@ export async function testCompleteWorkflow(): Promise<void> {
   }
   simulator.printStatus();
 
-  // Step 4: Foam Cutting scan (FOAM_CUTTING → PACKAGING)
+  // Step 4: Foam Cutting scan (FOAM_CUTTING → STUFFING)
   console.log('Step 4: Foam Cutting Station');
   simulator.setCurrentUser(testUsers.find(u => u.assignedStation === 'Foam Cutting')!);
   
@@ -294,8 +295,18 @@ export async function testCompleteWorkflow(): Promise<void> {
   }
   simulator.printStatus();
 
-  // Step 5: Packaging scan (PACKAGING → PRODUCT_FINISHED)
-  console.log('Step 5: Packaging Station');
+  // Step 5: Stuffing scan (STUFFING → PACKAGING)
+  console.log('Step 5: Stuffing Station');
+  simulator.setCurrentUser(testUsers.find(u => u.assignedStation === 'Stuffing')!);
+  
+  for (let i = 0; i < testOrder.items.length; i++) {
+    const result = await simulator.simulateScan(i);
+    console.log(`  Item ${i + 1}: ${result.message}`);
+  }
+  simulator.printStatus();
+
+  // Step 6: Packaging scan (PACKAGING → PRODUCT_FINISHED)
+  console.log('Step 6: Packaging Station');
   simulator.setCurrentUser(testUsers.find(u => u.assignedStation === 'Packaging')!);
   
   for (let i = 0; i < testOrder.items.length; i++) {

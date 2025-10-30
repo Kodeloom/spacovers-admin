@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Validate status values
-    const validStatuses = ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'READY'];
+    const validStatuses = ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY'];
     if (!validStatuses.includes(toStatus)) {
       throw createError({
         statusCode: 400,

@@ -57,10 +57,10 @@ export default defineEventHandler(async (event) => {
     let itemStatusFilter: any = {}
     
     if (status === 'in_production') {
-      // Items currently in production: CUTTING, SEWING, FOAM_CUTTING, PACKAGING
+      // Items currently in production: CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING
       itemStatusFilter = {
         itemStatus: {
-          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING']
+          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
         }
       }
     } else if (status === 'not_started') {

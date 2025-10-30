@@ -565,10 +565,11 @@ describe('Warehouse OrderItem Operations - Integration Tests', () => {
       });
 
       // Progress through statuses
-      const statuses: Array<'CUTTING' | 'SEWING' | 'FOAM_CUTTING' | 'PACKAGING' | 'READY'> = [
+      const statuses: Array<'CUTTING' | 'SEWING' | 'FOAM_CUTTING' | 'STUFFING' | 'PACKAGING' | 'READY'> = [
         'CUTTING',
         'SEWING', 
         'FOAM_CUTTING',
+        'STUFFING',
         'PACKAGING',
         'READY'
       ];

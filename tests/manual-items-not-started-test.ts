@@ -171,7 +171,7 @@ async function testItemsNotStartedCalculation() {
       where: {
         isProduct: true,
         itemStatus: {
-          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
+          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY']
         }
       }
     });
@@ -197,7 +197,7 @@ async function testItemsNotStartedCalculation() {
     // Test 6: Verify requirement 6.3 - items that have started any production step should not count
     console.log('\n📋 Testing requirement 6.3 - items that started production should not count:');
     
-    const startedProductionStatuses = ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY'];
+    const startedProductionStatuses = ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY'];
     for (const status of startedProductionStatuses) {
       const itemsWithStatus = await prisma.orderItem.count({
         where: {

@@ -83,7 +83,7 @@ describe('Orders KPI Dashboard - Accuracy and Interactions Tests', () => {
         testOrders.push(order);
 
         // Create production items with different statuses
-        const itemStatuses = ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY'];
+        const itemStatuses = ['NOT_STARTED_PRODUCTION', 'CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING', 'PRODUCT_FINISHED', 'READY'];
         
         for (let k = 0; k < 3; k++) {
           const itemStatus = itemStatuses[k % itemStatuses.length];
@@ -196,7 +196,7 @@ describe('Orders KPI Dashboard - Accuracy and Interactions Tests', () => {
       const metrics = await MetricsService.getOrdersKPIMetrics();
 
       // Verify production item counts
-      expect(metrics.itemsInProduction).toBeGreaterThanOrEqual(0); // Items in CUTTING, SEWING, FOAM_CUTTING, PACKAGING
+      expect(metrics.itemsInProduction).toBeGreaterThanOrEqual(0); // Items in CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING
       expect(metrics.itemsNotStarted).toBeGreaterThanOrEqual(0); // Items in NOT_STARTED_PRODUCTION
       expect(metrics.itemsCompleted).toBeGreaterThanOrEqual(0); // Items in PRODUCT_FINISHED, READY
 
@@ -210,7 +210,7 @@ describe('Orders KPI Dashboard - Accuracy and Interactions Tests', () => {
         where: {
           isProduct: true,
           itemStatus: {
-            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING']
+            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
           }
         }
       });

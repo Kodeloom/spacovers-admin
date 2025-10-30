@@ -42,6 +42,7 @@ export interface OrdersPageMetrics {
     cutting: number;
     sewing: number;
     foamCutting: number;
+    stuffing: number;
     packaging: number;
     finished: number;
     ready: number;
@@ -523,6 +524,7 @@ export class MetricsService {
         cutting: optimizedData.productionCounts['CUTTING'] || 0,
         sewing: optimizedData.productionCounts['SEWING'] || 0,
         foamCutting: optimizedData.productionCounts['FOAM_CUTTING'] || 0,
+        stuffing: optimizedData.productionCounts['STUFFING'] || 0,
         packaging: optimizedData.productionCounts['PACKAGING'] || 0,
         finished: optimizedData.productionCounts['PRODUCT_FINISHED'] || 0,
         ready: optimizedData.productionCounts['READY'] || 0
@@ -641,6 +643,7 @@ export class MetricsService {
     cutting: number;
     sewing: number;
     foamCutting: number;
+    stuffing: number;
     packaging: number;
     finished: number;
     ready: number;
@@ -675,6 +678,7 @@ export class MetricsService {
         cutting: 0,
         sewing: 0,
         foamCutting: 0,
+        stuffing: 0,
         packaging: 0,
         finished: 0,
         ready: 0
@@ -694,6 +698,9 @@ export class MetricsService {
             break;
           case 'FOAM_CUTTING':
             result.foamCutting = item._count.id;
+            break;
+          case 'STUFFING':
+            result.stuffing = item._count.id;
             break;
           case 'PACKAGING':
             result.packaging = item._count.id;
@@ -727,6 +734,7 @@ export class MetricsService {
         cutting: 0,
         sewing: 0,
         foamCutting: 0,
+        stuffing: 0,
         packaging: 0,
         finished: 0,
         ready: 0
@@ -890,7 +898,7 @@ export class MetricsService {
 
   /**
    * Get count of production items currently in production
-   * Only counts items with isProduct: true and status in CUTTING, SEWING, FOAM_CUTTING, PACKAGING
+   * Only counts items with isProduct: true and status in CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING
    * Excludes NOT_STARTED_PRODUCTION, PRODUCT_FINISHED, READY as per requirements 3.1, 3.2, 3.3, 3.4, 3.5
    * @param filters - Optional filters to apply to the calculation
    * @returns Promise<number> - Items in production count, 0 on error
@@ -923,7 +931,7 @@ export class MetricsService {
       const count = await prisma.orderItem.count({
         where: {
           itemStatus: {
-            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'PACKAGING']
+            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
           },
           isProduct: true, // Requirement 3.4: Only count production items
           // Apply order filters if provided
@@ -1119,6 +1127,7 @@ export class MetricsService {
         cutting: 0,
         sewing: 0,
         foamCutting: 0,
+        stuffing: 0,
         packaging: 0,
         finished: 0,
         ready: 0

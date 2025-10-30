@@ -64,6 +64,7 @@ enum OrderItemProcessingStatus { // Renamed for clarity
   CUTTING
   SEWING
   FOAM_CUTTING
+  STUFFING
   PACKAGING
   PRODUCT_FINISHED
   READY

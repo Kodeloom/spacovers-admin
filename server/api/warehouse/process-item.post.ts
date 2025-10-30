@@ -21,12 +21,16 @@ function getWorkflowStepInfo(fromStatus: string, toStatus: string, stationName: 
       step: 3, 
       description: 'Sewing completed - Moving to Foam Cutting' 
     },
-    'FOAM_CUTTING->PACKAGING': { 
+    'FOAM_CUTTING->STUFFING': { 
       step: 4, 
-      description: 'Foam Cutting completed - Moving to Packaging' 
+      description: 'Foam Cutting completed - Moving to Stuffing' 
+    },
+    'STUFFING->PACKAGING': { 
+      step: 5, 
+      description: 'Stuffing completed - Moving to Packaging' 
     },
     'PACKAGING->PRODUCT_FINISHED': { 
-      step: 5, 
+      step: 6, 
       description: 'Packaging completed - Product finished' 
     },
     'PRODUCT_FINISHED->READY': { 
