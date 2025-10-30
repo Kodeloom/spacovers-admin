@@ -123,7 +123,7 @@ The following requirements have been implemented and are working correctly. DO N
 
 #### Acceptance Criteria
 
-1. WHEN station codes are used THEN they SHALL follow the mapping: O=Office, C=Cutting, S=Sewing, F=Foam Cutting, P=Packaging
+1. WHEN station codes are used THEN they SHALL follow the mapping: O=Office, C=Cutting, S=Sewing, F=Foam Cutting, T=Stuffing, P=Packaging
 2. WHEN scanner prefixes are decoded THEN they SHALL use the centralized STATION_CODES constant
 3. WHEN new stations are added THEN they SHALL be added to the central constants file
 4. WHEN station names are displayed THEN they SHALL be consistent across all UI components

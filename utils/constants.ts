@@ -10,6 +10,7 @@ export const STATION_CODES: StationMapping = {
   'C': 'Cutting',
   'S': 'Sewing',
   'F': 'Foam Cutting',
+  'T': 'Stuffing',
   'P': 'Packaging'
 };
 
@@ -19,5 +20,6 @@ export const STATION_NAME_TO_CODE: { [key: string]: string } = {
   'Cutting': 'C',
   'Sewing': 'S', 
   'Foam Cutting': 'F',
+  'Stuffing': 'T',
   'Packaging': 'P'
 };
