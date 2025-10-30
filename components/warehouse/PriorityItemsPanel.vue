@@ -24,18 +24,18 @@
       <div v-if="loading" class="loading-state flex flex-col items-center justify-center h-full p-6 lg:p-8">
         <Icon name="svg-spinners:180-ring-with-bg" class="h-8 w-8 lg:h-12 lg:w-12 text-blue-400 mb-4" />
         <span class="text-gray-300 text-base lg:text-lg font-medium">Loading priority items...</span>
-        <span class="text-gray-400 text-sm mt-2">Fetching urgent orders</span>
+        <span class="text-gray-400 text-sm mt-2">Fetching priority orders</span>
       </div>
       
       <!-- Empty state - matches kiosk success state styling -->
       <div v-else-if="priorityItems.length === 0" class="empty-state flex flex-col items-center justify-center h-full p-6 lg:p-8 text-center">
         <Icon name="heroicons:check-circle" class="h-16 w-16 lg:h-20 lg:w-20 text-green-400 mb-6" />
         <p class="text-white text-lg lg:text-xl font-bold mb-2">All Clear!</p>
-        <p class="text-gray-300 text-base lg:text-lg mb-1">No urgent items</p>
+        <p class="text-gray-300 text-base lg:text-lg mb-1">No priority items</p>
         <p class="text-gray-400 text-sm lg:text-base">Everything is on track</p>
       </div>
       
-      <!-- Priority items list with virtual scrolling for performance -->
+      <!-- Priority items list grouped by priority with virtual scrolling for performance -->
       <div v-else class="priority-items-container h-full p-4 lg:p-6">
         <!-- Use virtual scrolling based on performance optimization -->
         <VirtualScrollList
@@ -58,18 +58,62 @@
           </template>
         </VirtualScrollList>
         
-        <!-- Regular scrolling for smaller lists -->
+        <!-- Regular scrolling for smaller lists - grouped by priority -->
         <div 
           v-else
-          class="priority-items-scroll overflow-y-auto h-full space-y-3" 
+          class="priority-items-scroll overflow-y-auto h-full" 
           @scroll="handleScroll"
         >
-          <PriorityItem 
-            v-for="item in priorityItems" 
-            :key="item.id"
-            :item="item"
-            @refocus="handleItemClick"
-          />
+          <!-- HIGH Priority Group -->
+          <div v-if="groupedItems.HIGH.length > 0" class="priority-group mb-6">
+            <div class="priority-group-header flex items-center gap-2 mb-3 pb-2 border-b border-red-500/30">
+              <Icon name="heroicons:fire" class="h-5 w-5 text-red-400 animate-pulse" />
+              <h4 class="text-red-400 font-bold text-sm uppercase tracking-wide">High Priority</h4>
+              <span class="text-red-400/70 text-xs bg-red-500/20 px-2 py-1 rounded-full">{{ groupedItems.HIGH.length }}</span>
+            </div>
+            <div class="space-y-3">
+              <PriorityItem 
+                v-for="item in groupedItems.HIGH" 
+                :key="item.id"
+                :item="item"
+                @refocus="handleItemClick"
+              />
+            </div>
+          </div>
+
+          <!-- MEDIUM Priority Group -->
+          <div v-if="groupedItems.MEDIUM.length > 0" class="priority-group mb-6">
+            <div class="priority-group-header flex items-center gap-2 mb-3 pb-2 border-b border-yellow-500/30">
+              <Icon name="heroicons:exclamation-triangle" class="h-5 w-5 text-yellow-400" />
+              <h4 class="text-yellow-400 font-bold text-sm uppercase tracking-wide">Medium Priority</h4>
+              <span class="text-yellow-400/70 text-xs bg-yellow-500/20 px-2 py-1 rounded-full">{{ groupedItems.MEDIUM.length }}</span>
+            </div>
+            <div class="space-y-3">
+              <PriorityItem 
+                v-for="item in groupedItems.MEDIUM" 
+                :key="item.id"
+                :item="item"
+                @refocus="handleItemClick"
+              />
+            </div>
+          </div>
+
+          <!-- LOW Priority Group -->
+          <div v-if="groupedItems.LOW.length > 0" class="priority-group mb-6">
+            <div class="priority-group-header flex items-center gap-2 mb-3 pb-2 border-b border-blue-500/30">
+              <Icon name="heroicons:information-circle" class="h-5 w-5 text-blue-400" />
+              <h4 class="text-blue-400 font-bold text-sm uppercase tracking-wide">Low Priority</h4>
+              <span class="text-blue-400/70 text-xs bg-blue-500/20 px-2 py-1 rounded-full">{{ groupedItems.LOW.length }}</span>
+            </div>
+            <div class="space-y-3">
+              <PriorityItem 
+                v-for="item in groupedItems.LOW" 
+                :key="item.id"
+                :item="item"
+                @refocus="handleItemClick"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -77,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import PriorityItem from './PriorityItem.vue';
 import VirtualScrollList from './VirtualScrollList.vue';
 
@@ -86,8 +130,9 @@ interface PriorityItem {
   orderNumber: string;
   itemName: string; // Now contains attribute description
   customerName: string;
-  status: string;
-  isUrgent: boolean; // Always true for HIGH priority orders
+  status: 'CUTTING' | 'SEWING' | 'FOAM_CUTTING' | 'STUFFING' | 'PACKAGING';
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  isUrgent: boolean; // True only for HIGH priority orders
   createdAt: string;
   orderCreatedAt: string;
 }
@@ -108,6 +153,23 @@ const emit = defineEmits<{
   refocus: [];
   scrollPositionUpdate: [position: number];
 }>();
+
+// Group items by priority for display
+const groupedItems = computed(() => {
+  const groups = {
+    HIGH: [] as PriorityItem[],
+    MEDIUM: [] as PriorityItem[],
+    LOW: [] as PriorityItem[]
+  };
+  
+  props.priorityItems.forEach(item => {
+    if (item.priority && groups[item.priority]) {
+      groups[item.priority].push(item);
+    }
+  });
+  
+  return groups;
+});
 
 // Click handlers to maintain scan input focus
 const handlePanelClick = () => {
