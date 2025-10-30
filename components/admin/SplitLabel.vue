@@ -65,6 +65,10 @@
               <span class="spec-value">{{ getProductAttribute('distance') || '4' }}"</span>
             </div>
             <div class="spec-item">
+              <span class="spec-label">TD Length:</span>
+              <span class="spec-value">{{ getProductAttribute('tieDownLength') || '-' }}</span>
+            </div>
+            <div class="spec-item">
               <span class="spec-label">Radius:</span>
               <span class="spec-value">{{ getProductAttribute('radiusSize') || '12' }}"</span>
             </div>
@@ -132,6 +136,10 @@
             <div class="spec-item compact">
               <span class="spec-label">Ties:</span>
               <span class="spec-value">{{ getProductAttribute('tieDownsQty') || '4' }}</span>
+            </div>
+            <div class="spec-item compact">
+              <span class="spec-label">TD Len:</span>
+              <span class="spec-value">{{ getProductAttribute('tieDownLength') || '-' }}</span>
             </div>
             <div class="spec-item compact" v-for="upgrade in extractUpgrades()" :key="upgrade.name">
               <span class="spec-label">{{ upgrade.name }}:</span>
