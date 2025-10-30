@@ -37,13 +37,17 @@
             No data available.
           </td>
         </tr>
-        <tr v-for="(row, rowIndex) in rows" :key="rowIndex" class="hover:bg-gray-50">
-          <td v-for="column in columns" :key="column.key" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-            <slot :name="`${column.key}-data`" :row="row">
-              {{ getColumnData(row, column.key) }}
-            </slot>
-          </td>
-        </tr>
+        <template v-for="(row, rowIndex) in rows" :key="rowIndex">
+          <tr class="hover:bg-gray-50">
+            <td v-for="column in columns" :key="column.key" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <slot :name="`${column.key}-data`" :row="row">
+                {{ getColumnData(row, column.key) }}
+              </slot>
+            </td>
+          </tr>
+          <!-- Expandable row slot -->
+          <slot name="expandable-row" :row="row" :rowIndex="rowIndex"></slot>
+        </template>
       </tbody>
     </table>
   </div>
