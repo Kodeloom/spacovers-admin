@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { auth } from '~/server/lib/auth'
 import { getEnhancedPrismaClient } from '~/server/lib/db'
 import { recordAuditLog } from '~/server/utils/auditLog'
+import { validatePONumber, type POValidationResult } from '~/server/utils/poValidationService'
 
 const UpdateProductAttributeSchema = z.object({
   productType: z.enum(['SPA_COVER', 'COVER_FOR_COVER']).optional(),
@@ -15,6 +16,8 @@ const UpdateProductAttributeSchema = z.object({
   skirtType: z.enum(['CONN', 'SLIT']).optional(),
   tieDownsQty: z.string().optional(),
   tieDownPlacement: z.enum(['HANDLE_SIDE', 'CORNER_SIDE', 'FOLD_SIDE']).optional(),
+  tieDownLength: z.string().optional(),
+  poNumber: z.string().optional(),
   distance: z.string().optional(),
   foamUpgrade: z.string().optional(),
   doublePlasticWrapUpgrade: z.string().optional(),
@@ -62,9 +65,20 @@ export default defineEventHandler(async (event) => {
   const prisma = await getEnhancedPrismaClient(event)
 
   try {
-    // Get the existing product attribute
+    // Get the existing product attribute with order info for PO validation
     const existingAttribute = await prisma.productAttribute.findUnique({
-      where: { id: productAttributeId }
+      where: { id: productAttributeId },
+      include: {
+        orderItem: {
+          include: {
+            order: {
+              select: {
+                customerId: true
+              }
+            }
+          }
+        }
+      }
     })
 
     if (!existingAttribute) {
@@ -72,6 +86,19 @@ export default defineEventHandler(async (event) => {
         statusCode: 404,
         statusMessage: 'Product attribute not found'
       })
+    }
+
+    // PO validation if poNumber is provided and different from existing
+    let poValidationResult: POValidationResult | null = null
+    if (data.poNumber !== undefined && data.poNumber?.trim() !== existingAttribute.poNumber) {
+      if (data.poNumber && data.poNumber.trim()) {
+        poValidationResult = await validatePONumber(
+          existingAttribute.orderItem.order.customerId,
+          data.poNumber.trim(),
+          undefined, // excludeOrderId
+          existingAttribute.orderItemId // excludeOrderItemId
+        )
+      }
     }
 
     // Update the ProductAttribute
@@ -89,6 +116,8 @@ export default defineEventHandler(async (event) => {
         skirtType: data.skirtType,
         tieDownsQty: data.tieDownsQty,
         tieDownPlacement: data.tieDownPlacement,
+        tieDownLength: data.tieDownLength,
+        poNumber: data.poNumber,
         distance: data.distance,
         foamUpgrade: data.foamUpgrade,
         doublePlasticWrapUpgrade: data.doublePlasticWrapUpgrade,
@@ -115,7 +144,20 @@ export default defineEventHandler(async (event) => {
       newValue: updatedProductAttribute,
     }, sessionData.user.id)
 
-    return { data: updatedProductAttribute }
+    // Prepare response with validation warnings
+    const response: {
+      data: typeof updatedProductAttribute
+      poValidation?: POValidationResult
+    } = {
+      data: updatedProductAttribute
+    }
+
+    // Include PO validation result if there was a validation performed
+    if (poValidationResult) {
+      response.poValidation = poValidationResult
+    }
+
+    return response
 
   } catch (error) {
     console.error('Error updating ProductAttribute:', error)
