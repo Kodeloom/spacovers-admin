@@ -72,23 +72,25 @@ export default defineEventHandler(async (event) => {
     // Requirements: 8.1, 8.3 - Efficient database query with proper indexing
     const priorityItems = await prisma.orderItem.findMany({
       where: {
-        // Filter for items with status PENDING (NOT_STARTED_PRODUCTION) or CUTTING
+        // Filter for items across all production stations (from CUTTING until READY)
         // This uses the idx_order_items_priority_status_created index
         itemStatus: {
-          in: ['NOT_STARTED_PRODUCTION', 'CUTTING']
+          in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
         },
         // Only show production items (items that have ProductAttributes)
         productAttributes: {
           isNot: null
         },
-        // Ensure the order is not cancelled or archived AND has HIGH priority
+        // Ensure the order is not cancelled or archived AND has priority (exclude NO_PRIORITY)
         // This uses the idx_orders_priority_items index
         order: {
           orderStatus: {
             notIn: ['CANCELLED', 'ARCHIVED']
           },
-          // Only show HIGH priority orders
-          priority: 'HIGH'
+          // Show HIGH, MEDIUM, and LOW priority orders (exclude NO_PRIORITY)
+          priority: {
+            in: ['HIGH', 'MEDIUM', 'LOW']
+          }
         }
       },
       select: {
@@ -142,9 +144,11 @@ export default defineEventHandler(async (event) => {
         }
       },
       orderBy: [
-        // Sort by order creation date (oldest first) as primary sort
+        // First group by priority (HIGH, MEDIUM, LOW)
+        { order: { priority: 'desc' } }, // DESC gives us HIGH, MEDIUM, LOW order
+        // Then sort by order creation date (oldest first) within each priority group
         { order: { createdAt: 'asc' } },
-        // Then by item creation date
+        // Finally by item creation date
         { createdAt: 'asc' }
       ],
       // Limit results for performance - increased slightly for better UX
@@ -169,12 +173,16 @@ export default defineEventHandler(async (event) => {
       // Try without the order status filter
       const withoutOrderStatusFilter = await prisma.orderItem.count({
         where: {
-          itemStatus: 'NOT_STARTED_PRODUCTION',
+          itemStatus: {
+            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
+          },
           productAttributes: {
             isNot: null
           },
           order: {
-            priority: 'HIGH'
+            priority: {
+              in: ['HIGH', 'MEDIUM', 'LOW']
+            }
           }
         }
       });
@@ -183,26 +191,32 @@ export default defineEventHandler(async (event) => {
       // Try without the ProductAttributes filter
       const withoutProductAttributesFilter = await prisma.orderItem.count({
         where: {
-          itemStatus: 'NOT_STARTED_PRODUCTION',
+          itemStatus: {
+            in: ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING']
+          },
           order: {
             orderStatus: {
               notIn: ['CANCELLED', 'ARCHIVED']
             },
-            priority: 'HIGH'
+            priority: {
+              in: ['HIGH', 'MEDIUM', 'LOW']
+            }
           }
         }
       });
       console.log(`Without ProductAttributes filter: ${withoutProductAttributesFilter} items`);
       
-      // Try with just HIGH priority
-      const justHighPriority = await prisma.orderItem.count({
+      // Try with all priorities
+      const allPriorities = await prisma.orderItem.count({
         where: {
           order: {
-            priority: 'HIGH'
+            priority: {
+              in: ['HIGH', 'MEDIUM', 'LOW']
+            }
           }
         }
       });
-      console.log(`Just HIGH priority orders: ${justHighPriority} items`);
+      console.log(`All priority orders (HIGH, MEDIUM, LOW): ${allPriorities} items`);
     }
 
     // Helper function to create attribute description
@@ -276,8 +290,9 @@ export default defineEventHandler(async (event) => {
       orderNumber: item.order.salesOrderNumber || item.order.id.slice(-8),
       itemName: createAttributeDescription(item), // Use attribute description instead of item name
       customerName: item.order.customer?.name || 'Unknown Customer',
-      status: item.itemStatus === 'NOT_STARTED_PRODUCTION' ? 'PENDING' : item.itemStatus,
-      isUrgent: true, // All items are HIGH priority now
+      status: item.itemStatus, // Show actual status (CUTTING, SEWING, FOAM_CUTTING, STUFFING, PACKAGING)
+      priority: item.order.priority, // Include priority for grouping
+      isUrgent: item.order.priority === 'HIGH', // Only HIGH priority items are urgent
       createdAt: item.createdAt.toISOString(),
       orderCreatedAt: item.order.createdAt.toISOString(),
       estimatedDueDate: item.order.dueDate?.toISOString() || null

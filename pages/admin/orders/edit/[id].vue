@@ -308,75 +308,77 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="orderItem in order.items" :key="orderItem.id" class="group hover:bg-gray-50">
-                      <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div class="text-sm font-medium text-gray-900">
-                            {{ orderItem.item?.name || 'Unknown Item' }}
+                    <template v-for="orderItem in order.items" :key="orderItem.id">
+                      <tr class="group hover:bg-gray-50">
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div class="text-sm font-medium text-gray-900">
+                              {{ orderItem.item?.name || 'Unknown Item' }}
+                            </div>
+                            <div v-if="orderItem.quickbooksOrderLineId" class="text-xs text-gray-500">
+                              QBO Line: {{ orderItem.quickbooksOrderLineId }}
+                            </div>
                           </div>
-                          <div v-if="orderItem.quickbooksOrderLineId" class="text-xs text-gray-500">
-                            QBO Line: {{ orderItem.quickbooksOrderLineId }}
+                        </td>
+                        <!-- <td class="px-3 sm:px-6 py-4">
+                          <div class="text-sm text-gray-900 max-w-xs">
+                            <div v-if="orderItem.lineDescription" class="break-words">
+                              {{ orderItem.lineDescription }}
+                            </div>
+                            <div v-else class="text-gray-400 italic">
+                              No description
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <!-- <td class="px-3 sm:px-6 py-4">
-                        <div class="text-sm text-gray-900 max-w-xs">
-                          <div v-if="orderItem.lineDescription" class="break-words">
-                            {{ orderItem.lineDescription }}
+                        </td> -->
+                        <!-- <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ orderItem.quantity }}
+                        </td> -->
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {{ new Intl.NumberFormat('en-US', {
+                            style: 'currency', currency: 'USD'
+                          }).format(orderItem.pricePerItem)
+                          }}
+                        </td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div class="flex items-center">
+                            <input :id="`isProduct-${orderItem.id}`" :checked="orderItem.isProduct" type="checkbox"
+                              :disabled="orderItem.productAttributes?.verified"
+                              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                              @change="updateOrderItemProductStatus(orderItem.id, $event.target.checked)" />
+                            <label :for="`isProduct-${orderItem.id}`" class="ml-2 text-sm text-gray-700">
+                              Production Item
+                            </label>
                           </div>
-                          <div v-else class="text-gray-400 italic">
-                            No description
+                        </td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
+                          <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {{ orderItem.itemStatus || 'Not Started' }}
+                          </span>
+                        </td>
+                        <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div class="flex items-center space-x-2">
+                            <button type="button" class="text-indigo-600 hover:text-indigo-900"
+                              @click="editOrderItemStatus(orderItem)">
+                              Edit Status
+                            </button>
+                            <button v-if="orderItem.isProduct" type="button" class="text-blue-600 hover:text-blue-900"
+                              @click="openAttributesModal(orderItem)">
+                              Attributes
+                            </button>
+                            <button v-if="orderItem.isProduct" type="button" class="text-green-600 hover:text-green-900"
+                              @click="verifyOrderItem(orderItem)">
+                              Verify
+                            </button>
+                            <!-- Remove Product button - only show if order is PENDING -->
+                            <button v-if="order.orderStatus === 'PENDING'" type="button"
+                              class="text-red-600 hover:text-red-900" @click="removeProduct(orderItem)">
+                              Remove
+                            </button>
                           </div>
-                        </div>
-                      </td> -->
-                      <!-- <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {{ orderItem.quantity }}
-                      </td> -->
-                      <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {{ new Intl.NumberFormat('en-US', {
-                          style: 'currency', currency: 'USD'
-                        }).format(orderItem.pricePerItem)
-                        }}
-                      </td>
-                      <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div class="flex items-center">
-                          <input :id="`isProduct-${orderItem.id}`" :checked="orderItem.isProduct" type="checkbox"
-                            :disabled="orderItem.productAttributes?.verified"
-                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                            @change="updateOrderItemProductStatus(orderItem.id, $event.target.checked)" />
-                          <label :for="`isProduct-${orderItem.id}`" class="ml-2 text-sm text-gray-700">
-                            Production Item
-                          </label>
-                        </div>
-                      </td>
-                      <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <span
-                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          {{ orderItem.itemStatus || 'Not Started' }}
-                        </span>
-                      </td>
-                      <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div class="flex items-center space-x-2">
-                          <button type="button" class="text-indigo-600 hover:text-indigo-900"
-                            @click="editOrderItemStatus(orderItem)">
-                            Edit Status
-                          </button>
-                          <button v-if="orderItem.isProduct" type="button" class="text-blue-600 hover:text-blue-900"
-                            @click="openAttributesModal(orderItem)">
-                            Attributes
-                          </button>
-                          <button v-if="orderItem.isProduct" type="button" class="text-green-600 hover:text-green-900"
-                            @click="verifyOrderItem(orderItem)">
-                            Verify
-                          </button>
-                          <!-- Remove Product button - only show if order is PENDING -->
-                          <button v-if="order.orderStatus === 'PENDING'" type="button"
-                            class="text-red-600 hover:text-red-900" @click="removeProduct(orderItem)">
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -761,6 +763,10 @@ import {
 } from '~/utils/backwardCompatibility';
 import POValidationWarning from '~/components/admin/POValidationWarning.vue';
 import PackingSlip from '~/components/admin/PackingSlip.vue';
+import ProductAttributesDisplay from '~/components/ProductAttributesDisplay.vue';
+import ProductAttributesEditor from '~/components/ProductAttributesEditor.vue';
+import { useUserPermissions } from '~/composables/useUserPermissions';
+import { usePackingSlipStatus } from '~/composables/usePackingSlipStatus';
 
 definePageMeta({
   layout: 'default',
@@ -773,6 +779,67 @@ const toast = useToast();
 const orderId = route.params.id as string;
 const isSyncing = ref(false);
 const isApprovingOrder = ref(false);
+
+// User permissions and role detection
+const { 
+  user, 
+  isSuperAdmin, 
+  isAdmin, 
+  canOverrideReadOnly,
+  privilegeLevel,
+  userRoleNames,
+  canEditProductAttributes 
+} = useUserPermissions();
+
+// Packing slip status tracking
+const {
+  packingSlipStatus,
+  fetchPackingSlipStatus,
+  hasPackingSlipPrinted,
+  loading: packingSlipLoading
+} = usePackingSlipStatus();
+
+// Permission checking functions for product attributes
+function isAttributesReadOnly(item: any): boolean {
+  const hasVerifiedAttributes = item.productAttributes?.verified;
+  const approvedStatuses = ['APPROVED', 'ORDER_PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED'];
+  const isOrderApproved = order.value?.orderStatus && approvedStatuses.includes(order.value.orderStatus);
+  
+  // If attributes are not verified or order is not approved, allow editing
+  if (!hasVerifiedAttributes || !isOrderApproved) {
+    return false;
+  }
+  
+  // Super admin can always edit (but with warnings)
+  if (isSuperAdmin.value) {
+    return false;
+  }
+  
+  // Regular users cannot edit verified attributes on approved orders
+  return true;
+}
+
+// Get warning level for super admin edits
+function getEditWarningLevel(item: any): 'none' | 'standard' | 'critical' {
+  if (!isSuperAdmin.value) return 'none';
+  
+  const hasVerifiedAttributes = item.productAttributes?.verified;
+  const approvedStatuses = ['APPROVED', 'ORDER_PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED'];
+  const isOrderApproved = order.value?.orderStatus && approvedStatuses.includes(order.value.orderStatus);
+  
+  // If this wouldn't normally be read-only, no warning needed
+  if (!hasVerifiedAttributes || !isOrderApproved) {
+    return 'none';
+  }
+  
+  // Check if packing slip has been printed for critical warning
+  if (hasPackingSlipPrinted(item.id)) {
+    return 'critical';
+  }
+  
+  // Standard warning for super admin override of verified attributes on approved orders
+  return 'standard';
+}
 
 // PO validation states
 const isValidatingPO = ref(false);
@@ -1017,6 +1084,12 @@ watch(order, (newOrder) => {
       billingState: newOrder.billingState || '',
       billingZipCode: newOrder.billingZipCode || ''
     };
+    
+    // Fetch packing slip status for all order items
+    if (newOrder.items && newOrder.items.length > 0) {
+      const orderItemIds = newOrder.items.map(item => item.id);
+      fetchPackingSlipStatus(orderItemIds);
+    }
   }
 }, { immediate: true });
 

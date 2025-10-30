@@ -5,8 +5,9 @@ interface PriorityItem {
   orderNumber: string;
   itemName: string; // Now contains attribute description (e.g., "Spa Cover, Navy Blue, Size: 84, Shape: Round")
   customerName: string;
-  status: 'PENDING' | 'CUTTING';
-  isUrgent: boolean; // Always true now since we only show HIGH priority orders
+  status: 'CUTTING' | 'SEWING' | 'FOAM_CUTTING' | 'STUFFING' | 'PACKAGING';
+  priority: 'HIGH' | 'MEDIUM' | 'LOW'; // Priority level for grouping
+  isUrgent: boolean; // True only for HIGH priority orders
   createdAt: string;
   orderCreatedAt: string;
   estimatedDueDate?: string;
@@ -144,11 +145,12 @@ export const usePriorityItems = () => {
     console.log('Priority items: Handling status change event', event);
     
     // Check if this status change affects priority items
+    const priorityStatuses = ['CUTTING', 'SEWING', 'FOAM_CUTTING', 'STUFFING', 'PACKAGING'];
     const affectsPriorityList = 
-      // Item moving into priority status (NOT_STARTED_PRODUCTION or CUTTING)
-      (event.toStatus === 'NOT_STARTED_PRODUCTION' || event.toStatus === 'CUTTING') ||
-      // Item moving out of priority status
-      (event.fromStatus === 'NOT_STARTED_PRODUCTION' || event.fromStatus === 'CUTTING');
+      // Item moving into priority status (any production station)
+      priorityStatuses.includes(event.toStatus) ||
+      // Item moving out of priority status (to READY or other non-production status)
+      priorityStatuses.includes(event.fromStatus);
     
     if (affectsPriorityList) {
       console.log('Priority items: Status change affects priority list, refreshing...');

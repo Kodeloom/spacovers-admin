@@ -1247,7 +1247,7 @@ export const usePrintQueue = () => {
                 <span class="customer-name">${safeCustomer}</span>
               </div>
               <div class="order-info">
-                <div class="order-number">Order #${safeOrderNumber}</div>
+                <div class="order-number"># ${safeOrderNumber}</div>
                 <div class="order-date">${safeDate}</div>
               </div>
             </div>
@@ -1362,7 +1362,7 @@ export const usePrintQueue = () => {
                 <span class="customer-name">${safeCustomer}</span>
               </div>
               <div class="order-info compact">
-                <div class="order-number">${safeOrderNumber}</div>
+                <div class="order-number"># ${safeOrderNumber}</div>
                 <div class="order-date">${safeDate}</div>
               </div>
             </div>
@@ -1541,15 +1541,20 @@ export const usePrintQueue = () => {
         border-bottom: 1px solid #000;
         margin-bottom: 0.05in;
         padding-bottom: 0.03in;
+        display: flex;
+        flex-direction: row;
       }
       
       .label-header.compact {
         margin-bottom: 0.03in;
         padding-bottom: 0.02in;
+        display: flex;
+        flex-direction: row;
       }
       
       .customer-info {
         margin-bottom: 0.03in;
+        flex-grow: 1;
       }
       
       .customer-info.compact {
@@ -1564,11 +1569,13 @@ export const usePrintQueue = () => {
       .customer-name {
         font-weight: bold;
         margin-left: 0.05in;
+        font-size: 10pt;
       }
       
       .order-info {
         text-align: right;
         font-size: 7pt;
+        flex-grow: 2;
       }
       
       .order-info.compact {
@@ -1577,6 +1584,11 @@ export const usePrintQueue = () => {
       
       .order-number {
         font-weight: bold;
+        font-size: 13pt;
+      }
+
+      .order-date {
+        font-size: 9pt;
       }
       
       .barcode-section {
