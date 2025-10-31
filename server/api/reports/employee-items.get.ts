@@ -1,6 +1,5 @@
 import { auth } from '~/server/lib/auth';
 import { unenhancedPrisma as prisma } from '~/server/lib/db';
-import { TimezoneService } from '~/utils/timezoneService';
 import { validateReportRequest, validateUserId, validateProcessingLogs } from '~/utils/reportValidation';
 import { logError } from '~/utils/errorHandling';
 
@@ -56,6 +55,11 @@ export default defineEventHandler(async (event) => {
     const { startDate, endDate, stationId } = validation.validatedParams;
     const userId = userIdValidation.normalizedValue;
 
+    // Parse pagination parameters
+    const page = parseInt(query.page as string) || 1;
+    const limit = Math.min(parseInt(query.limit as string) || 50, 100); // Max 100 items per page
+    const offset = (page - 1) * limit;
+
     // Build where clause for filtering
     const whereClause: any = {
       userId: userId,
@@ -78,7 +82,14 @@ export default defineEventHandler(async (event) => {
 
     // Fetch processing logs with related data for the specific employee
     let processingLogs;
+    let totalCount;
     try {
+      // Get total count for pagination
+      totalCount = await prisma.itemProcessingLog.count({
+        where: whereClause
+      });
+
+      // Fetch paginated processing logs
       processingLogs = await prisma.itemProcessingLog.findMany({
         where: whereClause,
         include: {
@@ -104,7 +115,9 @@ export default defineEventHandler(async (event) => {
         },
         orderBy: {
           endTime: 'desc' // Most recent first
-        }
+        },
+        skip: offset,
+        take: limit
       });
     } catch (dbError) {
       logError(dbError, 'employee_items_database_query', sessionData.user.id, { userId });
@@ -128,8 +141,16 @@ export default defineEventHandler(async (event) => {
       return {
         success: true,
         data: [],
+        pagination: {
+          page: 1,
+          limit,
+          totalCount: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false
+        },
         summary: {
-          totalItems: 0,
+          totalProcessingLogs: 0,
           totalProcessingTime: 0,
           totalProcessingTimeFormatted: '0s'
         },
@@ -146,103 +167,56 @@ export default defineEventHandler(async (event) => {
       console.warn('Employee items report data warnings:', logValidation.warnings);
     }
 
-    // Group by orderItemId to get unique items and calculate total processing time per item
-    const itemsMap = new Map<string, {
-      orderItemId: string;
-      itemName: string;
-      orderNumber: string;
-      orderId: string;
-      customerName: string;
-      processingTime: number;
-      processedAt: Date;
-      stationName: string;
-      stationNames: Set<string>;
-      completedAt: Date | null;
-    }>();
-
-    for (const log of logValidation.validLogs) {
-      const orderItemId = log.orderItemId;
+    // Convert processing logs to detailed entries with start/end times for each station
+    const result = logValidation.validLogs.map(log => {
+      // Safely access nested properties with fallbacks
+      const orderItem = log.orderItem;
+      const order = orderItem?.order;
+      const item = orderItem?.item;
+      const customer = order?.customer;
       
-      if (!orderItemId) {
-        continue; // Skip logs without orderItemId (should be filtered by validation)
-      }
-      
-      if (!itemsMap.has(orderItemId)) {
-        // Safely access nested properties with fallbacks
-        const orderItem = log.orderItem;
-        const order = orderItem?.order;
-        const item = orderItem?.item;
-        const customer = order?.customer;
-        
-        if (!orderItem || !order || !item) {
-          console.warn(`Incomplete data for orderItemId ${orderItemId}, skipping`);
-          continue;
-        }
-
-        // Determine order number - prefer sales order number, fallback to purchase order number
-        const orderNumber = order.salesOrderNumber || 
-                           order.purchaseOrderNumber || 
-                           `Order-${order.id.slice(-8)}`;
-
-        itemsMap.set(orderItemId, {
-          orderItemId,
-          itemName: item.name || 'Unknown Item',
-          orderNumber,
-          orderId: order.id,
-          customerName: customer?.name || 'Unknown Customer',
-          processingTime: 0,
-          processedAt: log.startTime || new Date(),
-          stationName: log.station?.name || 'Unknown Station',
-          stationNames: new Set<string>(),
-          completedAt: null
-        });
+      if (!orderItem || !order || !item) {
+        console.warn(`Incomplete data for orderItemId ${log.orderItemId}, skipping`);
+        return null;
       }
 
-      const itemData = itemsMap.get(orderItemId)!;
-      
-      // Add processing time (duration in seconds) with validation
-      if (log.durationInSeconds && log.durationInSeconds > 0) {
-        itemData.processingTime += log.durationInSeconds;
-      }
-      
-      // Track all stations this item was processed at
-      if (log.station?.name) {
-        itemData.stationNames.add(log.station.name);
-      }
-      
-      // Update completion time to the latest end time
-      if (log.endTime && (!itemData.completedAt || log.endTime > itemData.completedAt)) {
-        itemData.completedAt = log.endTime;
-      }
-      
-      // Update processed at to the earliest start time
-      if (log.startTime && log.startTime < itemData.processedAt) {
-        itemData.processedAt = log.startTime;
-      }
-    }
+      // Determine order number - prefer sales order number, fallback to purchase order number
+      const orderNumber = order.salesOrderNumber || 
+                         order.purchaseOrderNumber || 
+                         `Order-${order.id.slice(-8)}`;
 
-    // Convert map to array and format the response
-    const result = Array.from(itemsMap.values()).map(item => ({
-      orderItemId: item.orderItemId,
-      itemName: item.itemName,
-      orderNumber: item.orderNumber,
-      orderId: item.orderId,
-      customerName: item.customerName,
-      processingTime: item.processingTime, // in seconds
-      processingTimeFormatted: formatDuration(item.processingTime),
-      processedAt: item.processedAt,
-      completedAt: item.completedAt,
-      stationName: item.stationNames.size === 1 
-        ? item.stationName 
-        : Array.from(item.stationNames).join(', '), // Show all stations if multiple
-      stationNames: Array.from(item.stationNames)
-    }));
+      return {
+        processingLogId: log.id,
+        orderItemId: log.orderItemId,
+        itemName: item.name || 'Unknown Item',
+        orderNumber,
+        orderId: order.id,
+        customerName: customer?.name || 'Unknown Customer',
+        status: orderItem.status || 'UNKNOWN',
+        stationName: log.station?.name || 'Unknown Station',
+        stationId: log.stationId,
+        startTime: log.startTime,
+        endTime: log.endTime,
+        processingTime: log.durationInSeconds || 0, // in seconds
+        processingTimeFormatted: formatDuration(log.durationInSeconds || 0)
+      };
+    }).filter(item => item !== null); // Remove null entries
+
+    const totalPages = Math.ceil(totalCount / limit);
 
     return {
       success: true,
       data: result,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      },
       summary: {
-        totalItems: result.length,
+        totalProcessingLogs: result.length,
         totalProcessingTime: result.reduce((sum, item) => sum + item.processingTime, 0),
         totalProcessingTimeFormatted: formatDuration(
           result.reduce((sum, item) => sum + item.processingTime, 0)
@@ -300,8 +274,16 @@ export default defineEventHandler(async (event) => {
         fallbackData: {
           success: false,
           data: [],
+          pagination: {
+            page: 1,
+            limit: 50,
+            totalCount: 0,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPreviousPage: false
+          },
           summary: {
-            totalItems: 0,
+            totalProcessingLogs: 0,
             totalProcessingTime: 0,
             totalProcessingTimeFormatted: '0s'
           },

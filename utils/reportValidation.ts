@@ -136,7 +136,7 @@ export function validateDateRange(
 }
 
 /**
- * Validate user ID parameter (CUID format)
+ * Validate user ID parameter (supports multiple formats: CUID, Firebase Auth, UUID)
  */
 export function validateUserId(userId?: string): ValidationResult {
   if (!userId) {
@@ -160,19 +160,31 @@ export function validateUserId(userId?: string): ValidationResult {
     };
   }
 
+  const trimmedUserId = userId.trim();
+
   // CUID format validation (starts with 'c' followed by 24 alphanumeric characters)
   // Example: cmg5nic400016ujni1xm9qcnl
   const cuidRegex = /^c[a-z0-9]{24}$/i;
-  if (!cuidRegex.test(userId)) {
+  
+  // Firebase Auth UID format (28 characters, alphanumeric)
+  // Example: s6KLH52M9vQppgm9pUKwVqeQXMV0M3AU
+  const firebaseAuthRegex = /^[a-zA-Z0-9]{28}$/;
+  
+  // UUID format (with or without hyphens)
+  // Example: 123e4567-e89b-12d3-a456-426614174000 or 123e4567e89b12d3a456426614174000
+  const uuidRegex = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+  // Check if it matches any of the supported formats
+  if (cuidRegex.test(trimmedUserId) || firebaseAuthRegex.test(trimmedUserId) || uuidRegex.test(trimmedUserId)) {
     return {
-      isValid: false,
-      error: 'userId must be a valid CUID format (e.g., cmg5nic400016ujni1xm9qcnl)'
+      isValid: true,
+      normalizedValue: trimmedUserId
     };
   }
 
   return {
-    isValid: true,
-    normalizedValue: userId.trim()
+    isValid: false,
+    error: 'userId must be in a valid format (CUID, Firebase Auth UID, or UUID)'
   };
 }
 
@@ -645,7 +657,7 @@ export function validateReportRequest(query: Record<string, any>): {
         userValidation.error!,
         'INVALID_USER_ID',
         [
-          'Ensure the user ID is in CUID format (starts with "c" followed by 24 characters)',
+          'Ensure the user ID is in a valid format (CUID, Firebase Auth UID, or UUID)',
           'Check that the user ID was copied correctly from the system',
           'Use the employee dropdown to select a valid user'
         ]

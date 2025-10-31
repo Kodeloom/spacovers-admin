@@ -33,13 +33,17 @@
       <div v-else>
         <!-- Summary -->
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
-          <div class="grid grid-cols-2 gap-4 text-sm">
+          <div class="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <span class="font-medium text-gray-700">Total Items:</span>
-              <span class="ml-2 text-gray-900">{{ summary.totalItems }}</span>
+              <span class="font-medium text-gray-700">Total Processing Sessions:</span>
+              <span class="ml-2 text-gray-900">{{ pagination.totalCount }}</span>
             </div>
             <div>
-              <span class="font-medium text-gray-700">Total Processing Time:</span>
+              <span class="font-medium text-gray-700">Showing:</span>
+              <span class="ml-2 text-gray-900">{{ summary.totalProcessingLogs }} on this page</span>
+            </div>
+            <div>
+              <span class="font-medium text-gray-700">Total Processing Time (this page):</span>
               <span class="ml-2 text-gray-900">{{ summary.totalProcessingTimeFormatted }}</span>
             </div>
           </div>
@@ -57,67 +61,119 @@
                   Order
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Customer
+                  Status
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Station
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Started
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Finished
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Processing Time
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Station(s)
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Completed
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Customer
                 </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="item in items" :key="item.orderItemId" class="hover:bg-gray-50">
+              <tr v-for="item in items" :key="item.processingLogId" class="hover:bg-gray-50">
                 <td class="px-4 py-4 text-sm font-medium text-gray-900">
                   {{ item.itemName }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ item.orderNumber }}
+                  <NuxtLink 
+                    :to="`/admin/orders/edit/${item.orderId}`"
+                    class="text-indigo-600 hover:text-indigo-900 font-medium"
+                    @click="$emit('close')"
+                  >
+                    {{ item.orderNumber }}
+                  </NuxtLink>
+                </td>
+                <td class="px-4 py-4 text-sm">
+                  <span 
+                    :class="getStatusBadgeClass(item.status)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    {{ formatStatus(item.status) }}
+                  </span>
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ item.customerName }}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ item.stationName }}
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  {{ formatDateTime(item.startTime) }}
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  {{ formatDateTime(item.endTime) }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
                   {{ item.processingTimeFormatted }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
-                  <span 
-                    v-if="item.stationNames.length === 1"
-                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                  >
-                    {{ item.stationName }}
-                  </span>
-                  <div v-else class="space-y-1">
-                    <span 
-                      v-for="station in item.stationNames" 
-                      :key="station"
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-1"
-                    >
-                      {{ station }}
-                    </span>
-                  </div>
-                </td>
-                <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ item.completedAt ? formatDate(item.completedAt) : 'In Progress' }}
-                </td>
-                <td class="px-4 py-4 text-sm text-gray-500">
-                  <button
-                    @click="navigateToOrder(item.orderId)"
-                    class="text-indigo-600 hover:text-indigo-900 font-medium"
-                  >
-                    View Order
-                  </button>
+                  {{ item.customerName }}
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div v-if="pagination.totalPages > 1" class="mt-6 flex items-center justify-between">
+          <div class="text-sm text-gray-700">
+            Showing page {{ pagination.page }} of {{ pagination.totalPages }} 
+            ({{ pagination.totalCount }} total processing sessions)
+          </div>
+          <div class="flex space-x-2">
+            <button
+              @click="previousPage"
+              :disabled="!pagination.hasPreviousPage"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md',
+                pagination.hasPreviousPage
+                  ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+              ]"
+            >
+              Previous
+            </button>
+            
+            <!-- Page numbers -->
+            <div class="flex space-x-1">
+              <button
+                v-for="page in getVisiblePages()"
+                :key="page"
+                @click="goToPage(page)"
+                :class="[
+                  'px-3 py-2 text-sm font-medium rounded-md',
+                  page === pagination.page
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+            
+            <button
+              @click="nextPage"
+              :disabled="!pagination.hasNextPage"
+              :class="[
+                'px-3 py-2 text-sm font-medium rounded-md',
+                pagination.hasNextPage
+                  ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  : 'bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed'
+              ]"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -136,23 +192,34 @@
 
 <script setup lang="ts">
 interface EmployeeItemDetail {
+  processingLogId: string;
   orderItemId: string;
   itemName: string;
   orderNumber: string;
   orderId: string;
   customerName: string;
+  status: string;
+  stationName: string;
+  stationId: string;
+  startTime: string;
+  endTime: string;
   processingTime: number;
   processingTimeFormatted: string;
-  processedAt: string;
-  completedAt: string | null;
-  stationName: string;
-  stationNames: string[];
 }
 
 interface EmployeeItemsSummary {
-  totalItems: number;
+  totalProcessingLogs: number;
   totalProcessingTime: number;
   totalProcessingTimeFormatted: string;
+}
+
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 }
 
 interface Props {
@@ -169,9 +236,17 @@ const emit = defineEmits(['close']);
 
 const items = ref<EmployeeItemDetail[]>([]);
 const summary = ref<EmployeeItemsSummary>({
-  totalItems: 0,
+  totalProcessingLogs: 0,
   totalProcessingTime: 0,
   totalProcessingTimeFormatted: '0s'
+});
+const pagination = ref<PaginationInfo>({
+  page: 1,
+  limit: 50,
+  totalCount: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false
 });
 const isLoading = ref(false);
 const error = ref<string | null>(null);
@@ -192,11 +267,11 @@ watch(() => props.isOpen, (isOpen) => {
 // Watch for filter changes and reload data
 watch([() => props.employeeId, () => props.startDate, () => props.endDate, () => props.stationId], () => {
   if (props.isOpen && props.employeeId) {
-    loadEmployeeItems();
+    loadEmployeeItems(1); // Reset to page 1 when filters change
   }
 });
 
-async function loadEmployeeItems() {
+async function loadEmployeeItems(page: number = 1) {
   if (!props.employeeId) return;
 
   isLoading.value = true;
@@ -207,6 +282,8 @@ async function loadEmployeeItems() {
       userId: props.employeeId,
       startDate: props.startDate,
       endDate: props.endDate,
+      page,
+      limit: 50
     };
 
     if (props.stationId) {
@@ -218,11 +295,19 @@ async function loadEmployeeItems() {
     });
 
     if (response.success) {
-      items.value = response.data || [];
+      items.value = (response.data || []) as EmployeeItemDetail[];
       summary.value = response.summary || {
-        totalItems: 0,
+        totalProcessingLogs: 0,
         totalProcessingTime: 0,
         totalProcessingTimeFormatted: '0s'
+      };
+      pagination.value = response.pagination || {
+        page: 1,
+        limit: 50,
+        totalCount: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false
       };
     } else {
       throw new Error('Failed to load employee items');
@@ -232,12 +317,38 @@ async function loadEmployeeItems() {
     error.value = 'Failed to load employee item details. Please try again.';
     items.value = [];
     summary.value = {
-      totalItems: 0,
+      totalProcessingLogs: 0,
       totalProcessingTime: 0,
       totalProcessingTimeFormatted: '0s'
     };
+    pagination.value = {
+      page: 1,
+      limit: 50,
+      totalCount: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    };
   } finally {
     isLoading.value = false;
+  }
+}
+
+function goToPage(page: number) {
+  if (page >= 1 && page <= pagination.value.totalPages) {
+    loadEmployeeItems(page);
+  }
+}
+
+function nextPage() {
+  if (pagination.value.hasNextPage) {
+    goToPage(pagination.value.page + 1);
+  }
+}
+
+function previousPage() {
+  if (pagination.value.hasPreviousPage) {
+    goToPage(pagination.value.page - 1);
   }
 }
 
@@ -253,10 +364,78 @@ function formatDate(dateString: string): string {
   }
 }
 
+function formatDateTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch {
+    return 'Invalid Date';
+  }
+}
+
+function getVisiblePages(): number[] {
+  const current = pagination.value.page;
+  const total = pagination.value.totalPages;
+  const delta = 2; // Show 2 pages before and after current page
+  
+  const range = [];
+  const rangeWithDots = [];
+  
+  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+    range.push(i);
+  }
+  
+  if (current - delta > 2) {
+    rangeWithDots.push(1, '...');
+  } else {
+    rangeWithDots.push(1);
+  }
+  
+  rangeWithDots.push(...range);
+  
+  if (current + delta < total - 1) {
+    rangeWithDots.push('...', total);
+  } else if (total > 1) {
+    rangeWithDots.push(total);
+  }
+  
+  return rangeWithDots.filter((page, index, arr) => 
+    typeof page === 'number' && arr.indexOf(page) === index
+  ) as number[];
+}
+
 function navigateToOrder(orderId: string) {
   // Navigate to the order edit page
   navigateTo(`/admin/orders/edit/${orderId}`);
   // Close the modal after navigation
   emit('close');
+}
+
+function formatStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'Not Started',
+    'IN_PRODUCTION': 'In Production',
+    'PRODUCT_FINISHED': 'Finished',
+    'SHIPPED': 'Shipped',
+    'CANCELLED': 'Cancelled',
+    'UNKNOWN': 'Unknown'
+  };
+  return statusMap[status] || status;
+}
+
+function getStatusBadgeClass(status: string): string {
+  const classMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'bg-gray-100 text-gray-800',
+    'IN_PRODUCTION': 'bg-blue-100 text-blue-800',
+    'PRODUCT_FINISHED': 'bg-green-100 text-green-800',
+    'SHIPPED': 'bg-purple-100 text-purple-800',
+    'CANCELLED': 'bg-red-100 text-red-800',
+    'UNKNOWN': 'bg-gray-100 text-gray-800'
+  };
+  return classMap[status] || 'bg-gray-100 text-gray-800';
 }
 </script>
