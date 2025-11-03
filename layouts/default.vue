@@ -1,7 +1,9 @@
 <template>
   <div class="flex min-h-screen bg-gray-100">
-    <AppSidebar v-if="showSidebar" />
-    <div class="flex-1 flex flex-col" :class="{ 'ml-0': !showSidebar }">
+    <ClientOnly>
+      <AppSidebar v-if="showSidebar" />
+    </ClientOnly>
+    <div class="flex-1 flex flex-col">
       <main class="flex-1 container mx-auto p-4">
         <slot />
       </main>

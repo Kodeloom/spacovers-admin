@@ -2,9 +2,16 @@
   <div class="p-4">
     <div class="mb-6">
       <h1 class="text-3xl font-bold text-gray-900">Warehouse Administrator Dashboard</h1>
-      <p class="mt-2 text-lg text-gray-600">
-        Welcome back, {{ session?.data?.user?.name }}! Here's your warehouse overview.
-      </p>
+      <ClientOnly>
+        <p class="mt-2 text-lg text-gray-600">
+          Welcome back, {{ session?.data?.user?.name }}! Here's your warehouse overview.
+        </p>
+        <template #fallback>
+          <p class="mt-2 text-lg text-gray-600">
+            Welcome back! Here's your warehouse overview.
+          </p>
+        </template>
+      </ClientOnly>
       
       <!-- Loading indicator -->
       <div v-if="isLoading" class="mt-4 flex items-center text-blue-600">
@@ -69,7 +76,8 @@
     </div>
 
     <!-- Main KPI Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <ClientOnly>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <!-- Orders in Progress -->
       <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="navigateToOrdersWithStatus('ORDER_PROCESSING')">
         <div class="flex items-center">
@@ -137,10 +145,12 @@
           </div>
         </div>
       </div> -->
-    </div>
+      </div>
+    </ClientOnly>
 
     <!-- Secondary KPI Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <ClientOnly>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 <!-- Orders This Week -->
       <div class="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500">
         <div class="flex items-center">
@@ -159,7 +169,7 @@
       </div> 
 
       <!-- Items at Cutting Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('CUTTING', 'Items at Cutting')">
+      <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('CUTTING', 'Items at Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:scissors" class="h-8 w-8 text-red-600" />
@@ -176,7 +186,7 @@
       </div>
 
       <!-- Items at Sewing Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('SEWING', 'Items at Sewing')">
+      <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('SEWING', 'Items at Sewing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:swatch" class="h-8 w-8 text-blue-600" />
@@ -193,7 +203,7 @@
       </div>
 
       <!-- Items at Foam Cutting Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('FOAM_CUTTING', 'Items at Foam Cutting')">
+      <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('FOAM_CUTTING', 'Items at Foam Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:cube" class="h-8 w-8 text-purple-600" />
@@ -210,7 +220,7 @@
       </div>
 
       <!-- Items at Stuffing Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('STUFFING', 'Items at Stuffing')">
+      <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('STUFFING', 'Items at Stuffing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:archive-box" class="h-8 w-8 text-orange-600" />
@@ -227,7 +237,7 @@
       </div>
 
       <!-- Items at Packaging Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('PACKAGING', 'Items at Packaging')">
+      <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('PACKAGING', 'Items at Packaging')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:gift" class="h-8 w-8 text-emerald-600" />
@@ -242,10 +252,11 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ClientOnly>
 
     <!-- Performance Metrics Row (Admin Only) -->
-    <div v-if="isAdmin" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div v-show="isAdmin" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       <!-- Production Efficiency -->
       <div class="bg-white p-6 rounded-lg shadow">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Production Efficiency</h3>
@@ -328,23 +339,25 @@ class="px-2 py-1 rounded-full text-xs font-medium"
     </div>
 
     <!-- User Information Card -->
-    <div v-if="session?.data?.user" class="bg-white p-6 rounded-lg shadow">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">User Information</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <p class="text-sm text-gray-600"><strong>Name:</strong></p>
-          <p class="text-sm font-medium text-gray-900">{{ session.data.user.name }}</p>
-        </div>
-        <div>
-          <p class="text-sm text-gray-600"><strong>Email:</strong></p>
-          <p class="text-sm font-medium text-gray-900">{{ session.data.user.email }}</p>
-        </div>
-        <div>
-          <p class="text-sm text-gray-600"><strong>Roles:</strong></p>
-          <p class="text-sm font-medium text-gray-900">{{ userRolesDisplay || 'No roles assigned' }}</p>
+    <ClientOnly>
+      <div v-if="session?.data?.user" class="bg-white p-6 rounded-lg shadow">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">User Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p class="text-sm text-gray-600"><strong>Name:</strong></p>
+            <p class="text-sm font-medium text-gray-900">{{ session.data.user.name }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600"><strong>Email:</strong></p>
+            <p class="text-sm font-medium text-gray-900">{{ session.data.user.email }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600"><strong>Roles:</strong></p>
+            <p class="text-sm font-medium text-gray-900">{{ userRolesDisplay || 'No roles assigned' }}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </ClientOnly>
 
     <!-- Station Items Modal -->
     <AppModal :is-open="showStationItemsModal" :title="stationItemsModalTitle" @close="closeStationItemsModal" size="full">
@@ -555,19 +568,14 @@ async function fetchDashboardMetrics() {
         } 
       }),
       $fetch('/api/reports/station-items'),
-      $fetch('/api/model/Order', {
-        query: { 
-          take: 5, 
-          orderBy: { createdAt: 'desc' },
-          include: { customer: true }
-        }
-      })
+      // Fetch recent orders using our new API
+      $fetch('/api/reports/recent-orders', { query: { limit: 5 } })
     ]);
     
     // Extract values with fallbacks
     const leadTime = leadTimeResponse.status === 'fulfilled' ? leadTimeResponse.value?.summary?.avgLeadTimeDays || 0 : 0;
     const stationItems = stationItemsResponse.status === 'fulfilled' ? stationItemsResponse.value || [] : [];
-    const recentOrders = recentOrdersResponse.status === 'fulfilled' ? recentOrdersResponse.value?.data || [] : [];
+    const recentOrders = recentOrdersResponse.status === 'fulfilled' ? recentOrdersResponse.value || [] : [];
     
     // Process station items data
     const cuttingItems = stationItems.find((s: any) => s.stationName === 'Cutting')?.itemsCount || 0;
@@ -695,8 +703,8 @@ async function fetchStationItemsModalData(status: string) {
       query: { status }
     });
 
-    if (response && response.success) {
-      stationItemsModalData.value = response.data || [];
+    if (response && typeof response === 'object' && 'success' in response && response.success) {
+      stationItemsModalData.value = (response as any).data || [];
     } else {
       throw new Error('Failed to fetch station items');
     }
