@@ -70,25 +70,25 @@
 
     <!-- Main KPI Cards Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <!-- Total Orders -->
-      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+      <!-- Orders in Progress -->
+      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="navigateToOrdersWithStatus('ORDER_PROCESSING')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:document-text" class="h-8 w-8 text-blue-600" />
           </div>
           <div class="ml-4 flex-1">
-            <p class="text-sm font-medium text-gray-500">Total Orders</p>
+            <p class="text-sm font-medium text-gray-500">Orders in Progress</p>
             <p class="text-3xl font-bold text-gray-900">
               <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
-              <span v-else>{{ dashboardMetrics.totalOrders || '0' }}</span>
+              <span v-else>{{ dashboardMetrics.inProduction || '0' }}</span>
             </p>
-            <p class="text-xs text-gray-400">All time</p>
+            <p class="text-xs text-gray-400">Currently processing</p>
           </div>
         </div>
       </div>
 
       <!-- Orders Pending -->
-      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
+      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="navigateToOrdersWithStatus('PENDING')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:clock" class="h-8 w-8 text-yellow-600" />
@@ -99,13 +99,13 @@
               <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
               <span v-else>{{ dashboardMetrics.pendingOrders || '0' }}</span>
             </p>
-            <p class="text-xs text-gray-400">Current status</p>
+            <p class="text-xs text-gray-400">Awaiting approval</p>
           </div>
         </div>
       </div> 
 
       <!-- Orders Ready to Ship -->
-      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+      <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="navigateToOrdersWithStatus('READY_TO_SHIP')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:truck" class="h-8 w-8 text-green-600" />
@@ -116,7 +116,7 @@
               <span v-if="isLoading" class="animate-pulse bg-gray-200 rounded px-2 py-1">--</span>
               <span v-else>{{ dashboardMetrics.readyToShip || '0' }}</span>
             </p>
-            <p class="text-xs text-gray-400">Current status</p>
+            <p class="text-xs text-gray-400">Ready for shipment</p>
           </div>
         </div>
       </div>
@@ -159,7 +159,7 @@
       </div> 
 
       <!-- Items at Cutting Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500">
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('CUTTING', 'Items at Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:scissors" class="h-8 w-8 text-red-600" />
@@ -176,7 +176,7 @@
       </div>
 
       <!-- Items at Sewing Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('SEWING', 'Items at Sewing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:swatch" class="h-8 w-8 text-blue-600" />
@@ -193,7 +193,7 @@
       </div>
 
       <!-- Items at Foam Cutting Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('FOAM_CUTTING', 'Items at Foam Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:cube" class="h-8 w-8 text-purple-600" />
@@ -210,7 +210,7 @@
       </div>
 
       <!-- Items at Stuffing Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('STUFFING', 'Items at Stuffing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:archive-box" class="h-8 w-8 text-orange-600" />
@@ -227,10 +227,10 @@
       </div>
 
       <!-- Items at Packaging Station (Admin Only) -->
-      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+      <div v-if="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('PACKAGING', 'Items at Packaging')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
-            <Icon name="heroicons:gift" class="h-8 w-8 text-green-600" />
+            <Icon name="heroicons:gift" class="h-8 w-8 text-emerald-600" />
           </div>
           <div class="ml-4 flex-1">
             <p class="text-sm font-medium text-gray-500">Items at Packaging</p>
@@ -345,6 +345,99 @@ class="px-2 py-1 rounded-full text-xs font-medium"
         </div>
       </div>
     </div>
+
+    <!-- Station Items Modal -->
+    <AppModal :is-open="showStationItemsModal" :title="stationItemsModalTitle" @close="closeStationItemsModal" size="full">
+      <div class="p-6">
+        <!-- Loading State -->
+        <div v-if="isStationItemsLoading" class="space-y-4">
+          <div class="animate-pulse">
+            <div class="h-4 bg-gray-300 rounded mb-4"></div>
+            <div class="space-y-3">
+              <div v-for="i in 5" :key="i" class="h-12 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="stationItemsError" class="text-center py-8">
+          <Icon name="heroicons:exclamation-triangle" class="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p class="text-red-600 mb-4">{{ stationItemsError }}</p>
+          <button
+            @click="fetchStationItemsModalData(stationItemsModalStatus)"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Try Again
+          </button>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="stationItemsModalData.length === 0" class="text-center py-8">
+          <Icon name="heroicons:cube" class="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p class="text-gray-500">No items found at this station.</p>
+        </div>
+
+        <!-- Data Table -->
+        <div v-else class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="item in stationItemsModalData" :key="item.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900">{{ item.item?.name || 'Unknown Item' }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <button class="text-indigo-600 hover:text-indigo-900 font-medium" 
+                          @click="navigateToOrder(item.orderId)">
+                    {{ item.order?.salesOrderNumber || item.order?.purchaseOrderNumber || `Order-${item.orderId?.slice(-8)}` }}
+                  </button>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ item.order?.customer?.name || 'Unknown Customer' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="getStatusBadgeClass(item.itemStatus)" 
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ formatItemStatus(item.itemStatus) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="getPriorityBadgeClass(item.order?.priority)" 
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ item.order?.priority || 'Normal' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button class="text-indigo-600 hover:text-indigo-900" 
+                          @click="navigateToOrder(item.orderId)">
+                    View Order
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="px-6 py-4 bg-gray-50 flex justify-end">
+        <button
+          @click="closeStationItemsModal"
+          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+        >
+          Close
+        </button>
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -367,6 +460,14 @@ const { isAdmin: isAdminRole, isWarehouseStaff, getDefaultRoute } = useRoleBased
 // Dashboard state
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+
+// Station Items Modal state
+const showStationItemsModal = ref(false);
+const stationItemsModalTitle = ref('');
+const stationItemsModalData = ref<any[]>([]);
+const stationItemsModalStatus = ref<string>('');
+const isStationItemsLoading = ref(false);
+const stationItemsError = ref<string | null>(null);
 const dashboardMetrics = ref<DashboardMetrics & {
   avgLeadTime: number;
   ordersCompleted: number;
@@ -464,7 +565,7 @@ async function fetchDashboardMetrics() {
     ]);
     
     // Extract values with fallbacks
-    const leadTime = leadTimeResponse.status === 'fulfilled' ? leadTimeResponse.value?.avgLeadTime || 0 : 0;
+    const leadTime = leadTimeResponse.status === 'fulfilled' ? leadTimeResponse.value?.summary?.avgLeadTimeDays || 0 : 0;
     const stationItems = stationItemsResponse.status === 'fulfilled' ? stationItemsResponse.value || [] : [];
     const recentOrders = recentOrdersResponse.status === 'fulfilled' ? recentOrdersResponse.value?.data || [] : [];
     
@@ -566,6 +667,94 @@ onUnmounted(() => {
     clearInterval(refreshInterval.value);
   }
 });
+
+// Navigation functions
+function navigateToOrdersWithStatus(status: string) {
+  navigateTo(`/admin/orders?status=${status}`);
+}
+
+function navigateToOrder(orderId: string) {
+  navigateTo(`/admin/orders/edit/${orderId}`);
+}
+
+// Station Items Modal functions
+async function openStationItemsModal(status: string, title: string) {
+  stationItemsModalStatus.value = status;
+  stationItemsModalTitle.value = title;
+  showStationItemsModal.value = true;
+  await fetchStationItemsModalData(status);
+}
+
+async function fetchStationItemsModalData(status: string) {
+  isStationItemsLoading.value = true;
+  stationItemsError.value = null;
+  stationItemsModalData.value = [];
+
+  try {
+    const response = await $fetch('/api/reports/items-by-status', {
+      query: { status }
+    });
+
+    if (response && response.success) {
+      stationItemsModalData.value = response.data || [];
+    } else {
+      throw new Error('Failed to fetch station items');
+    }
+  } catch (err) {
+    console.error('Error loading station items:', err);
+    stationItemsError.value = 'Failed to load station items. Please try again.';
+    stationItemsModalData.value = [];
+  } finally {
+    isStationItemsLoading.value = false;
+  }
+}
+
+function closeStationItemsModal() {
+  showStationItemsModal.value = false;
+  stationItemsModalData.value = [];
+  stationItemsError.value = null;
+  stationItemsModalStatus.value = '';
+  stationItemsModalTitle.value = '';
+}
+
+// Status formatting functions
+function formatItemStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'Not Started',
+    'CUTTING': 'Cutting',
+    'SEWING': 'Sewing',
+    'FOAM_CUTTING': 'Foam Cutting',
+    'STUFFING': 'Stuffing',
+    'PACKAGING': 'Packaging',
+    'PRODUCT_FINISHED': 'Finished',
+    'READY': 'Ready'
+  };
+  return statusMap[status] || status;
+}
+
+function getStatusBadgeClass(status: string): string {
+  const classMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'bg-gray-100 text-gray-800',
+    'CUTTING': 'bg-red-100 text-red-800',
+    'SEWING': 'bg-blue-100 text-blue-800',
+    'FOAM_CUTTING': 'bg-purple-100 text-purple-800',
+    'STUFFING': 'bg-orange-100 text-orange-800',
+    'PACKAGING': 'bg-emerald-100 text-emerald-800',
+    'PRODUCT_FINISHED': 'bg-green-100 text-green-800',
+    'READY': 'bg-green-100 text-green-800'
+  };
+  return classMap[status] || 'bg-gray-100 text-gray-800';
+}
+
+function getPriorityBadgeClass(priority: string): string {
+  const classMap: Record<string, string> = {
+    'HIGH': 'bg-red-100 text-red-800',
+    'MEDIUM': 'bg-yellow-100 text-yellow-800',
+    'LOW': 'bg-green-100 text-green-800',
+    'NORMAL': 'bg-gray-100 text-gray-800'
+  };
+  return classMap[priority] || 'bg-gray-100 text-gray-800';
+}
 
 definePageMeta({
   layout: 'default', // Will use layouts/default.vue

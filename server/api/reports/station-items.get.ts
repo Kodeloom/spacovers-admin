@@ -2,29 +2,30 @@ import { unenhancedPrisma } from '~/server/lib/db';
 
 export default defineEventHandler(async (event) => {
   try {
-    // Get all stations
-    const stations = await unenhancedPrisma.station.findMany({
-      orderBy: { name: 'asc' }
-    });
+    // Map station names to item statuses
+    const stationStatusMap: Record<string, string> = {
+      'Cutting': 'CUTTING',
+      'Sewing': 'SEWING', 
+      'Foam Cutting': 'FOAM_CUTTING',
+      'Stuffing': 'STUFFING',
+      'Packaging': 'PACKAGING'
+    };
 
-    // Get current items at each station
+    // Get counts for each station based on item status
     const stationItems = await Promise.all(
-      stations.map(async (station) => {
-        // Count items currently at this station (have startTime but no endTime)
-        const itemsAtStation = await unenhancedPrisma.itemProcessingLog.count({
+      Object.entries(stationStatusMap).map(async ([stationName, itemStatus]) => {
+        // Count items with this status (only production items)
+        const itemsCount = await unenhancedPrisma.orderItem.count({
           where: {
-            stationId: station.id,
-            startTime: {
-              gte: new Date(0) // Any date from epoch (1970) onwards
-            },
-            endTime: null // Still at this station
+            itemStatus: itemStatus,
+            isProduct: true // Only count production items
           }
         });
 
         return {
-          stationId: station.id,
-          stationName: station.name,
-          itemsCount: itemsAtStation
+          stationId: itemStatus, // Use status as ID for consistency
+          stationName: stationName,
+          itemsCount: itemsCount
         };
       })
     );
