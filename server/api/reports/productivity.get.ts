@@ -290,38 +290,6 @@ export default defineEventHandler(async (event) => {
       ...dataQuality.warnings
     ];
 
-    // Get all items with their complete processing log history to calculate correct productivity
-    const itemsWithLogs = await prisma.orderItem.findMany({
-      where: {
-        isProduct: true,
-        itemProcessingLogs: {
-          some: {
-            endTime: { not: null },
-            startTime: { not: null },
-            ...(startDate && endDate ? {
-              OR: [
-                { startTime: { lte: endDate } },
-                { endTime: { gte: startDate } }
-              ]
-            } : {})
-          }
-        }
-      },
-      include: {
-        itemProcessingLogs: {
-          include: {
-            user: true,
-            station: true
-          },
-          orderBy: {
-            startTime: 'asc'
-          }
-        }
-      }
-    });
-
-    console.log(`Processing ${itemsWithLogs.length} items with complete processing logs`);
-
     // Group by user and station to calculate aggregated data
     const aggregatedData = new Map<string, {
       userId: string;
@@ -333,20 +301,30 @@ export default defineEventHandler(async (event) => {
       completedSessions: number;
     }>();
 
+    // Group processing logs by orderItemId to process each item's history
+    const itemLogsMap = new Map<string, any[]>();
+    
+    for (const log of logValidation.validLogs) {
+      if (!itemLogsMap.has(log.orderItemId)) {
+        itemLogsMap.set(log.orderItemId, []);
+      }
+      itemLogsMap.get(log.orderItemId)!.push(log);
+    }
+
+    console.log(`Processing ${itemLogsMap.size} items with processing logs`);
+
     // Process each item's complete processing history
-    for (const item of itemsWithLogs) {
-      const logs = item.itemProcessingLogs.filter(log => log.endTime && log.startTime);
+    for (const [itemId, logs] of itemLogsMap) {
+      // Sort logs by startTime to get chronological order
+      const sortedLogs = logs
+        .filter(log => log.endTime && log.startTime && log.durationInSeconds > 0)
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
       
       // Process each completed processing log
-      for (let i = 0; i < logs.length; i++) {
-        const currentLog = logs[i];
-        const nextLog = logs[i + 1]; // The person who scanned this item OUT
+      for (let i = 0; i < sortedLogs.length; i++) {
+        const currentLog = sortedLogs[i];
+        const nextLog = sortedLogs[i + 1]; // The person who scanned this item OUT
         
-        // Skip if no duration
-        if (!currentLog.durationInSeconds || currentLog.durationInSeconds <= 0) {
-          continue;
-        }
-
         // Determine who should get credit for this processing time
         let creditUserId: string;
         let creditUserName: string;
@@ -384,11 +362,11 @@ export default defineEventHandler(async (event) => {
         const data = aggregatedData.get(key)!;
         
         // Count unique items and add processing time
-        data.uniqueItemIds.add(item.id);
+        data.uniqueItemIds.add(itemId);
         data.totalDuration += currentLog.durationInSeconds;
         data.completedSessions++;
         
-        console.log(`Item ${item.id}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for work at ${creditStationName}`);
+        console.log(`Item ${itemId}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for work at ${creditStationName}`);
       }
     }
 
