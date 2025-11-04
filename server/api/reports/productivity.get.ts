@@ -290,6 +290,40 @@ export default defineEventHandler(async (event) => {
       ...dataQuality.warnings
     ];
 
+    // Get all items with their complete processing log history to calculate correct productivity
+    const itemsWithLogs = await prisma.orderItem.findMany({
+      where: {
+        isProduct: true,
+        itemProcessingLogs: {
+          some: {
+            AND: [
+              { endTime: { not: null } },
+              { startTime: { not: null } },
+              ...(startDate && endDate ? [{
+                OR: [
+                  { startTime: { lte: endDate } },
+                  { endTime: { gte: startDate } }
+                ]
+              }] : [])
+            ]
+          }
+        }
+      },
+      include: {
+        itemProcessingLogs: {
+          include: {
+            user: true,
+            station: true
+          },
+          orderBy: {
+            startTime: 'asc'
+          }
+        }
+      }
+    });
+
+    console.log(`Processing ${itemsWithLogs.length} items with complete processing logs`);
+
     // Group by user and station to calculate aggregated data
     const aggregatedData = new Map<string, {
       userId: string;
@@ -301,33 +335,62 @@ export default defineEventHandler(async (event) => {
       completedSessions: number;
     }>();
 
-    for (const log of logValidation.validLogs) {
-      const key = `${log.userId}-${log.stationId}`;
+    // Process each item's complete processing history
+    for (const item of itemsWithLogs) {
+      const logs = item.itemProcessingLogs.filter(log => log.endTime && log.startTime);
       
-      if (!aggregatedData.has(key)) {
-        aggregatedData.set(key, {
-          userId: log.userId,
-          userName: log.user?.name || 'Unknown User',
-          stationId: log.stationId,
-          stationName: log.station?.name || 'Unknown Station',
-          uniqueItemIds: new Set<string>(),
-          totalDuration: 0,
-          completedSessions: 0
-        });
-      }
+      // Process each completed processing log
+      for (let i = 0; i < logs.length; i++) {
+        const currentLog = logs[i];
+        const nextLog = logs[i + 1]; // The person who scanned this item OUT
+        
+        // Skip if no duration
+        if (!currentLog.durationInSeconds || currentLog.durationInSeconds <= 0) {
+          continue;
+        }
 
-      const data = aggregatedData.get(key)!;
-      
-      // Count unique items only - add orderItemId to Set
-      // This ensures we count each item only once per employee per station
-      if (log.orderItemId) {
-        data.uniqueItemIds.add(log.orderItemId);
-      }
-      
-      // Sum all processing time for this employee at this station
-      if (log.durationInSeconds && log.durationInSeconds > 0) {
-        data.totalDuration += log.durationInSeconds;
+        // Determine who should get credit for this processing time
+        let creditUserId: string;
+        let creditUserName: string;
+        let creditStationId: string;
+        let creditStationName: string;
+
+        if (nextLog) {
+          // Credit goes to the person who scanned the item OUT (the next person in the sequence)
+          creditUserId = nextLog.userId;
+          creditUserName = nextLog.user?.name || 'Unknown User';
+          creditStationId = currentLog.stationId; // But the station is where the work was done
+          creditStationName = currentLog.station?.name || 'Unknown Station';
+        } else {
+          // This is the last log - credit goes to the person who did the work
+          creditUserId = currentLog.userId;
+          creditUserName = currentLog.user?.name || 'Unknown User';
+          creditStationId = currentLog.stationId;
+          creditStationName = currentLog.station?.name || 'Unknown Station';
+        }
+
+        const key = `${creditUserId}-${creditStationId}`;
+        
+        if (!aggregatedData.has(key)) {
+          aggregatedData.set(key, {
+            userId: creditUserId,
+            userName: creditUserName,
+            stationId: creditStationId,
+            stationName: creditStationName,
+            uniqueItemIds: new Set<string>(),
+            totalDuration: 0,
+            completedSessions: 0
+          });
+        }
+
+        const data = aggregatedData.get(key)!;
+        
+        // Count unique items and add processing time
+        data.uniqueItemIds.add(item.id);
+        data.totalDuration += currentLog.durationInSeconds;
         data.completedSessions++;
+        
+        console.log(`Item ${item.id}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for work at ${creditStationName}`);
       }
     }
 
