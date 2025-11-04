@@ -296,16 +296,14 @@ export default defineEventHandler(async (event) => {
         isProduct: true,
         itemProcessingLogs: {
           some: {
-            AND: [
-              { endTime: { not: null } },
-              { startTime: { not: null } },
-              ...(startDate && endDate ? [{
-                OR: [
-                  { startTime: { lte: endDate } },
-                  { endTime: { gte: startDate } }
-                ]
-              }] : [])
-            ]
+            endTime: { not: null },
+            startTime: { not: null },
+            ...(startDate && endDate ? {
+              OR: [
+                { startTime: { lte: endDate } },
+                { endTime: { gte: startDate } }
+              ]
+            } : {})
           }
         }
       },
