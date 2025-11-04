@@ -446,9 +446,11 @@ export function validateProcessingLogs(logs: any[]): {
       continue;
     }
 
-    // Log warning for long durations but don't exclude them (production can take days/weeks)
+    // Check for unreasonably long durations (more than 24 hours)
     if (log.durationInSeconds > 86400) {
-      warnings.push(`Long duration detected (${Math.round(log.durationInSeconds / 3600)} hours) for item ${log.orderItemId} - including in calculations`);
+      warnings.push(`Unusually long duration (${Math.round(log.durationInSeconds / 3600)} hours) for item ${log.orderItemId} - excluding from calculations`);
+      invalidLogs.push(log);
+      continue;
     }
 
     // Validate timestamps

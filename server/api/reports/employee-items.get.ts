@@ -303,25 +303,27 @@ export default defineEventHandler(async (event) => {
  * Format duration in seconds to human readable format
  */
 function formatDuration(seconds: number): string {
-  if (!seconds) return '0s';
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  let result = '';
-  
-  if (hours > 0) {
-    result += `${hours}H `;
+  if (seconds < 60) {
+    return `${seconds}s`;
   }
   
-  if (minutes > 0) {
-    result += `${minutes}m `;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (minutes < 60) {
+    return remainingSeconds > 0 
+      ? `${minutes}m ${remainingSeconds}s`
+      : `${minutes}m`;
   }
   
-  if (secs > 0 || result === '') {
-    result += `${secs}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  if (remainingMinutes > 0) {
+    return remainingSeconds > 0
+      ? `${hours}h ${remainingMinutes}m ${remainingSeconds}s`
+      : `${hours}h ${remainingMinutes}m`;
   }
   
-  return result.trim();
+  return `${hours}h`;
 }

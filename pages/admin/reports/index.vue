@@ -460,6 +460,7 @@ const employeeItemsModal = reactive({
 
 // Fetch filter options with enhanced filtering logic
 const { data: stations } = useFindManyStation({
+  where: { status: 'ACTIVE' },
   orderBy: { name: 'asc' }
 });
 
@@ -497,7 +498,7 @@ const filteredUsers = computed(() => {
 });
 
 const filteredStations = computed(() => {
-  // Return all stations for filtering
+  // Since we're already fetching stations with status: 'ACTIVE', just return them
   // Only show stations when on productivity tab
   if (activeTab.value !== 'productivity') return [];
   return stations.value || [];
@@ -1128,27 +1129,15 @@ async function exportCSV() {
 }
 
 function formatDuration(seconds: number): string {
-  if (!seconds) return '0s';
+  if (!seconds) return '0m';
   
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  
-  let result = '';
   
   if (hours > 0) {
-    result += `${hours}H `;
+    return `${hours}h ${minutes}m`;
   }
-  
-  if (minutes > 0) {
-    result += `${minutes}m `;
-  }
-  
-  if (secs > 0 || result === '') {
-    result += `${secs}s`;
-  }
-  
-  return result.trim();
+  return `${minutes}m`;
 }
 
 /**
