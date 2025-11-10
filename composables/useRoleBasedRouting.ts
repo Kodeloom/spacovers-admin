@@ -4,6 +4,24 @@ import { authClient } from '~/lib/auth-client';
 export function useRoleBasedRouting() {
   const session = authClient.useSession();
 
+  // Check if user has Super Admin role
+  const isSuperAdmin = computed(() => {
+    const user = session.value?.data?.user;
+    if (!user?.roles || !Array.isArray(user.roles)) return false;
+    
+    return user.roles.some((userRole: any) => {
+      const roleName = userRole.role?.name;
+      const roleTypeName = userRole.role?.roleType?.name;
+      
+      // Super Admin roles
+      const superAdminRoleNames = ['Super Admin'];
+      const superAdminRoleTypes = ['Super Administrator'];
+      
+      return (roleName && superAdminRoleNames.includes(roleName)) || 
+             (roleTypeName && superAdminRoleTypes.includes(roleTypeName));
+    });
+  });
+
   // Check if user has admin role types
   const isAdmin = computed(() => {
     const user = session.value?.data?.user;
@@ -112,6 +130,7 @@ export function useRoleBasedRouting() {
   };
 
   return {
+    isSuperAdmin,
     isAdmin,
     isWarehouseStaff,
     isOfficeEmployee,

@@ -48,9 +48,10 @@ const handleLogout = async () => {
   }
 };
 
-const { isAdmin, isWarehouseStaff, isOfficeEmployee, hasOfficeAdminAccess } = useRoleBasedRouting();
+const { isSuperAdmin, isAdmin, isWarehouseStaff, isOfficeEmployee, hasOfficeAdminAccess } = useRoleBasedRouting();
 
 const menuItems = computed(() => {
+  console.log('AppSidebar - isSuperAdmin:', isSuperAdmin.value);
   console.log('AppSidebar - isAdmin:', isAdmin.value);
   console.log('AppSidebar - isWarehouseStaff:', isWarehouseStaff.value);
   console.log('AppSidebar - isOfficeEmployee:', isOfficeEmployee.value);
@@ -63,7 +64,7 @@ const menuItems = computed(() => {
     ];
   } else if (isAdmin.value) {
     // Admin users see all admin items
-    return [
+    const adminMenuItems = [
       { name: 'Dashboard', path: '/', icon: 'heroicons:home' },
       // { name: 'Products', path: '/admin/products', icon: 'heroicons:cube-transparent' },
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
@@ -81,8 +82,14 @@ const menuItems = computed(() => {
       { name: 'Barcode Scanners', path: '/admin/barcode-scanners', icon: 'heroicons:qr-code' },
       { name: 'Audit Logs', path: '/admin/audit-logs', icon: 'heroicons:book-open' },
       { name: 'Kiosk', path: '/warehouse/kiosk', icon: 'heroicons:computer-desktop' },
-      { name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' },
     ];
+    
+    // Only show Settings for Super Admin
+    if (isSuperAdmin.value) {
+      adminMenuItems.push({ name: 'Settings', path: '/admin/settings', icon: 'heroicons:cog-6-tooth' });
+    }
+    
+    return adminMenuItems;
   } else if (isOfficeEmployee.value) {
     // Office employees see limited admin items focused on their workflow
     return [
