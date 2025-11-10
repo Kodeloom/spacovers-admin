@@ -33,7 +33,9 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { name, email, password, status, roleIds } = result.data;
+  const { name, password, status, roleIds } = result.data;
+  // Normalize email to lowercase to match BetterAuth's behavior
+  const email = result.data.email.toLowerCase();
   const prisma = await getEnhancedPrismaClient(event);
 
   const sessionData = await auth.api.getSession({ headers: event.headers });
@@ -69,6 +71,17 @@ export default defineEventHandler(async (event) => {
           email,
           status,
         },
+      });
+
+      // Fix the Account record - ensure accountId is set to the email for credential provider
+      await tx.account.updateMany({
+        where: {
+          userId: user.id,
+          providerId: 'credential'
+        },
+        data: {
+          accountId: email
+        }
       });
 
       if (roleIds && roleIds.length > 0) {

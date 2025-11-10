@@ -25,7 +25,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event);
-  const { name, email, password, status, roleIds } = body;
+  const { name, password, status, roleIds } = body;
+  // Normalize email to lowercase to match BetterAuth's behavior
+  const email = body.email?.toLowerCase();
 
   // Basic validation
   if (!name || !email || !status) {
