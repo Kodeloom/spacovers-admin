@@ -78,8 +78,9 @@ export default defineEventHandler(async (event) => {
         }
 
         // Check if user has admin role (assuming admin-only access for company-wide disconnection)
-        // You may need to adjust this based on your role system
-        if (session.user.role !== 'ADMIN') {
+        // Allow both ADMIN and SUPER_ADMIN roles
+        const allowedRoles = ['ADMIN', 'SUPER_ADMIN'];
+        if (!session.user.role || !allowedRoles.includes(session.user.role)) {
             throw createError({ 
                 statusCode: 403, 
                 statusMessage: 'Forbidden: Only administrators can disconnect QuickBooks integration' 
