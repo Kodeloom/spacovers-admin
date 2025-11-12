@@ -56,15 +56,35 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // Step 2: Fetch all Customers
-        const customerQuery = "SELECT * FROM Customer";
-        const customerQueryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(customerQuery)}`;
-        const customerResponse: { QueryResponse: { Customer: QboCustomer[] } } = await $fetch(customerQueryUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token.access_token}` }
-        });
+        // Step 2: Fetch all Customers with pagination
+        const qboCustomers: QboCustomer[] = [];
+        let startPosition = 1;
+        const maxResults = 100; // QuickBooks API limit per request
+        let hasMoreRecords = true;
+
+        while (hasMoreRecords) {
+            const customerQuery = `SELECT * FROM Customer STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`;
+            const customerQueryUrl = `${companyInfoUrl}/v3/company/${companyId}/query?query=${encodeURIComponent(customerQuery)}`;
+            
+            const customerResponse: { QueryResponse: { Customer?: QboCustomer[], maxResults?: number } } = await $fetch(customerQueryUrl, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token.access_token}` }
+            });
+            
+            const customers = customerResponse.QueryResponse.Customer || [];
+            qboCustomers.push(...customers);
+            
+            // Check if there are more records to fetch
+            if (customers.length < maxResults) {
+                hasMoreRecords = false;
+            } else {
+                startPosition += maxResults;
+            }
+            
+            console.log(`Fetched ${customers.length} customers (total so far: ${qboCustomers.length})`);
+        }
         
-        const qboCustomers = customerResponse.QueryResponse.Customer || [];
+        console.log(`Total customers fetched from QuickBooks: ${qboCustomers.length}`);
         let syncedCount = 0;
 
         for (const qboCustomer of qboCustomers) {
