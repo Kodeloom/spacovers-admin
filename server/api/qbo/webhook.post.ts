@@ -1539,24 +1539,27 @@ export default defineEventHandler(async (event) => {
                             } else {
                                 throw new Error(`Failed to fetch customer details for ID: ${entity.id}`);
                             }
-                        } else if (entity.name === 'Invoice' && (entity.operation === 'Create' || entity.operation === 'Update')) {
-                            const invoiceDetails = await fetchInvoiceDetails(entity.id, event);
-                            if (invoiceDetails) {
-                                QuickBooksLogger.debug('WebhookHandler', `Invoice details found, proceeding to upsert order [${requestId}]`, {
-                                    invoiceId: entity.id,
-                                    docNumber: invoiceDetails.DocNumber,
-                                    customerId: invoiceDetails.CustomerRef.value,
-                                    customerName: invoiceDetails.CustomerRef.name,
-                                    totalAmount: invoiceDetails.TotalAmt,
-                                    lineItemCount: invoiceDetails.Line?.length || 0
-                                });
-                                await upsertOrder(invoiceDetails, event);
-                                entityResults.push({ type: 'Invoice', id: entity.id, operation: entity.operation, success: true });
-                                processedEntities++;
-                            } else {
-                                throw new Error(`Failed to fetch invoice details for ID: ${entity.id}`);
-                            }
-                        } else if (entity.name === 'Item' && (entity.operation === 'Create' || entity.operation === 'Update')) {
+                        } 
+                        // PAUSED: Invoice webhook handling - uncomment to re-enable automatic order creation from invoices
+                        // else if (entity.name === 'Invoice' && (entity.operation === 'Create' || entity.operation === 'Update')) {
+                        //     const invoiceDetails = await fetchInvoiceDetails(entity.id, event);
+                        //     if (invoiceDetails) {
+                        //         QuickBooksLogger.debug('WebhookHandler', `Invoice details found, proceeding to upsert order [${requestId}]`, {
+                        //             invoiceId: entity.id,
+                        //             docNumber: invoiceDetails.DocNumber,
+                        //             customerId: invoiceDetails.CustomerRef.value,
+                        //             customerName: invoiceDetails.CustomerRef.name,
+                        //             totalAmount: invoiceDetails.TotalAmt,
+                        //             lineItemCount: invoiceDetails.Line?.length || 0
+                        //         });
+                        //         await upsertOrder(invoiceDetails, event);
+                        //         entityResults.push({ type: 'Invoice', id: entity.id, operation: entity.operation, success: true });
+                        //         processedEntities++;
+                        //     } else {
+                        //         throw new Error(`Failed to fetch invoice details for ID: ${entity.id}`);
+                        //     }
+                        // } 
+                        else if (entity.name === 'Item' && (entity.operation === 'Create' || entity.operation === 'Update')) {
                             const itemDetails = await fetchItemDetails(entity.id, event);
                             if (itemDetails) {
                                 QuickBooksLogger.debug('WebhookHandler', `Item details found, proceeding to upsert [${requestId}]`, {
