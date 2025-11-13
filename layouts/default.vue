@@ -29,14 +29,15 @@ import { useRoleBasedRouting } from '~/composables/useRoleBasedRouting';
 // AppSidebar should also be auto-imported if placed in ~/components
 // import AppSidebar from '~/components/AppSidebar.vue';
 
-const { isAdmin, isWarehouseStaff } = useRoleBasedRouting();
+const { isAdmin, isWarehouseStaff, hasOfficeAdminAccess } = useRoleBasedRouting();
 
-// Show sidebar for admin users, hide for warehouse staff (they use empty layout)
+// Show sidebar for admin and office users, hide for warehouse staff (they use empty layout)
 const showSidebar = computed(() => {
   console.log('Default Layout - isAdmin:', isAdmin.value);
   console.log('Default Layout - isWarehouseStaff:', isWarehouseStaff.value);
+  console.log('Default Layout - hasOfficeAdminAccess:', hasOfficeAdminAccess.value);
   
-  return isAdmin.value;
+  return hasOfficeAdminAccess.value && !isWarehouseStaff.value;
 });
 </script>
 
