@@ -94,6 +94,7 @@
                     <option value="">Select Skirt Type</option>
                     <option value="CONN">Connected</option>
                     <option v-if="productAttributes.shape !== 'Round'" value="SLIT">Slit</option>
+                    <option value="NONE">None</option>
                 </select>
             </div>
 
@@ -111,6 +112,7 @@
                     <option value="HANDLE_SIDE">Handle Side</option>
                     <option value="CORNER_SIDE">Corner Side</option>
                     <option value="FOLD_SIDE">Fold Side</option>
+                    <option value="NONE">None</option>
                 </select>
             </div>
 
