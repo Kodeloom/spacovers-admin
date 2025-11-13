@@ -128,12 +128,12 @@ model User {
   role               String?
 
   // Access Control Policies - HYBRID APPROACH
-  
+  @@allow('read', auth() != null) // Anyone can see role assignments
+
   // ROLE-BASED: Admin access for user management
   @@allow('create,read,update', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 
   // SELF-SERVICE: Users can read/update their own profile
-  @@allow('read', auth() != null && id == auth().id)
   @@allow('update', auth() != null && id == auth().id) 
 
   // DELETE POLICIES with protection
@@ -182,6 +182,7 @@ model Role {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
+  @@allow('read', auth() != null) // Anyone can see role assignments
   // Access Control Policies - ROLE-BASED (Admin-only)
   @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 }
@@ -228,6 +229,8 @@ model RolePermission {
   assignedAt   DateTime   @default(now())
 
   @@id([roleId, permissionId])
+  
+
   
   // Access Control Policies - ADMIN-ONLY (Permission management)
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
@@ -339,11 +342,7 @@ model Station {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  // Access Control Policies - PERMISSION-BASED (Warehouse setup)
-  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "Station"]])
-  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "Station"]])
-  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "Station"]])
-  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "Station"]])
+  @@allow('read', auth() != null)
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
@@ -364,16 +363,11 @@ model BarcodeScanner {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Access Control Policies - PERMISSION-BASED
-  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "BarcodeScanner"]])
-  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "BarcodeScanner"]])
-  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "BarcodeScanner"]])
-  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "BarcodeScanner"]])
-
   @@allow('read', auth() != null)
-  
+
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
+
 }
 
 model RoleStation {
@@ -385,7 +379,8 @@ model RoleStation {
   assignedAt DateTime @default(now())
 
   @@id([roleId, stationId])
-  
+
+  @@allow('read', auth() != null)
   // Access Control Policies - ADMIN-ONLY (Association management)
   @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
 }
