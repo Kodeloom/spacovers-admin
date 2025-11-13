@@ -8,6 +8,7 @@ import { auth } from '~/server/lib/auth';
 const UpdateRoleInputSchema = z.object({
     name: z.string().min(1, 'Role name is required.'),
     description: z.string().nullable().optional(),
+    roleTypeId: z.string().cuid2({ message: 'Invalid role type ID format.' }).nullable().optional(),
     permissionIds: z.array(z.string()),
 });
 
@@ -26,7 +27,7 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    const { name, description, permissionIds } = result.data;
+    const { name, description, roleTypeId, permissionIds } = result.data;
     const prisma = await getEnhancedPrismaClient(event);
 
     try {
@@ -36,10 +37,14 @@ export default defineEventHandler(async (event) => {
         });
 
         const updatedRole = await prisma.$transaction(async (tx) => {
-            // Update role name and description
+            // Update role name, description, and roleTypeId
             const role = await tx.role.update({
                 where: { id: roleId },
-                data: { name, description },
+                data: { 
+                    name, 
+                    description,
+                    roleTypeId: roleTypeId || null,
+                },
             });
 
             // Sync permissions

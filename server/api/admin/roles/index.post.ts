@@ -8,6 +8,7 @@ import { auth } from '~/server/lib/auth';
 const CreateRoleInputSchema = z.object({
   name: z.string().min(1, 'Role name is required.'),
   description: z.string().nullable().optional(), // Description can be null or omitted
+  roleTypeId: z.string().cuid2({ message: 'Invalid role type ID format.' }).nullable().optional(),
   permissionIds: z.array(z.string().cuid2({ message: 'Invalid permission ID format.' })).optional(),
   stationIds: z.array(z.string().cuid2({ message: 'Invalid station ID format.' })).optional(),
 });
@@ -23,7 +24,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { name, description, permissionIds, stationIds } = result.data;
+  const { name, description, roleTypeId, permissionIds, stationIds } = result.data;
   const prisma = await getEnhancedPrismaClient(event);
 
   const sessionData = await auth.api.getSession({ headers: event.headers });
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
         data: {
           name,
           description: description,
+          roleTypeId: roleTypeId || null,
         },
       });
 

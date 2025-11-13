@@ -343,7 +343,7 @@ const validateForm = (): boolean => {
 };
 
 const { mutate: createRole, isPending: isSubmitting } = useMutation({
-  mutationFn: (payload: { name: string; description: string | null; permissionIds: string[]; stationIds: string[] }) => {
+  mutationFn: (payload: { name: string; description: string | null; roleTypeId: string | null; permissionIds: string[]; stationIds: string[] }) => {
     return $fetch('/api/admin/roles', {
       method: 'POST',
       body: payload,
@@ -374,6 +374,7 @@ const handleSubmit = () => {
   const payload = {
     name: roleData.name,
     description: roleData.description || null,
+    roleTypeId: selectedRoleType.value?.id || null,
     permissionIds: selectedPermissionIds.value,
     stationIds: selectedStationIds.value,
   };
