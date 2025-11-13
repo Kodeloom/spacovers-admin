@@ -241,7 +241,7 @@
             </div>
 
             <!-- Product Selection Row (only for Spacover items) -->
-            <div v-if="isSpacoverItem(item.itemId)" class="mt-3 pt-3 border-t border-gray-100">
+            <!-- <div v-if="isSpacoverItem(item.itemId)" class="mt-3 pt-3 border-t border-gray-100">
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <button type="button" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -251,7 +251,6 @@
                   </button>
                 </div>
 
-                <!-- Selected Product Display -->
                 <div v-if="item.productId" class="flex-1 ml-4 p-2 bg-green-50 border border-green-200 rounded-md">
                   <div class="flex items-center justify-between">
                     <div class="flex-1">
@@ -265,7 +264,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
         </div>
 
