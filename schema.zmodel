@@ -268,7 +268,7 @@ model Customer {
   @@allow('read', auth() != null)
   // Access Control Policies - ROLE-BASED (Business operations)
   @@allow('all', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin"]])
-  @@allow('create,update', auth() != null && auth().roles?[role.name == "Customer Service"])
+  @@allow('create,update', auth() != null && auth().roles?[role.name in ["Customer Service", "Office Employee"]])
 }
 
 model Item {
@@ -448,7 +448,7 @@ model Order {
   @@index([orderStatus, createdAt])
 
   @@allow('read', auth() != null)
-  @@allow('update', auth() != null)
+  @@allow('create,update', auth() != null && auth().roles?[role.name in ["Super Admin", "Admin", "Office Employee"]])
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])

@@ -97,9 +97,6 @@ const menuItems = computed(() => {
       { name: 'Orders', path: '/admin/orders', icon: 'heroicons:shopping-cart' },
       { name: 'Print Queue', path: '/admin/print-queue', icon: 'heroicons:printer' },
       { name: 'Customers', path: '/admin/customers', icon: 'heroicons:building-storefront' },
-      // { name: 'Items', path: '/admin/items', icon: 'heroicons:cube' },
-      { name: 'Estimates', path: '/admin/estimates', icon: 'heroicons:document-text' },
-      // { name: 'Reports', path: '/admin/reports', icon: 'heroicons:chart-bar' },
     ];
   } else {
     // Users with no valid roles see nothing

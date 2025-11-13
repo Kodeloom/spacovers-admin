@@ -665,7 +665,7 @@ import { getPriorityDisplayText } from '~/utils/backwardCompatibility';
 
 definePageMeta({
   layout: 'default',
-  middleware: ['auth-admin-only'],
+  middleware: ['auth-office-admin'],
 });
 
 const { showLoading, hideLoading } = useGlobalLoading();
