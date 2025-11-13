@@ -11,7 +11,8 @@
             <div>
               <label for="salesOrderNumber" class="block text-sm font-medium text-gray-700 mb-1">Order Number</label>
               <div class="flex space-x-2">
-                <input id="salesOrderNumber" v-model="orderData.salesOrderNumber" type="text"
+                <input id="salesOrderNumber" v-model="orderData.salesOrderNumber" type="text" inputmode="numeric" pattern="[0-9]*"
+                  @input="enforceNumericOnly($event, 'salesOrderNumber')"
                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   placeholder="Auto-generated">
                 <button type="button"
@@ -414,6 +415,17 @@ async function generateOrderNumber() {
   }
 }
 
+function enforceNumericOnly(event: Event, field: string) {
+  const input = event.target as HTMLInputElement;
+  const value = input.value;
+  // Remove any non-numeric characters
+  const numericValue = value.replace(/[^0-9]/g, '');
+  // Update the model
+  orderData[field] = numericValue;
+  // Update the input value to reflect the change
+  input.value = numericValue;
+}
+
 function onCustomerSelect(customer: any) {
   if (customer) {
     orderData.customerId = customer.id;
@@ -585,7 +597,7 @@ function addOrderItem() {
       tieDownsQty: '6',
       tieDownPlacement: 'STANDARD',
       distance: '0',
-      foamUpgrade: 'Standard',
+      foamUpgrade: '',
       doublePlasticWrapUpgrade: 'No',
       webbingUpgrade: 'No',
       metalForLifterUpgrade: 'No',
