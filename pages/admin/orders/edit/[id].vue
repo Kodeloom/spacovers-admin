@@ -1509,17 +1509,24 @@ function editOrderItemStatus(orderItem: any) {
 
 async function verifyOrderItem(orderItem: any) {
   try {
-    // This would typically mark the item as verified in ProductAttributes
-    await $fetch(`/api/admin/order-items/${orderItem.id}/verify`, {
+    const response = await $fetch(`/api/admin/order-items/${orderItem.id}/verify`, {
       method: 'POST'
     });
 
-    toast.success({
-      title: 'Success',
-      message: 'Item verified successfully'
-    });
-
-    await refetchOrder();
+    if (response.success && response.verified) {
+      toast.success({
+        title: 'Success',
+        message: 'Item verified successfully'
+      });
+      await refetchOrder();
+    } else {
+      // Verification failed due to missing attributes
+      const errorMessage = response.errors?.join(', ') || 'Product attributes are not set';
+      toast.error({
+        title: 'Verification Failed',
+        message: `Cannot verify: ${errorMessage}`
+      });
+    }
   } catch (error) {
     console.error('Error verifying item:', error);
     toast.error({
