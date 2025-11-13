@@ -1489,10 +1489,11 @@ export const usePrintQueue = () => {
       }
       
       .label-grid {
+        margin-top: 12px;
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap: 0.35in;
+        gap: 0.04in;
         width: 100%;
         height: 100%;
       }
@@ -1521,10 +1522,11 @@ export const usePrintQueue = () => {
       
       .label-part.top-part {
         width: 3in;
-        height: 3.15in;
+        height: 3in;
         display: flex;
         flex-direction: column;
-        margin-bottom: -2px;
+        margin-bottom: -8px;
+        margin-top: 6px;
         border-bottom: none;
       }
       
@@ -1533,7 +1535,7 @@ export const usePrintQueue = () => {
         height: 2in;
         display: flex;
         flex-direction: column;
-        margin-top: -2px;
+        margin-top: 0px;
         border-top: none;
       }
       
@@ -1656,7 +1658,7 @@ export const usePrintQueue = () => {
       
       .spec-item.compact {
         margin-bottom: 0.01in;
-        font-size: 5pt;
+        font-size: 7pt;
       }
       
       .spec-item.upgrades {
