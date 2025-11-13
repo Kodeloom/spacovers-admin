@@ -10,7 +10,7 @@
           <Icon name="heroicons:plus-solid" class="mr-2 h-5 w-5" />
           Add Order
         </NuxtLink>
-        <button
+        <!-- <button
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
           :disabled="isSyncing" @click="handleSync('CREATE_NEW')">
           <Icon name="heroicons:plus-circle-20-solid" class="mr-2 h-5 w-5" />
@@ -22,7 +22,7 @@
           <Icon v-if="isSyncing" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
           <Icon v-else name="heroicons:arrow-path-20-solid" class="mr-2 h-5 w-5" />
           Sync All
-        </button>
+        </button> -->
       </div>
     </div>
 

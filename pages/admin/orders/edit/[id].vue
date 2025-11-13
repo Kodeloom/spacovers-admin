@@ -20,18 +20,12 @@
             </p>
           </div>
           <div class="flex items-center space-x-2">
-            <button :disabled="isSyncing"
-              class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              @click="syncOrder">
-              <Icon v-if="isSyncing" name="svg-spinners:180-ring-with-bg" class="mr-2 h-5 w-5" />
-              Sync with QBO
-            </button>
-            <button v-if="order.estimate"
+            <!-- <button v-if="order.estimate"
               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
               @click="goToEstimate">
               View Linked Estimate
-            </button>
-            <button v-if="order.orderStatus !== 'APPROVED'" :disabled="isApprovingOrder"
+            </button> -->
+            <button v-if="order.orderStatus === 'PENDING'" :disabled="isApprovingOrder"
               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
               @click="approveOrder">
               <Icon v-if="isApprovingOrder" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4" />
@@ -43,6 +37,13 @@
               @click="openTrackingEmailModal">
               <Icon name="heroicons:envelope" class="mr-2 h-4 w-4" />
               Send Tracking
+            </button>
+            <button v-if="isSuperAdmin" :disabled="isDeletingOrder"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="confirmDeleteOrder">
+              <Icon v-if="isDeletingOrder" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4" />
+              <Icon v-else name="heroicons:trash" class="mr-2 h-4 w-4" />
+              {{ isDeletingOrder ? 'Deleting...' : 'Delete Order' }}
             </button>
           </div>
         </div>
@@ -748,6 +749,63 @@
         </div>
       </div>
     </AppModal>
+
+    <!-- Delete Confirmation Modal -->
+    <AppModal :is-open="showDeleteConfirmModal" title="⚠️ Delete Order" @close="showDeleteConfirmModal = false">
+      <div class="p-4">
+        <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+          <div class="flex">
+            <Icon name="heroicons:exclamation-triangle" class="h-6 w-6 text-red-600 mr-3 flex-shrink-0" />
+            <div>
+              <h3 class="text-sm font-semibold text-red-800 mb-2">This is a destructive action!</h3>
+              <p class="text-sm text-red-700">
+                You are about to permanently delete <strong>Order #{{ order?.salesOrderNumber }}</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="text-sm font-medium text-gray-900 mb-3">This will delete:</h4>
+          <ul class="space-y-2 text-sm text-gray-700">
+            <li class="flex items-start">
+              <Icon name="heroicons:x-circle" class="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>All order items ({{ order?.items?.length || 0 }} items)</span>
+            </li>
+            <li class="flex items-start">
+              <Icon name="heroicons:x-circle" class="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>All order activity logs</span>
+            </li>
+            <li class="flex items-start">
+              <Icon name="heroicons:x-circle" class="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>All item processing logs</span>
+            </li>
+            <li class="flex items-start">
+              <Icon name="heroicons:x-circle" class="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+              <span>All related data</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-6">
+          <p class="text-sm font-semibold text-yellow-800">
+            ⚠️ This action CANNOT be undone.
+          </p>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button type="button" @click="showDeleteConfirmModal = false"
+            class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Cancel
+          </button>
+          <button type="button" :disabled="isDeletingOrder" @click="deleteOrder"
+            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50">
+            <Icon v-if="isDeletingOrder" name="svg-spinners:180-ring-with-bg" class="mr-2 h-4 w-4 inline" />
+            {{ isDeletingOrder ? 'Deleting...' : 'Yes, Delete Order' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -779,6 +837,8 @@ const toast = useToast();
 const orderId = route.params.id as string;
 const isSyncing = ref(false);
 const isApprovingOrder = ref(false);
+const isDeletingOrder = ref(false);
+const showDeleteConfirmModal = ref(false);
 
 // User permissions and role detection
 const { 
@@ -1285,6 +1345,39 @@ async function saveOrderNotes() {
     });
   } finally {
     isSavingNotes.value = false;
+  }
+}
+
+function confirmDeleteOrder() {
+  showDeleteConfirmModal.value = true;
+}
+
+async function deleteOrder() {
+  if (!order.value || isDeletingOrder.value) return;
+
+  try {
+    isDeletingOrder.value = true;
+    showDeleteConfirmModal.value = false;
+    
+    await $fetch(`/api/admin/orders/${order.value.id}`, {
+      method: 'DELETE'
+    });
+
+    toast.success({
+      title: 'Order Deleted',
+      message: 'Order and all related data have been permanently deleted'
+    });
+
+    // Navigate back to orders list
+    router.push('/admin/orders');
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    toast.error({
+      title: 'Error',
+      message: 'Failed to delete order'
+    });
+  } finally {
+    isDeletingOrder.value = false;
   }
 }
 
