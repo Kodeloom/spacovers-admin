@@ -164,6 +164,7 @@ async function main() {
     { name: 'Estimate', description: 'Customer estimates' },
     { name: 'EstimateItem', description: 'Items within estimates' },
     { name: 'QuickbooksToken', description: 'QuickBooks integration tokens' },
+    { name: 'BarcodeScanner', description: 'Barcode scanners for order processing' },
   ];
 
   // Join table models (need full CRUD for backend operations)
@@ -239,7 +240,7 @@ async function main() {
       isSystem: true,
       displayOrder: 3,
       defaultPermissions: {
-        subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station'],
+        subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station', 'BarcodeScanner'],
         actions: ['read', 'update']
       }
     },
@@ -309,7 +310,7 @@ async function main() {
       description: 'Production worker assigned to specific stations',
       roleTypeName: 'Warehouse Staff',
       permissions: ['read', 'update'],
-      subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station']
+      subjects: ['Order', 'OrderItem', 'ItemProcessingLog', 'Station', 'BarcodeScanner']
     }
   ];
 
