@@ -646,11 +646,7 @@ watch(session, (newSession) => {
     if (isWarehouseStaff.value) {
       navigateTo('/warehouse/kiosk');
     }
-    // If user is admin, they can stay on dashboard
-    // If user has no valid roles, redirect to login
-    else if (!isAdminRole.value) {
-      navigateTo('/login');
-    }
+    // All other authenticated users can access the dashboard
   }
 }, { immediate: true });
 

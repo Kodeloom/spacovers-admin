@@ -16,9 +16,9 @@ export default defineNuxtRouteMiddleware(async (_to, _from) => {
     
     // If the user is authenticated (sessionData exists and has a user)
     if (sessionState.value?.data?.user) {
-      console.log('User already authenticated, redirecting to admin');
-      // Redirect them to the admin page
-      return navigateTo('/admin');
+      console.log('User already authenticated, redirecting to dashboard');
+      // Redirect them to the dashboard
+      return navigateTo('/');
     }
   } catch (error) {
     // If there's an error checking session, allow access to login page

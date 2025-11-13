@@ -44,8 +44,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     });
     
     if (hasAdminRole) {
-      // Redirect to admin dashboard
-      return navigateTo('/admin');
+      // Redirect to dashboard
+      return navigateTo('/');
     } else {
       // User has no valid roles, redirect to login
       return navigateTo('/login');
