@@ -446,15 +446,8 @@ model Order {
   @@index([customerId, orderStatus])
   @@index([orderStatus, createdAt])
 
-  // Access Control Policies - PERMISSION-BASED (Core warehouse operations)
-  // Create orders: Customer service, admins
-  @@allow('create', auth() != null && auth().roles?[role.permissions?[permission.action == "create" && permission.subject == "Order"]])
-  // Read orders: Most roles need to view orders
-  @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "Order"]])
-  // Update orders: Approval workflow, status changes
-  @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "Order"]])
-  // Delete orders: Admin-only for corrections
-  @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "Order"]])
+  @@allow('read', auth() != null)
+  @@allow('update', auth() != null)
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
