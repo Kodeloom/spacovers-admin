@@ -369,6 +369,8 @@ model BarcodeScanner {
   @@allow('read', auth() != null && auth().roles?[role.permissions?[permission.action == "read" && permission.subject == "BarcodeScanner"]])
   @@allow('update', auth() != null && auth().roles?[role.permissions?[permission.action == "update" && permission.subject == "BarcodeScanner"]])
   @@allow('delete', auth() != null && auth().roles?[role.permissions?[permission.action == "delete" && permission.subject == "BarcodeScanner"]])
+
+  @@allow('read', auth() != null)
   
   // ROLE-BASED fallback: Super Admin always has access
   @@allow('all', auth() != null && auth().roles?[role.name == "Super Admin"])
