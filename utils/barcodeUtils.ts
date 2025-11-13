@@ -91,22 +91,102 @@ export function decodeBarcode(barcode: string): BarcodeData | null {
 }
 
 /**
+ * Get the workflow order index for a status
+ * Lower index = earlier in workflow
+ */
+function getStatusWorkflowIndex(status: string): number {
+  const workflowOrder = [
+    'NOT_STARTED_PRODUCTION',
+    'CUTTING',
+    'SEWING',
+    'FOAM_CUTTING',
+    'STUFFING',
+    'PACKAGING',
+    'PRODUCT_FINISHED',
+    'READY'
+  ];
+  return workflowOrder.indexOf(status);
+}
+
+/**
+ * Get the workflow order index for a station
+ * Lower index = earlier in workflow
+ */
+function getStationWorkflowIndex(station: string): number {
+  const stationOrder = [
+    'Office',      // 0 - starts production
+    'Cutting',     // 1
+    'Sewing',      // 2
+    'Foam Cutting',// 3
+    'Stuffing',    // 4
+    'Packaging',   // 5
+    'Office'       // 6 - finalizes (same as 0 but at end)
+  ];
+  
+  // Special handling for Office - it can be at start (0) or end (6)
+  if (station === 'Office') {
+    // Return -1 to indicate Office can handle both start and end
+    return -1;
+  }
+  
+  return stationOrder.indexOf(station);
+}
+
+/**
  * Get the next status for a given current status and station
+ * Now supports skipping forward but not backward
  * 
  * @param currentStatus - The current item status
  * @param station - The station where the scan occurred
  * @returns The next status or null if no valid transition
  */
 export function getNextStatus(currentStatus: string, station: string): string | null {
-  const transition = STATUS_TRANSITIONS.find(
-    t => t.from === currentStatus && t.station === station
-  );
+  // Special case: NOT_STARTED_PRODUCTION can ONLY be processed by Office
+  if (currentStatus === 'NOT_STARTED_PRODUCTION') {
+    if (station === 'Office') {
+      return 'CUTTING';
+    }
+    return null; // No other station can start production
+  }
   
-  return transition ? transition.to : null;
+  // Special case: PRODUCT_FINISHED can ONLY be finalized by Office
+  if (currentStatus === 'PRODUCT_FINISHED') {
+    if (station === 'Office') {
+      return 'READY';
+    }
+    return null; // No other station can finalize
+  }
+  
+  // For all other statuses, find the next transition based on the scanning station
+  // Allow skipping forward but not backward
+  
+  const currentStatusIndex = getStatusWorkflowIndex(currentStatus);
+  const scanningStationIndex = getStationWorkflowIndex(station);
+  
+  // Find the transition that this station would normally handle
+  const stationTransition = STATUS_TRANSITIONS.find(t => t.station === station);
+  
+  if (!stationTransition) {
+    return null; // Invalid station
+  }
+  
+  // Get the target status for this station
+  const targetStatus = stationTransition.to;
+  const targetStatusIndex = getStatusWorkflowIndex(targetStatus);
+  
+  // Check if we're moving forward in the workflow
+  // Allow the transition if the target status is ahead of current status
+  if (targetStatusIndex > currentStatusIndex) {
+    return targetStatus;
+  }
+  
+  // Don't allow going backward
+  return null;
 }
 
 /**
  * Validate if a status transition is allowed
+ * Now supports skipping forward but not backward
  * 
  * @param currentStatus - The current item status
  * @param station - The station where the scan occurred
