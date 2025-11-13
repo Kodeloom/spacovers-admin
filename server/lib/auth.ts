@@ -32,6 +32,13 @@ export const auth = betterAuth({
               role: { // And within each UserRole, select the related Role
                 select: {
                   name: true, // And specifically the name of that Role
+                  roleType: { // Include the roleType relation
+                    select: {
+                      id: true,
+                      name: true,
+                      canUseStations: true,
+                    }
+                  },
                   permissions: {
                     select: {
                       permission: {
