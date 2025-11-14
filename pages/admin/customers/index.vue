@@ -31,6 +31,20 @@
         </NuxtLink>
       </div>
     </div>
+    
+    <!-- Search Bar -->
+    <div class="mb-4">
+      <div class="relative">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search by name or email..."
+          class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+        <Icon name="heroicons:magnifying-glass" class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+      </div>
+    </div>
+    
     <div class="bg-white shadow rounded-lg">
       <AppTable
         v-model:sort="sort"
@@ -117,6 +131,7 @@ const toast = useToast();
 const isSyncing = ref(false);
 const isDeleting = ref(false);
 const customerToDelete = ref<{ id: string } | null>(null);
+const searchQuery = ref('');
 
 const columns = [
   { key: 'name', label: 'Name', sortable: true },
@@ -132,11 +147,26 @@ const sort = ref({ column: 'name', direction: 'asc' as 'asc' | 'desc' });
 
 const route = useRoute();
 
-const query = computed(() => ({
-  skip: (page.value - 1) * limit.value,
-  take: limit.value,
-  orderBy: { [sort.value.column]: sort.value.direction },
-}));
+const query = computed(() => {
+  const baseQuery: any = {
+    skip: (page.value - 1) * limit.value,
+    take: limit.value,
+    orderBy: { [sort.value.column]: sort.value.direction },
+  };
+  
+  // Add search filter if search query exists
+  const search = searchQuery.value.trim();
+  if (search) {
+    baseQuery.where = {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ]
+    };
+  }
+  
+  return baseQuery;
+});
 
 const { data: customers, isLoading: pending, refetch: refreshCustomers } = useFindManyCustomer(query);
 const { data: totalCustomers, refetch: refreshCount } = useCountCustomer();
