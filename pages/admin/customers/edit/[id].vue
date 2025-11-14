@@ -4,7 +4,7 @@ import { useFindUniqueCustomer, useUpdateCustomer } from '~/lib/hooks';
 
 definePageMeta({
     layout: 'default',
-    middleware: 'auth-admin-only',
+    middleware: 'auth-office-admin',
 });
 
 const { showLoading, hideLoading } = useGlobalLoading();
@@ -350,11 +350,3 @@ async function handleSync() {
     </div>
   </div>
 </template>
-
-
-<script>
-definePageMeta({
-  layout: 'default',
-  middleware: 'auth-office-admin',
-});
-</script>

@@ -828,7 +828,7 @@ import { usePackingSlipStatus } from '~/composables/usePackingSlipStatus';
 
 definePageMeta({
   layout: 'default',
-  middleware: 'auth-admin-only',
+  middleware: 'auth-office-admin',
 });
 
 const route = useRoute();
@@ -1932,12 +1932,4 @@ function handlePrintConfirmation(orderItem: any, printFunction: () => void) {
     printFunction();
   }
 }
-</script>
-
-<sc
-ript>
-definePageMeta({
-  layout: 'default',
-  middleware: 'auth-office-admin',
-});
 </script>
