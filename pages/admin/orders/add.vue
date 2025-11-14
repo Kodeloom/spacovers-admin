@@ -299,7 +299,7 @@ import ProductAttributesForm from '~/components/admin/ProductAttributesForm.vue'
 
 definePageMeta({
   layout: 'default',
-  middleware: ['auth-admin-only'],
+  middleware: ['auth-office-admin'],
 });
 
 const router = useRouter();

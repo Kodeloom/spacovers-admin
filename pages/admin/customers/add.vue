@@ -92,7 +92,7 @@ import { CustomerStatus, CustomerType } from '@prisma-app/client';
 
 definePageMeta({
     layout: 'default',
-    middleware: 'auth-admin-only',
+    middleware: 'auth-office-admin',
 });
 
 const customerTypeOptions = Object.values(CustomerType);

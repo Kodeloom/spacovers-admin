@@ -1933,3 +1933,11 @@ function handlePrintConfirmation(orderItem: any, printFunction: () => void) {
   }
 }
 </script>
+
+<sc
+ript>
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth-office-admin',
+});
+</script>

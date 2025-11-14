@@ -350,3 +350,11 @@ async function handleSync() {
     </div>
   </div>
 </template>
+
+
+<script>
+definePageMeta({
+  layout: 'default',
+  middleware: 'auth-office-admin',
+});
+</script>
