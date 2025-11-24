@@ -16,6 +16,14 @@ interface QboCustomer {
         PostalCode?: string;
         Country?: string;
     };
+    BillAddr?: {
+        Line1?: string;
+        Line2?: string;
+        City?: string;
+        CountrySubDivisionCode?: string;
+        PostalCode?: string;
+        Country?: string;
+    };
     Active: boolean;
     CustomerTypeRef?: {
         value: string; // This is the ID of the CustomerType
@@ -88,6 +96,14 @@ export default defineEventHandler(async (event) => {
         let syncedCount = 0;
 
         for (const qboCustomer of qboCustomers) {
+            // Debug logging to see what address data we're receiving
+            console.log(`Customer ${qboCustomer.DisplayName}:`, {
+                hasShipAddr: !!qboCustomer.ShipAddr,
+                hasBillAddr: !!qboCustomer.BillAddr,
+                shipAddr: qboCustomer.ShipAddr,
+                billAddr: qboCustomer.BillAddr
+            });
+
             let customerType: CustomerType = CustomerType.RETAILER; // Default value
             
             const customerTypeName = qboCustomer.CustomerTypeRef?.name;
@@ -110,6 +126,12 @@ export default defineEventHandler(async (event) => {
                     shippingState: qboCustomer.ShipAddr?.CountrySubDivisionCode,
                     shippingZipCode: qboCustomer.ShipAddr?.PostalCode,
                     shippingCountry: qboCustomer.ShipAddr?.Country,
+                    billingAddressLine1: qboCustomer.BillAddr?.Line1,
+                    billingAddressLine2: qboCustomer.BillAddr?.Line2,
+                    billingCity: qboCustomer.BillAddr?.City,
+                    billingState: qboCustomer.BillAddr?.CountrySubDivisionCode,
+                    billingZipCode: qboCustomer.BillAddr?.PostalCode,
+                    billingCountry: qboCustomer.BillAddr?.Country,
                     status: qboCustomer.Active ? 'ACTIVE' : 'INACTIVE',
                     type: customerType,
                 },
@@ -124,6 +146,12 @@ export default defineEventHandler(async (event) => {
                     shippingState: qboCustomer.ShipAddr?.CountrySubDivisionCode,
                     shippingZipCode: qboCustomer.ShipAddr?.PostalCode,
                     shippingCountry: qboCustomer.ShipAddr?.Country,
+                    billingAddressLine1: qboCustomer.BillAddr?.Line1,
+                    billingAddressLine2: qboCustomer.BillAddr?.Line2,
+                    billingCity: qboCustomer.BillAddr?.City,
+                    billingState: qboCustomer.BillAddr?.CountrySubDivisionCode,
+                    billingZipCode: qboCustomer.BillAddr?.PostalCode,
+                    billingCountry: qboCustomer.BillAddr?.Country,
                     status: qboCustomer.Active ? 'ACTIVE' : 'INACTIVE',
                     type: customerType,
                 }
