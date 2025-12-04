@@ -90,6 +90,17 @@
             <AppAutocomplete id="customerId" v-model="selectedCustomer" :options="customers || []"
               placeholder="Search customers..." required display-key="name" value-key="id"
               :search-keys="['name', 'email', 'contactNumber', 'type']" @update:model-value="onCustomerSelect" />
+            
+            <!-- Selected Customer Indicator -->
+            <div v-if="selectedCustomer" class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p class="text-sm text-blue-900">
+                <span class="font-bold">SELECTED CUSTOMER:</span> 
+                <span class="font-semibold">{{ selectedCustomer.name }}</span>
+                <span v-if="selectedCustomer.type" class="ml-2 text-xs px-2 py-1 bg-blue-100 rounded">
+                  {{ selectedCustomer.type }}
+                </span>
+              </p>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,7 +427,7 @@ const isValidatingItemPO = ref<Record<number, boolean>>({});
 const itemPOValidationTimeouts = ref<Record<number, NodeJS.Timeout>>({});
 const itemDuplicateConfirmed = ref<Record<number, boolean>>({});
 
-// Fetch customers and items
+// Fetch customers and items (all fields including addresses are fetched by default)
 const { data: customers } = useFindManyCustomer({
   where: { status: 'ACTIVE' },
   orderBy: { name: 'asc' }
@@ -465,6 +476,22 @@ function onCustomerSelect(customer: any) {
     orderData.contactEmail = customer.email || '';
     orderData.contactPhoneNumber = customer.contactNumber || '';
 
+    // Auto-populate shipping address from customer
+    orderData.shippingAddressLine1 = customer.shippingAddressLine1 || '';
+    orderData.shippingAddressLine2 = customer.shippingAddressLine2 || '';
+    orderData.shippingCity = customer.shippingCity || '';
+    orderData.shippingState = customer.shippingState || '';
+    orderData.shippingZipCode = customer.shippingZipCode || '';
+    orderData.shippingCountry = customer.shippingCountry || '';
+
+    // Auto-populate billing address from customer
+    orderData.billingAddressLine1 = customer.billingAddressLine1 || '';
+    orderData.billingAddressLine2 = customer.billingAddressLine2 || '';
+    orderData.billingCity = customer.billingCity || '';
+    orderData.billingState = customer.billingState || '';
+    orderData.billingZipCode = customer.billingZipCode || '';
+    orderData.billingCountry = customer.billingCountry || '';
+
     // Re-validate PO number if one exists
     if (orderData.purchaseOrderNumber) {
       validatePONumber();
@@ -480,6 +507,21 @@ function onCustomerSelect(customer: any) {
     orderData.customerId = '';
     orderData.contactEmail = '';
     orderData.contactPhoneNumber = '';
+    
+    // Clear addresses when customer is deselected
+    orderData.shippingAddressLine1 = '';
+    orderData.shippingAddressLine2 = '';
+    orderData.shippingCity = '';
+    orderData.shippingState = '';
+    orderData.shippingZipCode = '';
+    orderData.shippingCountry = '';
+    orderData.billingAddressLine1 = '';
+    orderData.billingAddressLine2 = '';
+    orderData.billingCity = '';
+    orderData.billingState = '';
+    orderData.billingZipCode = '';
+    orderData.billingCountry = '';
+    
     poValidationResult.value = null;
     itemPOValidationResults.value = {};
   }
