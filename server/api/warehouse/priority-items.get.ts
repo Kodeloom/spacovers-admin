@@ -6,10 +6,16 @@ export default defineEventHandler(async (event) => {
     // Get the current user session
     const sessionData = await auth.api.getSession({ headers: event.headers });
     if (!sessionData?.user?.id) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Unauthorized'
-      });
+      // Return error response instead of throwing to reduce log noise
+      return {
+        success: false,
+        error: 'Authentication required',
+        data: [],
+        meta: {
+          totalCount: 0,
+          lastUpdated: new Date().toISOString()
+        }
+      };
     }
     // Debug: Let's check for Order #1043 specifically
     console.log('🔍 DEBUG: Looking for Order #1043...');

@@ -103,20 +103,39 @@ export const usePriorityItems = () => {
       } else {
         throw new Error(response.error || 'Failed to fetch priority items');
       }
-    } catch (error) {
-      console.error('Failed to fetch priority items:', error);
-      state.error = error instanceof Error ? error.message : 'Failed to load priority items';
+    } catch (error: any) {
+      // Check if this is an authentication error
+      const isAuthError = error?.statusCode === 401 || error?.status === 401 || 
+                         error?.message?.includes('Unauthorized') ||
+                         error?.data?.statusMessage === 'Unauthorized';
+      
+      if (isAuthError) {
+        console.warn('Priority items: Authentication failed - stopping auto-refresh');
+        // Stop auto-refresh on auth errors to prevent log spam
+        stopAutoRefresh();
+        state.error = 'Session expired. The page will reload to login again.';
+        
+        // Trigger page reload after a short delay to force re-authentication
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }, 2000);
+      } else {
+        console.error('Failed to fetch priority items:', error);
+        state.error = error instanceof Error ? error.message : 'Failed to load priority items';
+        
+        // Only retry on non-auth errors
+        setTimeout(() => {
+          if (state.error && !isAuthError) {
+            fetchPriorityItems(preserveScrollPosition);
+          }
+        }, 5000);
+      }
       
       // Record failed API call
       const apiTime = endApiTimer();
       recordMetrics(apiTime, 0, 0, false);
-      
-      // Retry after delay on error
-      setTimeout(() => {
-        if (state.error) {
-          fetchPriorityItems(preserveScrollPosition);
-        }
-      }, 5000);
     } finally {
       state.loading = false;
     }
