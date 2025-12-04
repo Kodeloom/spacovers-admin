@@ -74,11 +74,11 @@
             {{ loading ? 'Signing in...' : 'Sign in' }}
           </button>
         </div>
-        <div class="text-sm text-center">
+        <!-- <div class="text-sm text-center">
           <NuxtLink to="/setup-admin" class="font-medium text-indigo-600 hover:text-indigo-500">
             Setup Initial Admin Password (First time only)
           </NuxtLink>
-        </div>
+        </div> -->
       </form>
     </div>
   </div>
