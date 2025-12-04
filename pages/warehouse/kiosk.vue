@@ -217,6 +217,15 @@ interface RecentActivity {
 const session = authClient.useSession();
 const isLoggedIn = computed(() => !!session.value?.data?.user);
 
+// Monitor session validity and auto-logout if session becomes invalid
+watch(() => session.value?.data, (sessionData) => {
+  // If we were logged in but session is now null/invalid, auto-logout
+  if (isLoggedIn.value === false && currentScannerInfo.value !== null) {
+    console.warn('Session became invalid - auto-logging out');
+    logout();
+  }
+}, { deep: true });
+
 // Login form
 const loginForm = ref({
   email: '',
