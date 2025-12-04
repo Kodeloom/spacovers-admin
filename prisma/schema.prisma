@@ -75,12 +75,14 @@ enum ProductType {
 enum SkirtType {
   CONN
   SLIT
+  NONE
 }
 
 enum TieDownPlacement {
   HANDLE_SIDE
   CORNER_SIDE
   FOLD_SIDE
+  NONE
 }
 
 model User {
