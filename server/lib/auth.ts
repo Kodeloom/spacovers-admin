@@ -17,6 +17,12 @@ export const auth = betterAuth({
     // disableSignUp: false,
     // requireEmailVerification: true, // Recommended for production
   },
+  session: {
+    // Extend session duration to 7 days (in seconds)
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    // Update session expiration on each request to keep active users logged in
+    updateAge: 60 * 60 * 24, // Update if session is older than 1 day
+  },
   plugins: [
     customSession(async ({ user, session }) => {
       const dbUser = await prisma.user.findUnique({
