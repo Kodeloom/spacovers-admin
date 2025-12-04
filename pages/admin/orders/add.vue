@@ -15,19 +15,28 @@
               </label>
               <div class="flex space-x-2">
                 <input id="salesOrderNumber" v-model="orderData.salesOrderNumber" type="text" inputmode="numeric" pattern="[0-9]*"
-                  :readonly="!isSuperAdmin"
+                  :disabled="!isOrderNumberEditable"
                   @input="enforceNumericOnly($event, 'salesOrderNumber')"
                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  :class="{ 'bg-gray-100 cursor-not-allowed': !isSuperAdmin }"
+                  :class="{ 'bg-gray-100 cursor-not-allowed': !isOrderNumberEditable }"
                   placeholder="Auto-generated"
                   required>
-                <button v-if="isSuperAdmin" type="button"
-                  class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap"
-                  :disabled="isGeneratingOrderNumber" @click="generateOrderNumber">
-                  {{ isGeneratingOrderNumber ? 'Regenerate' : 'Generate' }}
+                <button v-if="isSuperAdmin && !isOrderNumberEditable" type="button"
+                  class="px-4 py-2 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700 whitespace-nowrap"
+                  @click="enableOrderNumberEdit">
+                  <Icon name="heroicons:pencil" class="w-4 h-4 mr-1 inline" />
+                  Edit
+                </button>
+                <button v-if="isSuperAdmin && isOrderNumberEditable" type="button"
+                  class="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 whitespace-nowrap"
+                  @click="disableOrderNumberEdit">
+                  <Icon name="heroicons:lock-closed" class="w-4 h-4 mr-1 inline" />
+                  Lock
                 </button>
               </div>
-              <p v-if="!isSuperAdmin" class="mt-1 text-xs text-gray-500">Order number is automatically generated and cannot be edited</p>
+              <p class="mt-1 text-xs text-gray-500">
+                {{ isOrderNumberEditable ? 'Editing enabled - click Lock when done' : 'Order number is automatically generated' }}
+              </p>
             </div>
             <div>
               <label for="transactionDate" class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
@@ -379,11 +388,21 @@ const selectedProducts = ref<Record<string, any>>({});
 
 // Order number generation state
 const isGeneratingOrderNumber = ref(false);
+const isOrderNumberEditable = ref(false);
 
 // Auto-generate order number on mount
 onMounted(async () => {
   await generateOrderNumber();
 });
+
+// Functions to enable/disable order number editing (Super Admin only)
+function enableOrderNumberEdit() {
+  isOrderNumberEditable.value = true;
+}
+
+function disableOrderNumberEdit() {
+  isOrderNumberEditable.value = false;
+}
 
 // PO validation state
 const poValidationResult = ref<any>(null);
