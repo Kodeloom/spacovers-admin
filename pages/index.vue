@@ -168,7 +168,7 @@
         </div>
       </div> 
 
-      <!-- Items at Cutting Station (Admin Only) -->
+      <!-- Items at Cutting Station -->
       <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('CUTTING', 'Items at Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -185,7 +185,7 @@
         </div>
       </div>
 
-      <!-- Items at Sewing Station (Admin Only) -->
+      <!-- Items at Sewing Station -->
       <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('SEWING', 'Items at Sewing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -202,7 +202,7 @@
         </div>
       </div>
 
-      <!-- Items at Foam Cutting Station (Admin Only) -->
+      <!-- Items at Foam Cutting Station -->
       <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('FOAM_CUTTING', 'Items at Foam Cutting')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -219,7 +219,7 @@
         </div>
       </div>
 
-      <!-- Items at Stuffing Station (Admin Only) -->
+      <!-- Items at Stuffing Station -->
       <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('STUFFING', 'Items at Stuffing')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -236,7 +236,7 @@
         </div>
       </div>
 
-      <!-- Items at Packaging Station (Admin Only) -->
+      <!-- Items at Packaging Station -->
       <div v-show="isAdmin" class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 cursor-pointer hover:bg-gray-50 transition-colors" @click="openStationItemsModal('PACKAGING', 'Items at Packaging')">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -255,7 +255,7 @@
       </div>
     </ClientOnly>
 
-    <!-- Performance Metrics Row (Admin Only) -->
+    <!-- Performance Metrics Row -->
     <div v-show="isAdmin" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       <!-- Production Efficiency -->
       <div class="bg-white p-6 rounded-lg shadow">
@@ -531,10 +531,18 @@ const isAdmin = computed(() => {
   const user = session.value?.data?.user;
   if (user && user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
     const roles = user.roles as UserRoleForDisplay[];
-    return roles.some(userRole => 
-      userRole.role.name === 'Super Admin' || 
-      userRole.role.name === 'Admin'
-    );
+    return roles.some(userRole => {
+      const roleName = userRole.role.name;
+      const roleTypeName = userRole.role.roleType?.name;
+      
+      // Check by role name (fallback)
+      const allowedRoleNames = ['Super Admin', 'Admin', 'Manager'];
+      // Check by role type (preferred)
+      const allowedRoleTypes = ['Administrator', 'Manager', 'Super Administrator', 'Office Employee'];
+      
+      return (roleName && allowedRoleNames.includes(roleName)) || 
+             (roleTypeName && allowedRoleTypes.includes(roleTypeName));
+    });
   }
   return false;
 });
