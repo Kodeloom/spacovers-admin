@@ -105,12 +105,14 @@ export const usePriorityItems = () => {
       }
     } catch (error: any) {
       // Check if this is an authentication error
-      const isAuthError = error?.statusCode === 401 || error?.status === 401 || 
+      const isAuthError = error?.statusCode === 401 || 
+                         error?.status === 401 || 
                          error?.message?.includes('Unauthorized') ||
+                         error?.message?.includes('Authentication required') ||
                          error?.data?.statusMessage === 'Unauthorized';
       
       if (isAuthError) {
-        console.warn('Priority items: Authentication failed - stopping auto-refresh');
+        console.warn('Priority items: Authentication failed - stopping auto-refresh and reloading page');
         // Stop auto-refresh on auth errors to prevent log spam
         stopAutoRefresh();
         state.error = 'Session expired. The page will reload to login again.';
