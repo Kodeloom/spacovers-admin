@@ -151,7 +151,7 @@
             </div>
             <div class="ml-4 flex-1">
               <p class="text-sm font-medium text-gray-500">Avg Lead Time</p>
-              <p class="text-2xl font-semibold text-gray-900">{{ Math.round(metrics.avgLeadTimeHours || 0) }} hours</p>
+              <p class="text-2xl font-semibold text-gray-900">{{ convertHoursToWorkingDays(metrics.avgLeadTimeHours || 0) }} days</p>
               <p class="text-xs text-gray-400">Last 60 days</p>
             </div>
           </div>
@@ -1048,6 +1048,13 @@ async function retryFetchMetrics(maxRetries = 2) {
     title: 'Connection Failed',
     message: 'Unable to load metrics after multiple attempts. Using default values.'
   });
+}
+
+// Convert hours to working days (9 hours per working day)
+function convertHoursToWorkingDays(hours: number): number {
+  if (!hours || hours === 0) return 0;
+  const HOURS_PER_WORKING_DAY = 9;
+  return Math.ceil(hours / HOURS_PER_WORKING_DAY);
 }
 
 // KPI Click Handlers

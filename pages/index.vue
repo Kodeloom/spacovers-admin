@@ -568,20 +568,17 @@ async function fetchDashboardMetrics() {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 60);
     
-    const [leadTimeResponse, stationItemsResponse, recentOrdersResponse] = await Promise.allSettled([
-      $fetch('/api/reports/lead-time', { 
-        query: { 
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
-        } 
-      }),
+    const [stationItemsResponse, recentOrdersResponse] = await Promise.allSettled([
       $fetch('/api/reports/station-items'),
       // Fetch recent orders using our new API
       $fetch('/api/reports/recent-orders', { query: { limit: 5 } })
     ]);
     
     // Extract values with fallbacks
-    const leadTime = leadTimeResponse.status === 'fulfilled' ? leadTimeResponse.value?.summary?.avgLeadTimeDays || 0 : 0;
+    // Convert avgLeadTimeHours from metrics API to working days (9 hours per day)
+    const avgLeadTimeHours = coreMetrics.avgLeadTimeHours || 0;
+    const HOURS_PER_WORKING_DAY = 9;
+    const leadTime = avgLeadTimeHours > 0 ? Math.ceil(avgLeadTimeHours / HOURS_PER_WORKING_DAY) : 0;
     const stationItems = stationItemsResponse.status === 'fulfilled' ? stationItemsResponse.value || [] : [];
     const recentOrders = recentOrdersResponse.status === 'fulfilled' ? recentOrdersResponse.value || [] : [];
     
