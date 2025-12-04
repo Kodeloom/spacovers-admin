@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
                 customerId: true,
                 customer: {
                   select: {
-                    displayName: true
+                    name: true
                   }
                 }
               }
@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
       orderItemId: log.orderItemId,
       orderId: log.orderItem.orderId,
       orderNumber: log.orderItem.order.salesOrderNumber,
-      customer: log.orderItem.order.customer?.displayName,
+      customer: log.orderItem.order.customer?.name,
       itemId: log.orderItem.itemId,
       itemName: log.orderItem.item.name,
       fromStatus: log.fromStatus,

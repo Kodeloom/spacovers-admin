@@ -52,7 +52,7 @@ export async function logOrderItemStatusChangeWithContext(
             customerId: true,
             customer: {
               select: {
-                displayName: true,
+                name: true,
                 email: true
               }
             }
@@ -101,7 +101,7 @@ export async function logOrderItemStatusChangeWithContext(
       `📝 OrderItem Status Change:`,
       `Item: ${orderItem.item.name} (${orderItem.item.id})`,
       `Order: ${orderItem.order.salesOrderNumber || orderItem.order.id}`,
-      `Customer: ${orderItem.order.customer?.displayName || 'Unknown'}`,
+      `Customer: ${orderItem.order.customer?.name || 'Unknown'}`,
       `Status: ${details.fromStatus || 'NEW'} → ${details.toStatus}`,
       `Reason: ${details.changeReason}`,
       `Source: ${context.source}`,
@@ -207,7 +207,7 @@ export async function logOrderItemSyncOperation(
         customerId: true,
         customer: {
           select: {
-            displayName: true
+            name: true
           }
         },
         _count: {
@@ -226,7 +226,7 @@ export async function logOrderItemSyncOperation(
     const logMessage = [
       `🔄 OrderItem Sync ${operation.replace('_', ' ').toUpperCase()}:`,
       `Order: ${order.salesOrderNumber || order.id}`,
-      `Customer: ${order.customer?.displayName || 'Unknown'}`,
+      `Customer: ${order.customer?.name || 'Unknown'}`,
       details.itemsProcessed ? `Processed: ${details.itemsProcessed}` : null,
       details.itemsCreated ? `Created: ${details.itemsCreated}` : null,
       details.itemsUpdated ? `Updated: ${details.itemsUpdated}` : null,
