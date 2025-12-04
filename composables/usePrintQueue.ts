@@ -407,10 +407,11 @@ export const usePrintQueue = () => {
     const tieDownLength = (attrs as any)?.tieDownLength || '-'
     const distance = attrs?.distance || '0'
 
-    // Size logic: show width x length if both available, otherwise show size
+    // Size logic: show length x width if both available, otherwise show size
+    // Format matches the preview: Length X Width (e.g., 12X20)
     let sizeDisplay = ''
     if (width && length && width.trim() !== '' && length.trim() !== '') {
-      sizeDisplay = `${width}" x ${length}"`
+      sizeDisplay = `${length}" x ${width}"`
     } else {
       sizeDisplay = attrs?.size || 'Custom'
     }
