@@ -5,9 +5,10 @@ import { logError } from '~/utils/errorHandling';
 
 export default defineEventHandler(async (event) => {
   let sessionData: any = null;
+  let query: any = null;
   
   try {
-    const query = getQuery(event);
+    query = getQuery(event);
 
     // Get the current user session
     sessionData = await auth.api.getSession({ headers: event.headers });
@@ -227,7 +228,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     // Log the error for debugging
     logError(error, 'employee_items_report_generation', sessionData?.user?.id, { 
-      requestedUserId: query.userId 
+      requestedUserId: query?.userId 
     });
     
     // If it's already a structured error, re-throw it

@@ -166,9 +166,9 @@ export function validateUserId(userId?: string): ValidationResult {
   // Example: cmg5nic400016ujni1xm9qcnl
   const cuidRegex = /^c[a-z0-9]{24}$/i;
   
-  // Firebase Auth UID format (28 characters, alphanumeric)
-  // Example: s6KLH52M9vQppgm9pUKwVqeQXMV0M3AU
-  const firebaseAuthRegex = /^[a-zA-Z0-9]{28}$/;
+  // Firebase Auth UID format (typically 28 characters, but can vary between 20-128 characters)
+  // Example: 6Y5kw0UGhfiDjDG2dhf4Cq7Z3RIVmGtm
+  const firebaseAuthRegex = /^[a-zA-Z0-9]{20,128}$/;
   
   // UUID format (with or without hyphens)
   // Example: 123e4567-e89b-12d3-a456-426614174000 or 123e4567e89b12d3a456426614174000

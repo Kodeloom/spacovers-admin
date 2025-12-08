@@ -108,6 +108,12 @@ export default defineEventHandler(async (event) => {
       endTime: { not: null }, // Only completed tasks
       startTime: { not: null }, // Ensure we have valid start times
       durationInSeconds: { gt: 0 }, // Only valid durations
+      // Exclude "Office" station from productivity reports using relation filter
+      station: {
+        isNot: {
+          name: 'Office'
+        }
+      }
     };
 
     // Apply validated date filters
@@ -120,13 +126,15 @@ export default defineEventHandler(async (event) => {
       whereClause.endTime = { lte: endDate };
     }
 
-    // Enhanced station filtering - ensure station exists and is active
+    // Enhanced station filtering - ensure station exists
     if (stationId) {
       whereClause.stationId = stationId;
+      // Also ensure it's not the Office station
       whereClause.station = {
         id: stationId,
-        // Only include active stations
-        status: 'ACTIVE'
+        NOT: {
+          name: 'Office'
+        }
       };
     }
 
@@ -314,6 +322,8 @@ export default defineEventHandler(async (event) => {
     console.log(`Processing ${itemLogsMap.size} items with processing logs`);
 
     // Process each item's complete processing history
+    // IMPORTANT: When someone scans an item, it means they FINISHED their work at that station
+    // The time between scans represents the work done at the PREVIOUS station by the CURRENT scanner
     for (const [itemId, logs] of itemLogsMap) {
       // Sort logs by startTime to get chronological order
       const sortedLogs = logs
@@ -321,28 +331,18 @@ export default defineEventHandler(async (event) => {
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
       
       // Process each completed processing log
-      for (let i = 0; i < sortedLogs.length; i++) {
-        const currentLog = sortedLogs[i];
-        const nextLog = sortedLogs[i + 1]; // The person who scanned this item OUT
-        
-        // Determine who should get credit for this processing time
-        let creditUserId: string;
-        let creditUserName: string;
-        let creditStationId: string;
-        let creditStationName: string;
+      // When a user scans an item, they are FINISHING their work at that station
+      for (const currentLog of sortedLogs) {
+        // The person who scanned gets credit for the work done at THEIR station
+        const creditUserId = currentLog.userId;
+        const creditUserName = currentLog.user?.name || 'Unknown User';
+        const creditStationId = currentLog.stationId;
+        const creditStationName = currentLog.station?.name || 'Unknown Station';
 
-        if (nextLog) {
-          // Credit goes to the person who scanned the item OUT (the next person in the sequence)
-          creditUserId = nextLog.userId;
-          creditUserName = nextLog.user?.name || 'Unknown User';
-          creditStationId = currentLog.stationId; // But the station is where the work was done
-          creditStationName = currentLog.station?.name || 'Unknown Station';
-        } else {
-          // This is the last log - credit goes to the person who did the work
-          creditUserId = currentLog.userId;
-          creditUserName = currentLog.user?.name || 'Unknown User';
-          creditStationId = currentLog.stationId;
-          creditStationName = currentLog.station?.name || 'Unknown Station';
+        // Skip Office station entries
+        if (creditStationName === 'Office') {
+          console.log(`Item ${itemId}: Skipping Office station entry for ${creditUserName}`);
+          continue;
         }
 
         const key = `${creditUserId}-${creditStationId}`;
@@ -362,11 +362,12 @@ export default defineEventHandler(async (event) => {
         const data = aggregatedData.get(key)!;
         
         // Count unique items and add processing time
+        // The duration represents the time THIS user spent working on this item at THIS station
         data.uniqueItemIds.add(itemId);
         data.totalDuration += currentLog.durationInSeconds;
         data.completedSessions++;
         
-        console.log(`Item ${itemId}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for work at ${creditStationName}`);
+        console.log(`Item ${itemId}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for completing work at ${creditStationName}`);
       }
     }
 

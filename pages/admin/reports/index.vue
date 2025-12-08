@@ -155,7 +155,10 @@
       <!-- Report Content (when not loading and no error) -->
       <template v-else>
         <!-- Summary Statistics -->
-        <div v-if="summaryStats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div v-if="summaryStats" :class="[
+          'grid gap-6 mb-8',
+          'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        ]">
       <div class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
@@ -206,23 +209,6 @@
         </div>
       </div>
       
-      <div class="bg-white shadow rounded-lg p-6">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <Icon name="heroicons:chart-bar" class="h-8 w-8 text-yellow-600" />
-          </div>
-          <div class="ml-4">
-            <p class="text-sm font-medium text-gray-500">
-              {{ activeTab === 'productivity' ? 'Avg Efficiency' : 'Total Revenue' }}
-            </p>
-            <p class="text-2xl font-semibold text-gray-900">
-              {{ activeTab === 'productivity' 
-                ? calculateOverallEfficiency() + ' items/hr'
-                : '$' + (summaryStats.totalRevenue || 0).toFixed(2) }}
-            </p>
-            </div>
-          </div>
-        </div>
         </div>
 
         <!-- Employee Productivity Report -->
@@ -279,12 +265,6 @@
                   <Icon :name="getSortIcon('avgDuration')" class="h-4 w-4" />
                 </button>
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <button @click="sortTable('efficiency')" class="flex items-center space-x-1 hover:text-gray-700">
-                  <span>Efficiency</span>
-                  <Icon :name="getSortIcon('efficiency')" class="h-4 w-4" />
-                </button>
-              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -307,7 +287,6 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.totalDuration) }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ formatDuration(row.avgDuration) }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.efficiency || 0 }} items/hr</td>
             </tr>
           </tbody>
         </table>
@@ -351,7 +330,6 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days in Production</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion %</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bottlenecks</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -388,12 +366,6 @@
                   </div>
                   <span class="text-xs">{{ order.completionPercentage || 0 }}%</span>
                 </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <span v-if="order.bottlenecks && order.bottlenecks.length > 0" class="text-red-600">
-                  {{ order.bottlenecks.join(', ') }}
-                </span>
-                <span v-else class="text-gray-400">None</span>
               </td>
             </tr>
           </tbody>
@@ -459,8 +431,13 @@ const employeeItemsModal = reactive({
 });
 
 // Fetch filter options with enhanced filtering logic
+// Exclude "Office" station from productivity reports
 const { data: stations } = useFindManyStation({
-  where: { status: 'ACTIVE' },
+  where: { 
+    NOT: {
+      name: 'Office'
+    }
+  },
   orderBy: { name: 'asc' }
 });
 
