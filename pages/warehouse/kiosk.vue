@@ -470,17 +470,28 @@ async function processItem() {
       throw new Error('Item not found in this order');
     }
     
+    // Get the last scanned station from processing logs
+    const lastProcessingLog = (orderItem as any).itemProcessingLogs?.[0];
+    const lastScannedStation = lastProcessingLog?.station?.name || null;
+    
+    console.log('🔍 Last scanned station:', {
+      lastScannedStation,
+      currentStatus: orderItem.itemStatus,
+      currentScanner: currentScannerInfo.value.station
+    });
+    
     // Office scanners handle specific critical transitions:
     // 1. NOT_STARTED_PRODUCTION → CUTTING (starting production)
-    // 2. PRODUCT_FINISHED → READY (finalizing for delivery)
+    // 2. Any status → READY (finalizing) BUT only if another station scanned after Office
     if (currentScannerInfo.value.station === 'Office') {
       const currentStatusDisplay = getStatusDisplayName(orderItem.itemStatus);
       
       // Check if this is a valid office transition
-      const canTransition = isValidStatusTransition(orderItem.itemStatus, 'Office');
+      const canTransition = isValidStatusTransition(orderItem.itemStatus, 'Office', lastScannedStation);
       console.log('🔍 Office transition check:', {
         currentStatus: orderItem.itemStatus,
         station: 'Office',
+        lastScannedStation,
         canTransition: canTransition
       });
       
@@ -519,7 +530,7 @@ async function processItem() {
     }
     
     // Validate status transition using the scanner's station (for production stations)
-    if (!isValidStatusTransition(orderItem.itemStatus, currentScannerInfo.value.station)) {
+    if (!isValidStatusTransition(orderItem.itemStatus, currentScannerInfo.value.station, lastScannedStation)) {
       const currentStatusDisplay = getStatusDisplayName(orderItem.itemStatus);
       const errorMessage = `This item is currently "${currentStatusDisplay}" and cannot be processed at the ${currentScannerInfo.value?.station} station. Please check the workflow order.`;
       console.log('Throwing workflow error:', errorMessage);
@@ -531,7 +542,7 @@ async function processItem() {
     }
     
     // Get next status
-    const nextStatus = getNextStatus(orderItem.itemStatus, currentScannerInfo.value.station);
+    const nextStatus = getNextStatus(orderItem.itemStatus, currentScannerInfo.value.station, lastScannedStation);
     
     // Process the item using the scanner's user and station
     console.log('🚀 Calling process-item API with:', {

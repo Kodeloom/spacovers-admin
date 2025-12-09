@@ -39,7 +39,16 @@ export default defineEventHandler(async (event) => {
         items: {
           include: {
             item: true,
-            productAttributes: true
+            productAttributes: true,
+            itemProcessingLogs: {
+              orderBy: {
+                startTime: 'desc'
+              },
+              take: 1,
+              include: {
+                station: true
+              }
+            }
           }
         }
       }

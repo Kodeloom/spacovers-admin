@@ -138,9 +138,10 @@ function getStationWorkflowIndex(station: string): number {
  * 
  * @param currentStatus - The current item status
  * @param station - The station where the scan occurred
+ * @param lastScannedStation - Optional: The last station that scanned this item
  * @returns The next status or null if no valid transition
  */
-export function getNextStatus(currentStatus: string, station: string): string | null {
+export function getNextStatus(currentStatus: string, station: string, lastScannedStation?: string | null): string | null {
   // Special case: NOT_STARTED_PRODUCTION can ONLY be processed by Office
   if (currentStatus === 'NOT_STARTED_PRODUCTION') {
     if (station === 'Office') {
@@ -149,12 +150,41 @@ export function getNextStatus(currentStatus: string, station: string): string | 
     return null; // No other station can start production
   }
   
-  // Special case: PRODUCT_FINISHED can ONLY be finalized by Office
-  if (currentStatus === 'PRODUCT_FINISHED') {
-    if (station === 'Office') {
+  // Special case: Office finalizing to READY
+  // Office can finalize from ANY status EXCEPT:
+  // 1. NOT_STARTED_PRODUCTION (handled above)
+  // 2. CUTTING (if Office was the last scanner - can't scan twice in a row)
+  if (station === 'Office') {
+    // BACKWARD COMPATIBILITY: If we don't have lastScannedStation info (null/undefined),
+    // allow Office to finalize from any status except NOT_STARTED_PRODUCTION and CUTTING
+    // This ensures existing items in production can still be finalized
+    if (!lastScannedStation) {
+      // For items without processing log history, allow finalization from any status except CUTTING
+      // CUTTING is blocked because it's the immediate next status after Office's first scan
+      if (currentStatus === 'CUTTING') {
+        return null; // Don't allow Office to finalize immediately after starting production
+      }
+      return 'READY'; // Allow finalization from all other statuses
+    }
+    
+    // NEW BEHAVIOR: If we have lastScannedStation info
+    // If current status is CUTTING and Office was the last scanner, prevent double scan
+    if (currentStatus === 'CUTTING' && lastScannedStation === 'Office') {
+      return null; // Office cannot scan twice in a row
+    }
+    
+    // If any other station has scanned (lastScannedStation is not Office), allow Office to finalize
+    if (lastScannedStation !== 'Office') {
       return 'READY';
     }
-    return null; // No other station can finalize
+    
+    // If Office was the last scanner but status has progressed beyond CUTTING, allow finalization
+    // This handles edge cases where Office scanned, then the system was updated
+    if (currentStatus !== 'CUTTING') {
+      return 'READY';
+    }
+    
+    return null;
   }
   
   // For all other statuses, find the next transition based on the scanning station
@@ -190,10 +220,11 @@ export function getNextStatus(currentStatus: string, station: string): string | 
  * 
  * @param currentStatus - The current item status
  * @param station - The station where the scan occurred
+ * @param lastScannedStation - Optional: The last station that scanned this item
  * @returns True if the transition is valid
  */
-export function isValidStatusTransition(currentStatus: string, station: string): boolean {
-  return getNextStatus(currentStatus, station) !== null;
+export function isValidStatusTransition(currentStatus: string, station: string, lastScannedStation?: string | null): boolean {
+  return getNextStatus(currentStatus, station, lastScannedStation) !== null;
 }
 
 /**
