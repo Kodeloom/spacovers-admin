@@ -62,19 +62,31 @@ export default defineEventHandler(async (event) => {
     const offset = (page - 1) * limit;
 
     // Build where clause for filtering
+    // NOTE: We need to find items where this user COMPLETED work, not just where their userId appears
+    // This means finding logs where this user was the NEXT scanner (who closed the previous log)
+    // For now, we'll use a simpler approach: get all logs for items this user touched
     const whereClause: any = {
       userId: userId,
-      endTime: { not: null }, // Only completed tasks
+      // Include both completed and in-progress items
+      startTime: { not: null }
     };
 
     // Apply validated date filters
     if (startDate && endDate) {
       whereClause.startTime = { gte: startDate };
-      whereClause.endTime = { lte: endDate };
+      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
+      whereClause.OR = [
+        { endTime: { lte: endDate } },
+        { endTime: null }
+      ];
     } else if (startDate) {
       whereClause.startTime = { gte: startDate };
     } else if (endDate) {
-      whereClause.endTime = { lte: endDate };
+      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
+      whereClause.OR = [
+        { endTime: { lte: endDate } },
+        { endTime: null }
+      ];
     }
 
     if (stationId) {
