@@ -58,6 +58,15 @@
                   Item Name
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Product Type
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Shape
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Size
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Order
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -65,15 +74,6 @@
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Station
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Started
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Finished
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Processing Time
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
@@ -84,6 +84,18 @@
               <tr v-for="item in items" :key="item.processingLogId" class="hover:bg-gray-50">
                 <td class="px-4 py-4 text-sm font-medium text-gray-900">
                   {{ item.itemName }}
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  <span v-if="item.productType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    {{ item.productType === 'SPA_COVER' ? 'Spa Cover' : 'Cover for Cover' }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  {{ item.shape || '-' }}
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-500">
+                  {{ item.size || '-' }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
                   <NuxtLink 
@@ -106,15 +118,6 @@
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {{ item.stationName }}
                   </span>
-                </td>
-                <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ formatDateTime(item.startTime) }}
-                </td>
-                <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ formatDateTime(item.endTime) }}
-                </td>
-                <td class="px-4 py-4 text-sm text-gray-500">
-                  {{ item.processingTimeFormatted }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
                   {{ item.customerName }}
@@ -205,6 +208,11 @@ interface EmployeeItemDetail {
   endTime: string;
   processingTime: number;
   processingTimeFormatted: string;
+  // Product attributes
+  productType: string | null;
+  shape: string | null;
+  size: string | null;
+  color: string | null;
 }
 
 interface EmployeeItemsSummary {
@@ -364,9 +372,16 @@ function formatDate(dateString: string): string {
   }
 }
 
-function formatDateTime(dateString: string): string {
+function formatDateTime(dateString: string | null | undefined): string {
+  if (!dateString) {
+    return 'In Progress';
+  }
+  
   try {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit',

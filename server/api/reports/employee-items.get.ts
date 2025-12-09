@@ -111,6 +111,14 @@ export default defineEventHandler(async (event) => {
           orderItem: {
             include: {
               item: true,
+              productAttributes: {
+                select: {
+                  productType: true,
+                  shape: true,
+                  size: true,
+                  color: true
+                }
+              },
               order: {
                 select: {
                   id: true,
@@ -198,6 +206,9 @@ export default defineEventHandler(async (event) => {
                          order.purchaseOrderNumber || 
                          `Order-${order.id.slice(-8)}`;
 
+      // Get product attributes
+      const productAttrs = orderItem.productAttributes;
+      
       return {
         processingLogId: log.id,
         orderItemId: log.orderItemId,
@@ -205,11 +216,16 @@ export default defineEventHandler(async (event) => {
         orderNumber,
         orderId: order.id,
         customerName: customer?.name || 'Unknown Customer',
-        status: orderItem.status || 'UNKNOWN',
+        status: orderItem.itemStatus || 'UNKNOWN',
         stationName: log.station?.name || 'Unknown Station',
         stationId: log.stationId,
         startTime: log.startTime,
         endTime: log.endTime,
+        // Product attributes
+        productType: productAttrs?.productType || null,
+        shape: productAttrs?.shape || null,
+        size: productAttrs?.size || null,
+        color: productAttrs?.color || null,
         processingTime: log.durationInSeconds || 0, // in seconds
         processingTimeFormatted: formatDuration(log.durationInSeconds || 0)
       };
