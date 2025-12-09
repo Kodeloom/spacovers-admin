@@ -105,25 +105,30 @@ export default defineEventHandler(async (event) => {
 
     // Build where clause for filtering with enhanced logic
     const whereClause: any = {
-      endTime: { not: null }, // Only completed tasks
+      // Include both completed AND in-progress items
+      // Completed items have endTime, in-progress items have startTime but no endTime
       startTime: { not: null }, // Ensure we have valid start times
-      durationInSeconds: { gt: 0 }, // Only valid durations
-      // Exclude "Office" station from productivity reports using relation filter
-      station: {
-        isNot: {
-          name: 'Office'
-        }
-      }
+      // NOTE: We include Office station logs in the query because we need them to calculate
+      // the duration that other workers completed. We'll skip Office when crediting.
     };
 
     // Apply validated date filters
+    // For in-progress items, we only filter by startTime since they don't have endTime yet
     if (startDate && endDate) {
       whereClause.startTime = { gte: startDate };
-      whereClause.endTime = { lte: endDate };
+      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
+      whereClause.OR = [
+        { endTime: { lte: endDate } },
+        { endTime: null }
+      ];
     } else if (startDate) {
       whereClause.startTime = { gte: startDate };
     } else if (endDate) {
-      whereClause.endTime = { lte: endDate };
+      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
+      whereClause.OR = [
+        { endTime: { lte: endDate } },
+        { endTime: null }
+      ];
     }
 
     // Enhanced station filtering - ensure station exists
@@ -154,6 +159,17 @@ export default defineEventHandler(async (event) => {
     let processingLogs;
     const queryStartTime = Date.now();
     
+    // Debug: Log the where clause
+    console.log('🔍 Query where clause:', JSON.stringify({
+      ...whereClause,
+      startTime: whereClause.startTime || { not: null },
+      orderItem: { isProduct: true }
+    }, null, 2));
+    
+    // Debug: Check total count without filters
+    const totalLogsCount = await prisma.itemProcessingLog.count();
+    console.log(`🔍 Total ItemProcessingLog records in database: ${totalLogsCount}`);
+    
     try {
       // Add timeout handling for large queries
       // NOTE: For optimal performance, ensure these database indexes exist:
@@ -164,10 +180,8 @@ export default defineEventHandler(async (event) => {
       const queryPromise = prisma.itemProcessingLog.findMany({
         where: {
           ...whereClause,
-          // Ensure we only get completed processing logs
+          // Include both completed and in-progress items
           startTime: whereClause.startTime || { not: null },
-          endTime: { not: null },
-          durationInSeconds: { gt: 0 },
           // Only include production items
           orderItem: {
             isProduct: true
@@ -191,6 +205,18 @@ export default defineEventHandler(async (event) => {
       });
 
       processingLogs = await Promise.race([queryPromise, timeoutPromise]) as any[];
+      
+      // Debug: Log what we found
+      console.log(`🔍 Found ${processingLogs.length} processing logs`);
+      console.log('🔍 Sample of processing logs:', processingLogs.slice(0, 3).map(log => ({
+        id: log.id,
+        user: log.user?.name,
+        station: log.station?.name,
+        startTime: log.startTime,
+        endTime: log.endTime,
+        hasEndTime: !!log.endTime,
+        orderItemId: log.orderItemId
+      })));
       
       // Log query performance for monitoring
       const queryDuration = Date.now() - queryStartTime;
@@ -322,52 +348,96 @@ export default defineEventHandler(async (event) => {
     console.log(`Processing ${itemLogsMap.size} items with processing logs`);
 
     // Process each item's complete processing history
-    // IMPORTANT: When someone scans an item, it means they FINISHED their work at that station
-    // The time between scans represents the work done at the PREVIOUS station by the CURRENT scanner
+    // KEY INSIGHT: Each log represents work done. When a log is closed (gets endTime),
+    // the person who scanned NEXT gets credit for that work at THEIR station.
     for (const [itemId, logs] of itemLogsMap) {
       // Sort logs by startTime to get chronological order
       const sortedLogs = logs
-        .filter(log => log.endTime && log.startTime && log.durationInSeconds > 0)
+        .filter(log => log.startTime)
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
       
-      // Process each completed processing log
-      // When a user scans an item, they are FINISHING their work at that station
-      for (const currentLog of sortedLogs) {
-        // The person who scanned gets credit for the work done at THEIR station
-        const creditUserId = currentLog.userId;
-        const creditUserName = currentLog.user?.name || 'Unknown User';
-        const creditStationId = currentLog.stationId;
-        const creditStationName = currentLog.station?.name || 'Unknown Station';
-
-        // Skip Office station entries
-        if (creditStationName === 'Office') {
-          console.log(`Item ${itemId}: Skipping Office station entry for ${creditUserName}`);
-          continue;
+      console.log(`\n📦 Processing item ${itemId} with ${sortedLogs.length} logs`);
+      sortedLogs.forEach((log, idx) => {
+        console.log(`  Log ${idx}: user=${log.user?.name}, station=${log.station?.name}, startTime=${log.startTime}, endTime=${log.endTime}, duration=${log.durationInSeconds}s`);
+      });
+      
+      // Process each pair of consecutive logs
+      // The pattern is: when someone scans, they COMPLETE the previous work and START new work
+      for (let i = 0; i < sortedLogs.length; i++) {
+        const currentLog = sortedLogs[i];
+        const nextLog = sortedLogs[i + 1];
+        
+        console.log(`  \n  Processing Log ${i}: user=${currentLog.user?.name}, station=${currentLog.station?.name}, hasEndTime=${!!currentLog.endTime}, duration=${currentLog.durationInSeconds}s`);
+        
+        // If this log has an endTime, someone completed this work
+        // That someone is the person in the NEXT log (who scanned and closed this log)
+        if (currentLog.endTime && currentLog.durationInSeconds > 0 && nextLog) {
+          const completedByUserId = nextLog.userId;
+          const completedByUserName = nextLog.user?.name || 'Unknown User';
+          const completedAtStationId = nextLog.stationId;
+          const completedAtStationName = nextLog.station?.name || 'Unknown Station';
+          
+          // Skip if completed at Office station
+          if (completedAtStationName === 'Office') {
+            console.log(`  ⏭️  Skipping - completed at Office station`);
+            continue;
+          }
+          
+          const key = `${completedByUserId}-${completedAtStationId}`;
+          
+          if (!aggregatedData.has(key)) {
+            aggregatedData.set(key, {
+              userId: completedByUserId,
+              userName: completedByUserName,
+              stationId: completedAtStationId,
+              stationName: completedAtStationName,
+              uniqueItemIds: new Set<string>(),
+              totalDuration: 0,
+              completedSessions: 0
+            });
+          }
+          
+          const data = aggregatedData.get(key)!;
+          data.uniqueItemIds.add(itemId);
+          data.totalDuration += currentLog.durationInSeconds;
+          data.completedSessions++;
+          
+          console.log(`  ✅ Credited ${currentLog.durationInSeconds}s to ${completedByUserName} at ${completedAtStationName}`);
         }
-
-        const key = `${creditUserId}-${creditStationId}`;
         
-        if (!aggregatedData.has(key)) {
-          aggregatedData.set(key, {
-            userId: creditUserId,
-            userName: creditUserName,
-            stationId: creditStationId,
-            stationName: creditStationName,
-            uniqueItemIds: new Set<string>(),
-            totalDuration: 0,
-            completedSessions: 0
-          });
+        // If this is the last log and it doesn't have an endTime, it's in-progress
+        // Credit the item count (but no duration) to the person on this log
+        if (!currentLog.endTime && !nextLog) {
+          const inProgressUserId = currentLog.userId;
+          const inProgressUserName = currentLog.user?.name || 'Unknown User';
+          const inProgressStationId = currentLog.stationId;
+          const inProgressStationName = currentLog.station?.name || 'Unknown Station';
+          
+          // Skip if at Office station
+          if (inProgressStationName === 'Office') {
+            console.log(`  ⏭️  Skipping - in-progress at Office station`);
+            continue;
+          }
+          
+          const key = `${inProgressUserId}-${inProgressStationId}`;
+          
+          if (!aggregatedData.has(key)) {
+            aggregatedData.set(key, {
+              userId: inProgressUserId,
+              userName: inProgressUserName,
+              stationId: inProgressStationId,
+              stationName: inProgressStationName,
+              uniqueItemIds: new Set<string>(),
+              totalDuration: 0,
+              completedSessions: 0
+            });
+          }
+          
+          const data = aggregatedData.get(key)!;
+          data.uniqueItemIds.add(itemId);
+          
+          console.log(`  🔄 In-progress: ${inProgressUserName} at ${inProgressStationName} (no duration yet)`);
         }
-
-        const data = aggregatedData.get(key)!;
-        
-        // Count unique items and add processing time
-        // The duration represents the time THIS user spent working on this item at THIS station
-        data.uniqueItemIds.add(itemId);
-        data.totalDuration += currentLog.durationInSeconds;
-        data.completedSessions++;
-        
-        console.log(`Item ${itemId}: Credited ${currentLog.durationInSeconds}s (${(currentLog.durationInSeconds/3600).toFixed(2)}h) to ${creditUserName} for completing work at ${creditStationName}`);
       }
     }
 

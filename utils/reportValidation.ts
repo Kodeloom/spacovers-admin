@@ -420,30 +420,28 @@ export function validateProcessingLogs(logs: any[]): {
       continue;
     }
 
-    // Validate that this is a completed processing session
+    // Validate that we have at least a start time
     if (!log.startTime) {
       warnings.push(`Processing log for item ${log.orderItemId} missing startTime - skipping entry`);
       invalidLogs.push(log);
       continue;
     }
 
-    if (!log.endTime) {
-      warnings.push(`Processing log for item ${log.orderItemId} missing endTime - skipping entry`);
-      invalidLogs.push(log);
-      continue;
-    }
+    // Allow logs without endTime (in-progress items)
+    // Only validate duration if the log is completed (has endTime)
+    if (log.endTime) {
+      // Validate duration for completed logs
+      if (log.durationInSeconds === null || log.durationInSeconds === undefined) {
+        warnings.push(`Processing log for item ${log.orderItemId} missing duration - skipping entry`);
+        invalidLogs.push(log);
+        continue;
+      }
 
-    // Validate duration
-    if (log.durationInSeconds === null || log.durationInSeconds === undefined) {
-      warnings.push(`Processing log for item ${log.orderItemId} missing duration - skipping entry`);
-      invalidLogs.push(log);
-      continue;
-    }
-
-    if (typeof log.durationInSeconds !== 'number' || log.durationInSeconds <= 0) {
-      warnings.push(`Invalid duration for item ${log.orderItemId} - skipping entry`);
-      invalidLogs.push(log);
-      continue;
+      if (typeof log.durationInSeconds !== 'number' || log.durationInSeconds <= 0) {
+        warnings.push(`Invalid duration for item ${log.orderItemId} - skipping entry`);
+        invalidLogs.push(log);
+        continue;
+      }
     }
 
     // Check for unreasonably long durations (more than 24 hours)
