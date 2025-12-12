@@ -129,8 +129,12 @@
                 <h5 class="font-medium text-gray-900 mb-2">Product Information</h5>
                 <dl class="space-y-1">
                   <div class="flex justify-between">
-                    <dt class="text-gray-600">Item:</dt>
+                    <dt class="text-gray-600">Product Number:</dt>
                     <dd class="font-medium">{{ getItemName() }}</dd>
+                  </div>
+                  <div v-if="props.queueItem.orderItem?.item?.name" class="flex justify-between">
+                    <dt class="text-gray-600">Item Name:</dt>
+                    <dd class="font-medium text-gray-600 text-xs">{{ props.queueItem.orderItem.item.name }}</dd>
                   </div>
                   <div v-if="queueItem.orderItem?.product?.displayName" class="flex justify-between">
                     <dt class="text-gray-600">Product:</dt>
@@ -200,6 +204,15 @@ const isExpanded = ref(false)
 
 // Methods
 const getItemName = () => {
+  // Show product number instead of item name
+  const productNumber = props.queueItem.orderItem?.productNumber
+  if (productNumber) {
+    // Format with P prefix and zero padding
+    const paddedNumber = productNumber.toString().padStart(5, '0')
+    return `P${paddedNumber}`
+  }
+  
+  // Fallback to item name if no product number
   return props.queueItem.orderItem?.item?.name || 'Unknown Item'
 }
 

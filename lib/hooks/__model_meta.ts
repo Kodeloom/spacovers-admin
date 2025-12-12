@@ -1084,6 +1084,10 @@ const metadata = {
                     name: "quickbooksOrderLineId",
                     type: "String",
                     isOptional: true,
+                }, productNumber: {
+                    name: "productNumber",
+                    type: "Int",
+                    isOptional: true,
                 }, quantity: {
                     name: "quantity",
                     type: "Int",
@@ -1237,6 +1241,9 @@ const metadata = {
                 id: {
                     name: "id",
                     fields: ["id"]
+                }, productNumber: {
+                    name: "productNumber",
+                    fields: ["productNumber"]
                 }, orderId_quickbooksOrderLineId: {
                     name: "orderId_quickbooksOrderLineId",
                     fields: ["orderId", "quickbooksOrderLineId"]

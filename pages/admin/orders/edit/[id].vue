@@ -314,7 +314,7 @@
                         <td class="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <div>
                             <div class="text-sm font-medium text-gray-900">
-                              {{ orderItem.item?.name || 'Unknown Item' }}
+                              {{ orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : (orderItem.item?.name || 'Unknown Item') }}
                             </div>
                             <div v-if="orderItem.quickbooksOrderLineId" class="text-xs text-gray-500">
                               QBO Line: {{ orderItem.quickbooksOrderLineId }}
@@ -1738,8 +1738,9 @@ async function addProduct() {
 }
 
 async function removeProduct(orderItem: any) {
+  const itemDisplay = orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name;
   const confirmed = confirm(
-    `Are you sure you want to remove "${orderItem.item?.name}" from this order?\n\n` +
+    `Are you sure you want to remove "${itemDisplay}" from this order?\n\n` +
     `This action cannot be undone.`
   );
 
@@ -1918,8 +1919,9 @@ function handlePrintConfirmation(orderItem: any, printFunction: () => void) {
   // Check if the item is already in production (not NOT_STARTED_PRODUCTION)
   if (orderItem.itemStatus !== 'NOT_STARTED_PRODUCTION') {
     const statusText = orderItem.itemStatus.replace(/_/g, ' ');
+    const itemDisplay = orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name;
     const confirmed = confirm(
-      `This product (${orderItem.item?.name}) is already in production (Status: ${statusText}). ` +
+      `This product (${itemDisplay}) is already in production (Status: ${statusText}). ` +
       `This means a packing slip has been previously printed. ` +
       `Are you sure you want to print the packing slip again?`
     );

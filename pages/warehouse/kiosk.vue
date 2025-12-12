@@ -464,11 +464,34 @@ async function processItem() {
       throw new Error('Order not found');
     }
     
-    // Find the specific item
-    orderItem = orderResponse.order.items.find(item => item.id === barcodeData.itemId);
+    // Find the specific item - handle both old and new barcode formats
+    console.log('🔍 Barcode data:', barcodeData);
+    console.log('🔍 Available items:', orderResponse.order.items.map(item => ({ 
+      id: item.id, 
+      productNumber: item.productNumber 
+    })));
+    
+    // Determine if itemId is a product number (numeric) or database ID (CUID string)
+    const isProductNumber = /^\d+$/.test(barcodeData.itemId);
+    
+    if (isProductNumber) {
+      // New format: itemId is the product number
+      const productNumber = parseInt(barcodeData.itemId);
+      console.log('🔍 Using new format - looking for product number:', productNumber);
+      orderItem = orderResponse.order.items.find(item => item.productNumber === productNumber);
+    } else {
+      // Old format: itemId is the database ID
+      console.log('🔍 Using old format - looking for item ID:', barcodeData.itemId);
+      orderItem = orderResponse.order.items.find(item => item.id === barcodeData.itemId);
+    }
+    
     if (!orderItem) {
+      console.log('❌ Item not found with barcode data:', barcodeData);
+      console.log('❌ Searched for:', isProductNumber ? `product number ${barcodeData.itemId}` : `item ID ${barcodeData.itemId}`);
       throw new Error('Item not found in this order');
     }
+    
+    console.log('✅ Found item:', orderItem.id, 'with product number:', orderItem.productNumber);
     
     // Get the last scanned station from processing logs
     const lastProcessingLog = (orderItem as any).itemProcessingLogs?.[0];
@@ -506,7 +529,7 @@ async function processItem() {
         // Add to recent activity
         addToRecentActivity({
           orderNumber: (orderResponse.order as any).orderNumber || 'Unknown',
-          itemName: (orderItem as any).itemName || orderItem.item?.name || 'Unknown Item',
+          itemName: orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : ((orderItem as any).itemName || orderItem.item?.name || 'Unknown Item'),
           user: currentScannerInfo.value?.user || 'Unknown',
           station: currentScannerInfo.value?.station || 'Unknown',
           status: `Status Check: ${currentStatusDisplay}`,
@@ -582,7 +605,7 @@ async function processItem() {
       // Add to recent activity
       addToRecentActivity({
         orderNumber: (orderResponse.order as any).orderNumber || 'Unknown',
-        itemName: (orderItem as any).itemName || orderItem.item?.name || 'Unknown Item',
+        itemName: orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : ((orderItem as any).itemName || orderItem.item?.name || 'Unknown Item'),
         user: currentScannerInfo.value?.user || 'Unknown',
         station: currentScannerInfo.value?.station || 'Unknown',
         status: (response.newItemStatus as string).replace(/_/g, ' '),
@@ -597,7 +620,7 @@ async function processItem() {
         fromStatus: orderItem.itemStatus,
         toStatus: response.newItemStatus as string,
         orderNumber: (orderResponse.order as any).orderNumber || (orderResponse.order as any).salesOrderNumber,
-        itemName: (orderItem as any).itemName || orderItem.item?.name
+        itemName: orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : ((orderItem as any).itemName || orderItem.item?.name)
       };
       
       // Refresh priority items with status change context

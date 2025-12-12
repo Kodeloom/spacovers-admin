@@ -12,7 +12,7 @@
             class="border rounded-lg p-4 bg-white shadow"
           >
             <h3 class="font-medium mb-2">Test Label {{ index + 1 }}</h3>
-            <p class="text-sm text-gray-600 mb-2">{{ label.orderItem.item?.name }}</p>
+            <p class="text-sm text-gray-600 mb-2">{{ label.orderItem.productNumber ? `P${String(label.orderItem.productNumber).padStart(5, '0')}` : label.orderItem.item?.name }}</p>
             <button
               @click="addToQueue(label)"
               class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -47,7 +47,7 @@
             class="flex justify-between items-center p-3 bg-gray-50 rounded"
           >
             <div>
-              <span class="font-medium">{{ label.orderItem.item?.name }}</span>
+              <span class="font-medium">{{ label.orderItem.productNumber ? `P${String(label.orderItem.productNumber).padStart(5, '0')}` : label.orderItem.item?.name }}</span>
               <span class="text-gray-600 ml-2">- {{ label.order.customer?.name }}</span>
             </div>
             <button

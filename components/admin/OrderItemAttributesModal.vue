@@ -10,7 +10,7 @@
       <div class="bg-gray-50 p-4 rounded-lg">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-sm font-medium text-gray-900">{{ orderItem.item?.name || 'Unknown Item' }}</h4>
+            <h4 class="text-sm font-medium text-gray-900">{{ orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : (orderItem.item?.name || 'Unknown Item') }}</h4>
             <p class="text-xs text-gray-600 mt-1">
               Order #{{ orderItem.order?.salesOrderNumber || orderItem.order?.id?.slice(-8) }}
               • Quantity: {{ orderItem.quantity }}

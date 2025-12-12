@@ -45,6 +45,10 @@ export const STATUS_TRANSITIONS: StatusTransition[] = [
  * Format: [PREFIX]-[ORDER_NUMBER]-[ITEM_ID]
  * Prefix Format: [STATION][PERSON][SEQUENCE]
  * 
+ * Note: ITEM_ID can be either:
+ * - Old format: Database ID (long CUID string)
+ * - New format: Product Number (numeric)
+ * 
  * @param barcode - The full barcode string
  * @returns BarcodeData object with decoded components
  */

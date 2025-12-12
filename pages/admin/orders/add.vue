@@ -317,7 +317,7 @@
 </template>
 
 <script setup lang="ts">
-import { useFindManyCustomer, useFindManyItem, useCreateOrder } from '~/lib/hooks/index';
+import { useFindManyCustomer, useFindManyItem } from '~/lib/hooks/index';
 import { useQueryClient } from '@tanstack/vue-query';
 import ProductSelector from '~/components/admin/ProductSelector.vue';
 import POValidationWarning from '~/components/admin/POValidationWarning.vue';
@@ -782,60 +782,51 @@ watch(selectedProduct, (newProduct) => {
   }
 });
 
-const { mutate: createOrder, isPending: isSubmitting } = useCreateOrder({
-  onSuccess: async (response: any) => {
-    console.log('=== ORDER CREATION SUCCESS CALLBACK TRIGGERED ===');
-    try {
-      // ProductAttributes are now created automatically as part of the order creation
-      console.log('Order creation response:', response);
-      console.log('Order created successfully with ProductAttributes included in the transaction');
+// Use custom API endpoint instead of ZenStack hook to ensure product numbers are assigned
+const isSubmitting = ref(false)
 
-      // Handle approval result if order was created as approved
-      if (response?.approvalResult) {
-        const { printQueueItemsAdded, approvalSuccess } = response.approvalResult;
-
-        if (!approvalSuccess) {
-          toast.warning({
-            title: 'Order Created with Issues',
-            message: 'Order was created and approved, but there was an issue adding items to the print queue. Please check the print queue manually.'
-          });
-        } else if (printQueueItemsAdded > 0) {
-          toast.success({
-            title: 'Order Created & Approved',
-            message: `Order created successfully and ${printQueueItemsAdded} item${printQueueItemsAdded === 1 ? '' : 's'} added to the print queue.`
-          });
-        } else {
-          toast.success({ title: 'Success', message: 'Order created successfully!' });
-        }
-      } else {
-        toast.success({ title: 'Success', message: 'Order created successfully!' });
-      }
-
-      await queryClient.invalidateQueries();
-      router.push('/admin/orders');
-    } catch (error) {
-      console.error('Error in post-creation processing:', error);
-      // Still show success since the order was created
-      toast.success({
-        title: 'Order Created',
-        message: 'Order created successfully, but there may have been issues with product attributes. Please check the order details.'
-      });
-      await queryClient.invalidateQueries();
-      router.push('/admin/orders');
+const createOrder = async (payload: any) => {
+  try {
+    isSubmitting.value = true
+    console.log('=== CREATING ORDER WITH CUSTOM API ===')
+    console.log('Payload:', payload)
+    
+    const response = await $fetch('/api/admin/orders/create-with-items', {
+      method: 'POST',
+      body: payload
+    })
+    
+    console.log('=== ORDER CREATION SUCCESS ===')
+    console.log('Response:', response)
+    
+    toast.success({ title: 'Success', message: 'Order created successfully!' })
+    
+    // Invalidate and refetch queries
+    await queryClient.invalidateQueries()
+    
+    // Navigate to orders list
+    router.push('/admin/orders')
+  } catch (error: any) {
+    console.error('=== ORDER CREATION ERROR ===')
+    console.error('Error details:', error)
+    
+    let errorMessage = 'Failed to create order'
+    
+    if (error?.data?.statusMessage) {
+      errorMessage = error.data.statusMessage
+    } else if (error?.data?.message) {
+      errorMessage = error.data.message
+    } else if (error?.message) {
+      errorMessage = error.message
+    } else if (typeof error === 'string') {
+      errorMessage = error
     }
-  },
-  onError: (err: any) => {
-    const fetchError = err as {
-      data?: {
-        statusMessage?: string;
-        message?: string;
-      },
-      message?: string
-    };
-    const message = fetchError.data?.statusMessage || fetchError.data?.message || fetchError.message || 'An unexpected error occurred.';
-    toast.error({ title: 'Error Creating Order', message });
-  },
-});
+    
+    toast.error({ title: 'Error Creating Order', message: errorMessage })
+  } finally {
+    isSubmitting.value = false
+  }
+}
 
 const handleSubmit = () => {
   // Validate order number exists

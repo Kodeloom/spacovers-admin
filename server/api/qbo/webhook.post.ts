@@ -1173,6 +1173,22 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                     console.log(`Order item validation passed for line ${lineItem.Id}`);
                 }
                 
+                // Get the next product number for new items
+                const { getNextProductNumber } = await import('~/server/utils/productNumber');
+                
+                // Check if this is a new item (doesn't exist yet)
+                const existingItem = await prisma.orderItem.findUnique({
+                    where: { 
+                        orderId_quickbooksOrderLineId: {
+                            orderId: order.id,
+                            quickbooksOrderLineId: lineItem.Id
+                        }
+                    }
+                });
+                
+                // Only assign product number for new items
+                const productNumber = existingItem?.productNumber || await getNextProductNumber();
+                
                 // Use compound unique constraint to ensure proper order isolation
                 console.log(`Creating/updating order item for line ${lineItem.Id} with data:`, orderItemData);
                 const orderItem = await prisma.orderItem.upsert({
@@ -1183,9 +1199,9 @@ async function upsertOrder(qboInvoice: QboInvoicePayload, _event: H3Event) {
                         }
                     },
                     update: orderItemData,
-                    create: orderItemData
+                    create: { ...orderItemData, productNumber }
                 });
-                console.log(`Order item upserted successfully with ID: ${orderItem.id}`);
+                console.log(`Order item upserted successfully with ID: ${orderItem.id}, Product Number: ${productNumber}`);
                 
                 // Log successful sync operation
                 await logOrderItemSyncValidation({

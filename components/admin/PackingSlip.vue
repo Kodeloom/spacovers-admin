@@ -27,7 +27,7 @@
       <div v-for="orderItem in productionItems" :key="orderItem.id" class="split-label-item-wrapper">
         <div class="flex justify-between items-center mb-2">
           <h3 class="text-lg font-semibold text-gray-800">
-            Packing Slip for: {{ orderItem.item?.name }}
+            Packing Slip for: {{ orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name }}
           </h3>
           <div class="flex gap-2">
             <button v-if="canAccessPrintQueue" @click="handleAddToQueue(orderItem)"
@@ -161,14 +161,17 @@ async function handleAddAllToQueue() {
 
       if (response.success) {
         successCount++;
-        console.log(`Added ${orderItem.item?.name} to print queue`);
+        const itemDisplay = orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name;
+        console.log(`Added ${itemDisplay} to print queue`);
       } else {
         errorCount++;
-        console.error(`Failed to add ${orderItem.item?.name} to queue:`, response.message);
+        const itemDisplay = orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name;
+        console.error(`Failed to add ${itemDisplay} to queue:`, response.message);
       }
     } catch (error) {
       errorCount++;
-      console.error(`Failed to add ${orderItem.item?.name} to queue:`, error);
+      const itemDisplay = orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name;
+      console.error(`Failed to add ${itemDisplay} to queue:`, error);
     }
   }
 

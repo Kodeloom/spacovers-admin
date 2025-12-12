@@ -213,6 +213,7 @@ export default defineEventHandler(async (event) => {
         processingLogId: log.id,
         orderItemId: log.orderItemId,
         itemName: item.name || 'Unknown Item',
+        productNumber: orderItem.productNumber || null, // Include product number
         orderNumber,
         orderId: order.id,
         customerName: customer?.name || 'Unknown Customer',

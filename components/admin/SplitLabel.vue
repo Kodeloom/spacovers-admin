@@ -3,7 +3,7 @@
     <!-- Label Preview Controls -->
     <div class="preview-controls mb-4" v-if="showPreview">
       <h3 class="text-lg font-semibold text-gray-800 mb-2">
-        Packing Slip Preview - {{ orderItem.item?.name }}
+        Packing Slip Preview - {{ orderItem.productNumber ? `P${String(orderItem.productNumber).padStart(5, '0')}` : orderItem.item?.name }}
       </h3>
       <div class="flex gap-4 items-center">
 

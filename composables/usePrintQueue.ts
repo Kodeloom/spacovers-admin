@@ -38,6 +38,7 @@ export interface SplitLabelData {
   foam: string
   date: string
   barcode: string
+  productNumber: string
   upgrades: string[]
 }
 
@@ -403,7 +404,6 @@ export const usePrintQueue = () => {
     const skirtType = attrs?.skirtType === 'CONN' ? 'Connected' : (attrs?.skirtType || 'Standard')
     const skirtLength = attrs?.skirtLength || '0'
     const tieDownsQty = attrs?.tieDownsQty || '0'
-    const tieDownPlacement = attrs?.tieDownPlacement === 'HANDLE_SIDE' ? 'Handle Side' : (attrs?.tieDownPlacement || 'Standard')
     const tieDownLength = (attrs as any)?.tieDownLength || '-'
     const distance = attrs?.distance || '0'
 
@@ -423,16 +423,30 @@ export const usePrintQueue = () => {
       switch (productType) {
         case 'SPA_COVER':
           return 'Spa Cover'
-        case 'POOL_COVER':
-          return 'Pool Cover'
-        case 'HOT_TUB_COVER':
-          return 'Hot Tub Cover'
+        case 'COVER_FOR_COVER':
+          return 'Cover for Cover'
         default:
           return productType || 'Standard'
       }
     }
 
     const type = getProductTypeDisplay(attrs?.productType || '')
+
+
+    const getTiedownPlacementDisplay = (placement: string) => {
+      switch(placement) {
+        case 'HANDLE_SIDE':
+          return 'Handle Side';
+        case 'CORNER_SIDE':
+          return 'Corner Side';
+        case 'FOLD_SIDE':
+          return 'Fold Side';
+        default:
+          return placement || 'None';
+      }
+    }
+
+    const tieDownPlacement = getTiedownPlacementDisplay(attrs?.tieDownPlacement || '')
 
     return {
       orderItem,
@@ -451,7 +465,9 @@ export const usePrintQueue = () => {
       distance,
       foam,
       date: new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
-      barcode: `${orderItem.order.salesOrderNumber || orderItem.order.id?.slice(-8) || 'N/A'}-${orderItem.id}`, // OrderNumber-OrderItemId format
+      // NEW FORMAT: Use productNumber if available, fallback to orderItemId for backward compatibility
+      barcode: `${orderItem.order.salesOrderNumber || orderItem.order.id?.slice(-8) || 'N/A'}-${(orderItem as any).productNumber || orderItem.id}`,
+      productNumber: orderItem.productNumber ? `P0${orderItem.productNumber}` : `P`,
       upgrades
     }
   }
@@ -989,14 +1005,14 @@ export const usePrintQueue = () => {
             const isCompact = canvas.classList.contains('compact');
             const config = {
               format: "CODE128",
-              width: isCompact ? 1.5 : 2,
-              height: isCompact ? 32 : 42,
+              width: isCompact ? 1.0 : 1.0,
+              height: isCompact ? 12 : 12,
               displayValue: true,
-              fontSize: isCompact ? 7 : 8,
-              margin: isCompact ? 3 : 5,
+              fontSize: isCompact ? 8 : 8,
+              margin: isCompact ? 1 : 1,
               background: "#ffffff",
               lineColor: "#000000",
-              textMargin: isCompact ? 2 : 3,
+              textMargin: isCompact ? 2 : 2,
               textAlign: "center",
               textPosition: "bottom"
             };
@@ -1212,7 +1228,7 @@ export const usePrintQueue = () => {
       const safeOrderNumber = sanitizeText(label.orderNumber)
       const safeDate = sanitizeText(labelData.date)
       const safeBarcode = sanitizeText(labelData.barcode)
-      const safeType = sanitizeText(labelData.type)
+      const safeType = sanitizeText(labelData.type);
       const safeColor = sanitizeText(labelData.color)
       const safeSize = sanitizeText(labelData.size)
       const safeShape = sanitizeText(labelData.shape)
@@ -1224,6 +1240,27 @@ export const usePrintQueue = () => {
       const safeTieDownLength = sanitizeText(labelData.tieDownLength || '-')
       const safeDistance = sanitizeText(labelData.distance)
       const safeFoam = sanitizeText(labelData.foam)
+      const safeProductNumber = sanitizeText(labelData.productNumber)
+
+      // Get Purchase Order Number - check order item first, then order level
+      const getPONumber = () => {
+        // Check order item level PO first
+        const itemPO = labelData.orderItem?.productAttributes?.poNumber
+        if (itemPO && itemPO.trim()) {
+          return itemPO.trim()
+        }
+        
+        // Check order level PO
+        const orderPO = labelData.orderItem?.order?.purchaseOrderNumber
+        if (orderPO && orderPO.trim()) {
+          return orderPO.trim()
+        }
+        
+        return null
+      }
+      
+      const poNumber = getPONumber()
+      const safePONumber = poNumber ? sanitizeText(poNumber) : null
 
       // Handle upgrades array safely
       let safeUpgrades: string[] = []
@@ -1244,22 +1281,21 @@ export const usePrintQueue = () => {
           <div class="label-part top-part">
             <div class="label-header">
               <div class="customer-info">
-                <span class="customer-label">Customer:</span>
                 <span class="customer-name">${safeCustomer}</span>
               </div>
               <div class="order-info">
-                <div class="order-number"># ${safeOrderNumber}</div>
-                <div class="order-date">${safeDate}</div>
+                <div class="order-number">#${safeOrderNumber} - ${safeProductNumber}</div>
+                ${safePONumber ? `<div class="order-date purchase-order">| PO# ${safePONumber}</div>` : ''}
+                <div class="order-date">| ${safeDate}</div>
               </div>
-            </div>
-            
-            <div class="barcode-section">
-              <canvas class="barcode-canvas" data-barcode="${safeBarcode}" width="200" height="50"></canvas>
             </div>
             
             <div class="specs-section">
               <div class="spec-grid">
                 <div class="spec-column">
+                  <div class="barcode-section">
+                    <canvas class="barcode-canvas" data-barcode="${safeBarcode}" width="90" height="12"></canvas>
+                  </div>
                   <div class="spec-item">
                     <span class="spec-label">Type:</span>
                     <span class="spec-value">${safeType}</span>
@@ -1359,22 +1395,21 @@ export const usePrintQueue = () => {
           <div class="label-part bottom-part">
             <div class="label-header compact">
               <div class="customer-info compact">
-                <span class="customer-label">Customer:</span>
                 <span class="customer-name">${safeCustomer}</span>
               </div>
               <div class="order-info compact">
-                <div class="order-number"># ${safeOrderNumber}</div>
-                <div class="order-date">${safeDate}</div>
+                <div class="order-number">#${safeOrderNumber} - ${safeProductNumber}</div>
+                ${safePONumber ? `<div class="order-date purchase-order">| PO# ${safePONumber}</div>` : ''}
+                <div class="order-date">| ${safeDate}</div>
               </div>
-            </div>
-            
-            <div class="barcode-section compact">
-              <canvas class="barcode-canvas compact" data-barcode="${safeBarcode}" width="140" height="40"></canvas>
             </div>
             
             <div class="specs-section compact">
               <div class="spec-grid compact">
                 <div class="spec-column">
+                  <div class="barcode-section compact">
+                    <canvas class="barcode-canvas compact" data-barcode="${safeBarcode}" width="90" height="12"></canvas>
+                  </div>
                   <div class="spec-item compact">
                     <span class="spec-label">Type:</span>
                     <span class="spec-value">${safeType}</span>
@@ -1478,7 +1513,7 @@ export const usePrintQueue = () => {
         padding: 0;
         font-family: Arial, sans-serif;
         font-size: 8pt;
-        line-height: 1.1;
+        line-height: 1.0;
       }
       
       .print-page {
@@ -1490,18 +1525,18 @@ export const usePrintQueue = () => {
       }
       
       .label-grid {
-        margin-top: 12px;
+        margin-top: 5px;
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap: 0.04in;
+        gap: 0.05in;
         width: 100%;
         height: 100%;
       }
       
       .label-position {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         page-break-inside: avoid;
       }
@@ -1515,9 +1550,9 @@ export const usePrintQueue = () => {
       }
       
       .label-part {
-        border: 2px solid #000;
+        border: 1px solid #000;
         background: #fff;
-        padding: 0.05in;
+        padding: 0.04in;
         overflow: hidden;
       }
       
@@ -1526,8 +1561,7 @@ export const usePrintQueue = () => {
         height: 3in;
         display: flex;
         flex-direction: column;
-        margin-bottom: -8px;
-        margin-top: 6px;
+        margin-bottom: -1px;
         border-bottom: none;
       }
       
@@ -1543,21 +1577,22 @@ export const usePrintQueue = () => {
       .label-header {
         border-bottom: 1px solid #000;
         margin-bottom: 0.05in;
-        padding-bottom: 0.03in;
+        padding-bottom: 0.02in;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
       }
       
       .label-header.compact {
         margin-bottom: 0.03in;
         padding-bottom: 0.02in;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
       }
       
       .customer-info {
-        margin-bottom: 0.03in;
+        margin-bottom: 0.05in;
         flex-grow: 1;
+        border-bottom: 1px dotted #636363ff;
       }
       
       .customer-info.compact {
@@ -1571,14 +1606,19 @@ export const usePrintQueue = () => {
       
       .customer-name {
         font-weight: bold;
-        margin-left: 0.05in;
-        font-size: 10pt;
+        font-size: 10.5pt;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
       }
       
       .order-info {
-        text-align: right;
+        display: flex;
+        direction: row;
+        justify-content: space-between;
+        align-items: center;
         font-size: 7pt;
-        flex-grow: 2;
       }
       
       .order-info.compact {
@@ -1587,7 +1627,7 @@ export const usePrintQueue = () => {
       
       .order-number {
         font-weight: bold;
-        font-size: 13pt;
+        font-size: 12pt;
       }
 
       .order-date {
@@ -1596,12 +1636,12 @@ export const usePrintQueue = () => {
       
       .barcode-section {
         text-align: center;
-        margin: 0.05in 0;
+        margin: 0.0in 0;
         flex-shrink: 0;
       }
       
       .barcode-section.compact {
-        margin: 0.03in 0;
+        margin: 0.0in 0;
       }
       
       .barcode-canvas {
@@ -1609,7 +1649,7 @@ export const usePrintQueue = () => {
         margin: 0 auto;
         max-width: 100%;
         height: auto;
-        border: 1px solid #000;
+        border: 0px solid #000;
         background: #fff;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
@@ -1617,7 +1657,7 @@ export const usePrintQueue = () => {
       }
       
       .barcode-canvas.compact {
-        border: 1px solid #000;
+        border: 0px solid #000;
       }
       
       .specs-section {
@@ -1639,13 +1679,13 @@ export const usePrintQueue = () => {
       .spec-column {
         display: flex;
         flex-direction: column;
-        gap: 0.01in;
+        gap: 0.02in;
       }
       
       .spec-list {
         display: flex;
         flex-direction: column;
-        gap: 0.01in;
+        gap: 0.02in;
       }
       
       .spec-item {
@@ -1653,13 +1693,13 @@ export const usePrintQueue = () => {
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px dotted #ccc;
-        padding-bottom: 0.01in;
-        margin-bottom: 0.02in;
+        padding-bottom: 0.02in;
+        margin-bottom: 0.05in;
       }
       
       .spec-item.compact {
-        margin-bottom: 0.01in;
-        font-size: 7pt;
+        margin-bottom: 0.02in;
+        font-size: 9pt;
       }
       
       .spec-item.upgrades {
@@ -1728,7 +1768,7 @@ export const usePrintQueue = () => {
       
       .empty-label-placeholder {
         width: 100%;
-        height: 100%;
+        height: 98%;
         border: 1px dashed #d1d5db;
         background: #f9fafb;
       }

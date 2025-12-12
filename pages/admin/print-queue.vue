@@ -130,7 +130,7 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <h4 class="text-sm font-medium text-gray-900 truncate">
-                    {{ label.itemName }}
+                    {{ getProductNumber(label) }}
                   </h4>
                   <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
                     <span>{{ label.customerName }}</span>
@@ -965,6 +965,19 @@ function formatDate(date: Date): string {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function getProductNumber(label: any): string {
+  // Get product number from the order item
+  const productNumber = label.labelData?.orderItem?.productNumber;
+  if (productNumber) {
+    // Format with P prefix and zero padding
+    const paddedNumber = productNumber.toString().padStart(5, '0');
+    return `P${paddedNumber}`;
+  }
+  
+  // Fallback to item name if no product number
+  return label.itemName || 'Unknown Item';
 }
 
 async function retryLastOperation(): Promise<void> {

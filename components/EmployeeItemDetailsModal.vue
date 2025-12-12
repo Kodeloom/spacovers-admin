@@ -55,7 +55,7 @@
             <thead class="bg-gray-50 sticky top-0">
               <tr>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Item Name
+                  Product #
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product Type
@@ -83,7 +83,7 @@
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="item in items" :key="item.processingLogId" class="hover:bg-gray-50">
                 <td class="px-4 py-4 text-sm font-medium text-gray-900">
-                  {{ item.itemName }}
+                  {{ item.productNumber ? formatProductNumber(item.productNumber) : item.itemName }}
                 </td>
                 <td class="px-4 py-4 text-sm text-gray-500">
                   <span v-if="item.productType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
@@ -198,6 +198,7 @@ interface EmployeeItemDetail {
   processingLogId: string;
   orderItemId: string;
   itemName: string;
+  productNumber: number | null; // Product number for display
   orderNumber: string;
   orderId: string;
   customerName: string;
@@ -428,6 +429,16 @@ function navigateToOrder(orderId: string) {
   navigateTo(`/admin/orders/edit/${orderId}`);
   // Close the modal after navigation
   emit('close');
+}
+
+function formatProductNumber(productNumber: number | null | undefined): string {
+  if (!productNumber) {
+    return 'N/A';
+  }
+  
+  // Pad with zeros to ensure at least 5 digits
+  const paddedNumber = productNumber.toString().padStart(5, '0');
+  return `P${paddedNumber}`;
 }
 
 function formatStatus(status: string): string {

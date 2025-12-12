@@ -81,10 +81,19 @@ export default defineEventHandler(async (event) => {
     }
 
     // Verify the item exists in this order
-    // First try direct match with full CUID (new format)
-    let orderItem = order.items.find(item => item.id === itemId);
+    // PRIORITY 1: Try matching by productNumber (NEW FORMAT)
+    // Product numbers are numeric (e.g., 1001, 1002, etc.)
+    const itemIdAsNumber = parseInt(itemId, 10);
+    let orderItem = !isNaN(itemIdAsNumber) 
+      ? order.items.find(item => (item as any).productNumber === itemIdAsNumber)
+      : undefined;
     
-    // If not found with full ID, try the old short format: {position}{first4chars}
+    // PRIORITY 2: Try direct match with full CUID (OLD FORMAT - for backward compatibility)
+    if (!orderItem) {
+      orderItem = order.items.find(item => item.id === itemId);
+    }
+    
+    // PRIORITY 3: Try the old short format: {position}{first4chars} (LEGACY)
     if (!orderItem && itemId.length === 6) {
       const position = parseInt(itemId.substring(0, 2)) - 1; // Convert back to 0-based index
       const idPrefix = itemId.substring(2); // Get the first 4 chars
@@ -103,7 +112,7 @@ export default defineEventHandler(async (event) => {
       }
     }
     
-    // Fallback: try matching with last 8 characters for backward compatibility
+    // PRIORITY 4: Fallback - try matching with last 8 characters (LEGACY)
     if (!orderItem && itemId.length === 8) {
       orderItem = order.items.find(item => item.id.slice(-8) === itemId);
     }

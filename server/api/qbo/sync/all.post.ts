@@ -156,6 +156,22 @@ async function processInvoiceLineItems(invoice: QboInvoice, orderId: string, eve
             
             console.log(`📝 Creating/updating OrderItem:`, orderItemData);
             
+            // Get the next product number for new items
+            const { getNextProductNumber } = await import('~/server/utils/productNumber');
+            
+            // Check if this is a new item (doesn't exist yet)
+            const existingItem = await prisma.orderItem.findUnique({
+                where: { 
+                    orderId_quickbooksOrderLineId: {
+                        orderId: orderId,
+                        quickbooksOrderLineId: line.Id
+                    }
+                }
+            });
+            
+            // Only assign product number for new items
+            const productNumber = existingItem?.productNumber || await getNextProductNumber();
+            
             // Use upsert with compound unique constraint (orderId + quickbooksOrderLineId)
             // This ensures OrderItems are properly scoped to their specific order
             const orderItem = await prisma.orderItem.upsert({
@@ -175,6 +191,7 @@ async function processInvoiceLineItems(invoice: QboInvoice, orderId: string, eve
                     orderId: orderId,
                     itemId: localItem.id,
                     quickbooksOrderLineId: line.Id,
+                    productNumber, // Assign unique product number
                     quantity: quantity,
                     pricePerItem: pricePerItem,
                     lineDescription: line.Description,

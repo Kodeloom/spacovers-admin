@@ -67,6 +67,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Get the next product number
+    const { getNextProductNumber } = await import('~/server/utils/productNumber');
+    const productNumber = await getNextProductNumber();
+
     // Create the order item
     const orderItem = await prisma.orderItem.create({
       data: {
@@ -76,6 +80,7 @@ export default defineEventHandler(async (event) => {
         pricePerItem,
         lineDescription,
         isProduct,
+        productNumber, // Assign unique product number
         itemStatus: 'NOT_STARTED_PRODUCTION'
       },
       include: {
