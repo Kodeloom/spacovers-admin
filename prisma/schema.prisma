@@ -336,6 +336,7 @@ model OrderItem {
   itemId                   String
   item                     Item                      @relation(fields: [itemId], references: [id])
   quickbooksOrderLineId    String?
+  productNumber            Int?                      @unique()
   quantity                 Int
   pricePerItem             Decimal                   @db.Decimal(10, 2)
   lineDescription          String?                   @db.Text()
@@ -373,6 +374,7 @@ model OrderItem {
   @@index([orderId, itemStatus])
   @@index([itemStatus, createdAt])
   @@index([isProduct, itemStatus])
+  @@index([productNumber])
 }
 
 model ItemProcessingLog {

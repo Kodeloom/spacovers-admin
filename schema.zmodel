@@ -461,6 +461,7 @@ model OrderItem {
   itemId                String
   item                  Item                      @relation(fields: [itemId], references: [id])
   quickbooksOrderLineId String?
+  productNumber         Int?                      @unique // Unique product number (e.g., 01001, 01002) - displayed as P01001, P01002
   quantity              Int
   pricePerItem          Decimal                   @db.Decimal(10, 2)
   lineDescription       String?                   @db.Text // Invoice line description from QBO
@@ -506,6 +507,7 @@ model OrderItem {
   @@index([orderId, itemStatus])
   @@index([itemStatus, createdAt])
   @@index([isProduct, itemStatus])
+  @@index([productNumber])
   
   @@allow('create', auth() != null)
   @@allow('read', auth() != null)

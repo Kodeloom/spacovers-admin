@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "zenstack:generate": "npx zenstack generate",
-    "postinstall": "patch-package && npm run zenstack:generate && nuxt prepare && npx prisma db push --accept-data-loss",
+    "postinstall": "patch-package && npm run zenstack:generate && nuxt prepare && npx prisma db push --accept-data-loss && npx tsx scripts/add-product-numbers.ts",
     "start": "node .output/server/index.mjs",
     "db:seed": "prisma db seed",
     "quickbooks:migrate": "tsx scripts/quickbooks-migration.ts",
