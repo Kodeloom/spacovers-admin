@@ -99,6 +99,24 @@ export default defineEventHandler(async (event) => {
       }
     })
 
+    // If status was changed, create an ItemStatusLog
+    if (updateData.itemStatus && updateData.itemStatus !== existingOrderItem.itemStatus) {
+      await prisma.itemStatusLog.create({
+        data: {
+          orderItemId: orderItemId,
+          fromStatus: existingOrderItem.itemStatus,
+          toStatus: updateData.itemStatus,
+          changeReason: 'Manual status change by admin',
+          triggeredBy: 'manual',
+          userId: sessionData.user.id,
+          timestamp: new Date(),
+          notes: `Status manually changed from ${existingOrderItem.itemStatus || 'NOT_STARTED_PRODUCTION'} to ${updateData.itemStatus} by ${sessionData.user.name}`
+        }
+      });
+      
+      console.log(`📝 Created status log: ${existingOrderItem.itemStatus || 'NOT_STARTED_PRODUCTION'} → ${updateData.itemStatus} for item ${orderItemId}`);
+    }
+
     // Record audit log
     await recordAuditLog(event, {
       action: 'ORDER_ITEM_UPDATE',

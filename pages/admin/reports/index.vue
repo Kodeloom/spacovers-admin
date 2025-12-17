@@ -28,6 +28,17 @@
           >
             Order Lead Time
           </button>
+          <button
+            @click="activeTab = 'missing-sewer'"
+            :class="[
+              'py-2 px-1 border-b-2 font-medium text-sm',
+              activeTab === 'missing-sewer'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+          >
+            Missing Sewer Attribution
+          </button>
         </nav>
       </div>
     </div>
@@ -101,6 +112,21 @@
             <option v-for="customer in customers" :key="customer.id" :value="customer.id">
               {{ customer.name }}
             </option>
+          </select>
+        </div>
+        <div v-if="activeTab === 'missing-sewer'">
+          <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Item Status</label>
+          <select
+            id="statusFilter"
+            v-model="filters.itemStatus"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            <option value="">All Statuses</option>
+            <option value="FOAM_CUTTING">Foam Cutting</option>
+            <option value="STUFFING">Stuffing</option>
+            <option value="PACKAGING">Packaging</option>
+            <option value="PRODUCT_FINISHED">Product Finished</option>
+            <option value="READY">Ready</option>
           </select>
         </div>
       </div>
@@ -372,6 +398,120 @@
         </table>
       </div>
     </div>
+
+    <!-- Missing Sewer Attribution Report -->
+    <div v-if="activeTab === 'missing-sewer'" class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-700 mb-6">Missing Sewer Attribution Items</h2>
+      
+      <div v-if="reportData && reportData.length === 0" class="text-center py-12">
+        <Icon name="heroicons:check-circle" class="h-12 w-12 text-green-400 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No Missing Items Found</h3>
+        <p class="text-gray-500 mb-4">
+          All items in the selected date range have proper sewing attribution.
+        </p>
+        <div class="text-sm text-gray-400">
+          <p>This means:</p>
+          <ul class="list-disc list-inside mt-2 space-y-1">
+            <li>All items beyond sewing stage have sewing processing logs</li>
+            <li>No items skipped the sewing station</li>
+            <li>Sewing attribution is complete for this period</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div v-else-if="reportData && reportData.length > 0">
+        <!-- Summary Stats -->
+        <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <Icon name="heroicons:exclamation-triangle" class="h-8 w-8 text-red-600 mr-3" />
+              <div>
+                <p class="text-sm font-medium text-red-800">Missing Items</p>
+                <p class="text-2xl font-bold text-red-900">{{ reportData.length }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <Icon name="heroicons:cog-6-tooth" class="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <p class="text-sm font-medium text-blue-800">Most Common Status</p>
+                <p class="text-lg font-semibold text-blue-900">{{ getMostCommonStatus() }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <Icon name="heroicons:clock" class="h-8 w-8 text-yellow-600 mr-3" />
+              <div>
+                <p class="text-sm font-medium text-yellow-800">Needs Attribution</p>
+                <p class="text-lg font-semibold text-yellow-900">{{ reportData.length }} items</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product #</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Station</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="item in reportData" :key="item.orderItemId" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {{ item.productNumber ? formatProductNumber(item.productNumber) : 'N/A' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <NuxtLink 
+                    :to="`/admin/orders/edit/${item.orderId}`"
+                    class="text-indigo-600 hover:text-indigo-900 font-medium"
+                  >
+                    {{ item.orderNumber }}
+                  </NuxtLink>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.customerName }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  <span 
+                    :class="getStatusBadgeClass(item.itemStatus)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    {{ formatStatus(item.itemStatus) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <span v-if="item.productType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                    {{ item.productType === 'SPA_COVER' ? 'Spa Cover' : 'Cover for Cover' }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ formatStatus(item.itemStatus) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    @click="openSewerAttributionModal(item)"
+                    class="text-indigo-600 hover:text-indigo-900"
+                  >
+                    Attribute Sewer
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
       </template>
     </ReportErrorBoundary>
 
@@ -384,6 +524,17 @@
       :end-date="filters.endDate"
       :station-id="filters.stationId"
       @close="closeEmployeeItemsModal"
+    />
+
+    <!-- Sewer Attribution Modal -->
+    <SewerAttributionModal
+      :is-open="sewerAttributionModal.isOpen"
+      :selected-item="sewerAttributionModal.selectedItem"
+      :sewer-users="sewerUsers || []"
+      v-model:selected-sewer-id="sewerAttributionModal.selectedSewerId"
+      :is-attributing="sewerAttributionModal.isAttributing"
+      @close="closeSewerAttributionModal"
+      @attribute="attributeSewerWork"
     />
   </div>
 </template>
@@ -402,13 +553,14 @@ definePageMeta({
 const toast = useToast();
 
 // Reactive state
-const activeTab = ref<'productivity' | 'lead-time'>('productivity');
+const activeTab = ref<'productivity' | 'lead-time' | 'missing-sewer'>('productivity');
 const filters = reactive({
   startDate: '',
   endDate: '',
   stationId: '',
   userId: '',
   customerId: '',
+  itemStatus: '',
 });
 
 const reportData = ref<any[]>([]);
@@ -430,6 +582,14 @@ const employeeItemsModal = reactive({
   employeeName: null as string | null,
 });
 
+// Sewer attribution modal state
+const sewerAttributionModal = reactive({
+  isOpen: false,
+  selectedItem: null as any,
+  selectedSewerId: '',
+  isAttributing: false,
+});
+
 // Fetch filter options with enhanced filtering logic
 // Exclude "Office" station from productivity reports
 const { data: stations } = useFindManyStation({
@@ -448,6 +608,16 @@ const { data: users } = useFindManyUser({
 
 const { data: customers } = useFindManyCustomer({
   where: { status: 'ACTIVE' },
+  orderBy: { name: 'asc' }
+});
+
+// Get sewing station users for attribution
+const { data: sewerUsers } = useFindManyUser({
+  where: { 
+    status: 'ACTIVE',
+    // You might want to add a filter here for users who work at sewing station
+    // For now, we'll show all active users and let admin choose
+  },
   orderBy: { name: 'asc' }
 });
 
@@ -898,7 +1068,7 @@ async function loadReports() {
       } else {
         throw new Error('Invalid response from productivity API');
       }
-    } else {
+    } else if (activeTab.value === 'lead-time') {
       // Fetch lead-time data
       loadingMessage.value = 'Calculating lead time metrics...';
       loadingProgress.value = 50;
@@ -918,6 +1088,41 @@ async function loadReports() {
         summaryStats.value = ordersResponse.summary;
       } else {
         throw new Error('Invalid response from lead-time API');
+      }
+    } else if (activeTab.value === 'missing-sewer') {
+      // Fetch missing sewer attribution data
+      loadingMessage.value = 'Finding items missing sewing attribution...';
+      loadingProgress.value = 50;
+
+      const missingSewersResponse = await $fetch('/api/reports/missing-sewer', {
+        query: {
+          startDate: utcDateRange.start.toISOString(),
+          endDate: utcDateRange.end.toISOString(),
+        }
+      });
+
+      loadingProgress.value = 80;
+      
+      if (missingSewersResponse.success) {
+        reportData.value = missingSewersResponse.data || [];
+        summaryStats.value = missingSewersResponse.summary;
+        
+        // Show appropriate message based on results
+        if (missingSewersResponse.data.length === 0) {
+          toast.success({
+            title: 'No Missing Items',
+            message: 'All items in the selected date range have proper sewing attribution.',
+            timeout: 4000
+          });
+        } else {
+          toast.warning({
+            title: 'Missing Sewing Attribution',
+            message: `Found ${missingSewersResponse.data.length} items that skipped the sewing station.`,
+            timeout: 5000
+          });
+        }
+      } else {
+        throw new Error('Invalid response from missing-sewer API');
       }
     }
 
@@ -1308,6 +1513,135 @@ Please help me resolve this issue.
   `);
   
   window.open(`mailto:support@company.com?subject=${subject}&body=${body}`, '_blank');
+}
+
+/**
+ * Get the most common status from missing sewer items
+ */
+function getMostCommonStatus(): string {
+  if (!reportData.value || reportData.value.length === 0) {
+    return 'N/A';
+  }
+  
+  const statusCounts = reportData.value.reduce((acc, item) => {
+    acc[item.itemStatus] = (acc[item.itemStatus] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const mostCommon = Object.entries(statusCounts)
+    .sort(([,a], [,b]) => b - a)[0];
+  
+  return formatStatus(mostCommon[0]);
+}
+
+/**
+ * Open the sewer attribution modal
+ */
+function openSewerAttributionModal(item: any) {
+  sewerAttributionModal.selectedItem = item;
+  sewerAttributionModal.selectedSewerId = '';
+  sewerAttributionModal.isOpen = true;
+}
+
+/**
+ * Close the sewer attribution modal
+ */
+function closeSewerAttributionModal() {
+  sewerAttributionModal.isOpen = false;
+  sewerAttributionModal.selectedItem = null;
+  sewerAttributionModal.selectedSewerId = '';
+  sewerAttributionModal.isAttributing = false;
+}
+
+/**
+ * Attribute sewing work to selected employee
+ */
+async function attributeSewerWork(data: { itemId: string; sewerId: string }) {
+  sewerAttributionModal.isAttributing = true;
+  
+  try {
+    const response = await $fetch('/api/reports/attribute-sewer', {
+      method: 'POST',
+      body: {
+        orderItemId: data.itemId,
+        sewerId: data.sewerId
+      }
+    });
+    
+    if (response.success) {
+      toast.success({
+        title: 'Sewing Work Attributed',
+        message: response.message,
+        timeout: 4000
+      });
+      
+      // Close modal and refresh the report
+      closeSewerAttributionModal();
+      loadReports();
+    }
+  } catch (error: any) {
+    console.error('Error attributing sewer work:', error);
+    
+    const errorMessage = error.data?.message || error.statusMessage || error.message || 'Failed to attribute sewing work';
+    toast.error({
+      title: 'Attribution Failed',
+      message: errorMessage,
+      timeout: 5000
+    });
+  } finally {
+    sewerAttributionModal.isAttributing = false;
+  }
+}
+
+/**
+ * Format product number for display
+ */
+function formatProductNumber(productNumber: number | null | undefined): string {
+  if (!productNumber) {
+    return 'N/A';
+  }
+  
+  // Pad with zeros to ensure at least 5 digits
+  const paddedNumber = productNumber.toString().padStart(5, '0');
+  return `P${paddedNumber}`;
+}
+
+/**
+ * Format status for display
+ */
+function formatStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'Not Started',
+    'CUTTING': 'Cutting',
+    'SEWING': 'Sewing',
+    'FOAM_CUTTING': 'Foam Cutting',
+    'STUFFING': 'Stuffing',
+    'PACKAGING': 'Packaging',
+    'PRODUCT_FINISHED': 'Finished',
+    'READY': 'Ready',
+    'SHIPPED': 'Shipped',
+    'CANCELLED': 'Cancelled'
+  };
+  return statusMap[status] || status.replace(/_/g, ' ');
+}
+
+/**
+ * Get status badge class for styling
+ */
+function getStatusBadgeClass(status: string): string {
+  const classMap: Record<string, string> = {
+    'NOT_STARTED_PRODUCTION': 'bg-gray-100 text-gray-800',
+    'CUTTING': 'bg-orange-100 text-orange-800',
+    'SEWING': 'bg-blue-100 text-blue-800',
+    'FOAM_CUTTING': 'bg-purple-100 text-purple-800',
+    'STUFFING': 'bg-yellow-100 text-yellow-800',
+    'PACKAGING': 'bg-indigo-100 text-indigo-800',
+    'PRODUCT_FINISHED': 'bg-green-100 text-green-800',
+    'READY': 'bg-emerald-100 text-emerald-800',
+    'SHIPPED': 'bg-teal-100 text-teal-800',
+    'CANCELLED': 'bg-red-100 text-red-800'
+  };
+  return classMap[status] || 'bg-gray-100 text-gray-800';
 }
 
 

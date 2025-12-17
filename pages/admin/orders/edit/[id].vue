@@ -451,16 +451,26 @@
                   </option>
                 </select>
               </div>
-              <!-- Status Filter -->
+              <!-- Status/Station Filter -->
               <div class="flex items-center space-x-2">
-                <label for="statusFilter" class="text-sm font-medium text-gray-700">Filter by Status:</label>
+                <label for="statusFilter" class="text-sm font-medium text-gray-700">Filter by Status/Station:</label>
                 <select id="statusFilter" v-model="selectedStatusFilter"
                   class="block pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
                   @change="filterItemLogs">
-                  <option value="">All Statuses</option>
-                  <option v-for="status in itemStatusOptions" :key="status" :value="status">
-                    {{ status }}
-                  </option>
+                  <option value="">All Activity</option>
+                  <optgroup label="Item Statuses">
+                    <option v-for="status in itemStatusOptions" :key="status" :value="status">
+                      {{ status }}
+                    </option>
+                  </optgroup>
+                  <optgroup label="Station Scans">
+                    <option value="Office">Office</option>
+                    <option value="Cutting">Cutting</option>
+                    <option value="Sewing">Sewing</option>
+                    <option value="Foam Cutting">Foam Cutting</option>
+                    <option value="Stuffing">Stuffing</option>
+                    <option value="Packaging">Packaging</option>
+                  </optgroup>
                 </select>
               </div>
               <!-- Clear Filters -->
@@ -478,18 +488,22 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center space-x-2 mb-1">
-                    <span class="text-sm font-medium text-gray-900">{{ log.orderItem?.item?.name || 'Unknown Item'
-                    }}</span>
-                    <span class="text-sm text-gray-600">{{ log.fromStatus || 'STARTED' }} → {{ log.toStatus }}</span>
+                    <span class="text-sm font-medium text-gray-900">
+                      {{ log.orderItem?.productNumber ? `P${String(log.orderItem.productNumber).padStart(5, '0')}` : (log.orderItem?.item?.name || 'Unknown Item') }}
+                    </span>
+                    <span class="text-sm text-gray-600">
+                      <span v-if="log.type === 'status'">{{ log.fromStatus || 'STARTED' }} → {{ log.toStatus }}</span>
+                      <span v-else-if="log.type === 'processing'">{{ log.activityType }}</span>
+                    </span>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" :class="{
                       'bg-green-100 text-green-800': log.triggeredBy === 'manual',
-                      'bg-blue-100 text-blue-800': log.triggeredBy === 'automation',
+                      'bg-blue-100 text-blue-800': log.triggeredBy === 'automation' || log.triggeredBy === 'scan',
                       'bg-gray-100 text-gray-800': log.triggeredBy === 'system'
                     }">
-                      {{ log.triggeredBy }}
+                      {{ log.triggeredBy === 'scan' ? 'scan' : log.triggeredBy }}
                     </span>
                   </div>
-                  <p class="text-sm text-gray-600 mb-1">{{ log.changeReason }}</p>
+                  <p class="text-sm text-gray-600 mb-1">{{ log.displayText }}</p>
                   <div class="flex items-center space-x-4 text-xs text-gray-500">
                     <span>{{ new Date(log.timestamp).toLocaleString() }}</span>
                     <span v-if="log.user">by {{ log.user.name }}</span>
@@ -811,7 +825,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { useFindUniqueOrder, useFindManyOrderStatusLog, useFindManyItemStatusLog, useFindManyAuditLog, useFindManyItem } from '~/lib/hooks';
+import { useFindUniqueOrder, useFindManyOrderStatusLog, useFindManyItemStatusLog, useFindManyItemProcessingLog, useFindManyAuditLog, useFindManyItem } from '~/lib/hooks';
 import { OrderSystemStatus, OrderPriority, OrderItemProcessingStatus } from '@prisma-app/client';
 import { useRouter } from 'vue-router';
 import AppModal from '~/components/AppModal.vue';
@@ -1003,13 +1017,34 @@ const { data: auditLogs, refetch: refetchAuditLogs } = useFindManyAuditLog({
 
 // OrderItem audit logs are now included in the main auditLogs query since they use entityName: 'Order'
 
-// Fetch item activity logs
-const { data: itemLogs, refetch: refetchItemLogs } = useFindManyItemStatusLog({
+// Fetch item status logs (status changes)
+const { data: itemStatusLogs, refetch: refetchItemStatusLogs } = useFindManyItemStatusLog({
   where: { orderItem: { orderId } },
   orderBy: { timestamp: 'desc' },
   include: {
     user: {
       select: { name: true, email: true }
+    },
+    orderItem: {
+      include: {
+        item: {
+          select: { name: true }
+        }
+      }
+    }
+  }
+});
+
+// Fetch item processing logs (station scans)
+const { data: itemProcessingLogs, refetch: refetchItemProcessingLogs } = useFindManyItemProcessingLog({
+  where: { orderItem: { orderId } },
+  orderBy: { startTime: 'desc' },
+  include: {
+    user: {
+      select: { name: true, email: true }
+    },
+    station: {
+      select: { name: true }
     },
     orderItem: {
       include: {
@@ -1048,8 +1083,8 @@ const combinedOrderLogs = computed(() => {
           fromStatus: log.oldValue,
           toStatus: log.newValue,
           changeReason: log.action === 'ORDER_ITEM_ADDED'
-            ? `Product "${log.newValue?.itemName}" added to order`
-            : `Product "${log.oldValue?.itemName}" removed from order`,
+            ? `Product "${(log.newValue as any)?.itemName || 'Unknown'}" added to order`
+            : `Product "${(log.oldValue as any)?.itemName || 'Unknown'}" removed from order`,
           triggeredBy: 'manual'
         };
       } else {
@@ -1075,6 +1110,40 @@ const combinedOrderLogs = computed(() => {
 // Item status options
 const itemStatusOptions = Object.values(OrderItemProcessingStatus);
 
+// Combined item activity logs (status changes + processing scans)
+const itemLogs = computed(() => {
+  const logs = [];
+
+  // Add status change logs
+  if (itemStatusLogs.value) {
+    logs.push(...itemStatusLogs.value.map(log => ({
+      ...log,
+      type: 'status',
+      displayText: `Status changed: ${log.fromStatus || 'STARTED'} → ${log.toStatus}`,
+      timestamp: log.timestamp,
+      activityType: 'Status Change'
+    })));
+  }
+
+  // Add processing logs (station scans)
+  if (itemProcessingLogs.value) {
+    logs.push(...itemProcessingLogs.value.map(log => ({
+      ...log,
+      type: 'processing',
+      displayText: `Scanned at ${log.station?.name || 'Unknown Station'}`,
+      timestamp: log.startTime,
+      activityType: 'Station Scan',
+      fromStatus: null,
+      toStatus: log.station?.name || 'Unknown Station',
+      changeReason: log.notes || `Processed at ${log.station?.name || 'Unknown Station'}`,
+      triggeredBy: log.notes?.includes('Manually attributed') ? 'manual' : 'scan'
+    })));
+  }
+
+  // Sort by timestamp (newest first)
+  return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+});
+
 // Item activity filtering
 const selectedItemFilter = ref('');
 const selectedStatusFilter = ref('');
@@ -1088,9 +1157,16 @@ const filteredItemLogs = computed(() => {
     filtered = filtered.filter(log => log.orderItem?.id === selectedItemFilter.value);
   }
 
-  // Filter by status
+  // Filter by status (for status logs) or station (for processing logs)
   if (selectedStatusFilter.value) {
-    filtered = filtered.filter(log => log.toStatus === selectedStatusFilter.value);
+    filtered = filtered.filter(log => {
+      if (log.type === 'status') {
+        return log.toStatus === selectedStatusFilter.value;
+      } else if (log.type === 'processing') {
+        return (log as any).station?.name === selectedStatusFilter.value;
+      }
+      return false;
+    });
   }
 
   return filtered;
@@ -1521,7 +1597,7 @@ async function verifyOrderItem(orderItem: any) {
       await refetchOrder();
     } else {
       // Verification failed due to missing attributes
-      const errorMessage = response.errors?.join(', ') || 'Product attributes are not set';
+      const errorMessage = (response as any).errors?.join(', ') || 'Product attributes are not set';
       toast.error({
         title: 'Verification Failed',
         message: `Cannot verify: ${errorMessage}`
@@ -1652,7 +1728,8 @@ async function sendTrackingEmail() {
 // Activity log functions
 function refreshActivityLogs() {
   refetchOrderLogs();
-  refetchItemLogs();
+  refetchItemStatusLogs();
+  refetchItemProcessingLogs();
   refetchAuditLogs();
 }
 

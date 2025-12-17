@@ -33,19 +33,29 @@
       <div v-else>
         <!-- Summary -->
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
-          <div class="grid grid-cols-3 gap-4 text-sm">
+          <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span class="font-medium text-gray-700">Total Processing Sessions:</span>
-              <span class="ml-2 text-gray-900">{{ pagination.totalCount }}</span>
+              <span class="font-medium text-gray-700">Items Processed:</span>
+              <span class="ml-2 text-gray-900 font-semibold text-indigo-600">{{ summary.totalUniqueItemsProcessed }}</span>
             </div>
             <div>
-              <span class="font-medium text-gray-700">Showing:</span>
-              <span class="ml-2 text-gray-900">{{ summary.totalProcessingLogs }} on this page</span>
-            </div>
-            <div>
-              <span class="font-medium text-gray-700">Total Processing Time (this page):</span>
+              <span class="font-medium text-gray-700">Processing Time (total):</span>
               <span class="ml-2 text-gray-900">{{ summary.totalProcessingTimeFormatted }}</span>
             </div>
+            <div>
+              <span class="font-medium text-gray-700">Sessions on this page:</span>
+              <span class="ml-2 text-gray-900">{{ summary.totalProcessingLogs }}</span>
+            </div>
+            <div v-if="pagination.totalPages > 1">
+              <span class="font-medium text-gray-700">Total sessions (all pages):</span>
+              <span class="ml-2 text-gray-900">{{ pagination.totalCount }}</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-200">
+            <p class="text-xs text-gray-600">
+              <strong>Note:</strong> All data is filtered by your selected date range. 
+              Each row below shows a processing session (scan) by this employee.
+            </p>
           </div>
         </div>
 
@@ -218,6 +228,7 @@ interface EmployeeItemDetail {
 
 interface EmployeeItemsSummary {
   totalProcessingLogs: number;
+  totalUniqueItemsProcessed: number;
   totalProcessingTime: number;
   totalProcessingTimeFormatted: string;
 }
@@ -246,6 +257,7 @@ const emit = defineEmits(['close']);
 const items = ref<EmployeeItemDetail[]>([]);
 const summary = ref<EmployeeItemsSummary>({
   totalProcessingLogs: 0,
+  totalUniqueItemsProcessed: 0,
   totalProcessingTime: 0,
   totalProcessingTimeFormatted: '0s'
 });
@@ -307,6 +319,7 @@ async function loadEmployeeItems(page: number = 1) {
       items.value = (response.data || []) as EmployeeItemDetail[];
       summary.value = response.summary || {
         totalProcessingLogs: 0,
+        totalUniqueItemsProcessed: 0,
         totalProcessingTime: 0,
         totalProcessingTimeFormatted: '0s'
       };
@@ -327,6 +340,7 @@ async function loadEmployeeItems(page: number = 1) {
     items.value = [];
     summary.value = {
       totalProcessingLogs: 0,
+      totalUniqueItemsProcessed: 0,
       totalProcessingTime: 0,
       totalProcessingTimeFormatted: '0s'
     };
