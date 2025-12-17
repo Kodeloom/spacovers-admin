@@ -1501,7 +1501,7 @@ export const usePrintQueue = () => {
     return `
       @page {
         size: 8.5in 11in;
-        margin: 0.5in 1.25in;
+        margin: 0.5in 1.25in 0.5in 1.15in;
       }
       
       * {
