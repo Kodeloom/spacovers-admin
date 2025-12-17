@@ -172,6 +172,7 @@ export default defineEventHandler(async (event) => {
         },
         summary: {
           totalProcessingLogs: 0,
+          totalUniqueItemsProcessed: 0,
           totalProcessingTime: 0,
           totalProcessingTimeFormatted: '0s'
         },
@@ -234,19 +235,50 @@ export default defineEventHandler(async (event) => {
 
     const totalPages = Math.ceil(totalCount / limit);
 
+    // Calculate total unique items count across ALL pages (to match main table)
+    // CORRECTED LOGIC: An employee gets credit when THEY scan (completing their work)
+    // When someone scans, they are finishing their work at their station
+    
+    // Simply count unique items where this employee has processing logs
+    // This is the correct logic - each scan means they completed work at their station
+    const totalUniqueItemsCount = await prisma.itemProcessingLog.findMany({
+      where: {
+        ...whereClause,
+        // Exclude Office station from item counts (same as main report)
+        station: {
+          NOT: {
+            name: 'Office'
+          }
+        }
+      },
+      select: {
+        orderItemId: true
+      },
+      distinct: ['orderItemId']
+    });
+
+    console.log(`🔍 Employee ${userId} items summary:`, {
+      totalProcessingSessions: totalCount,
+      totalUniqueItemsProcessed: totalUniqueItemsCount.length, // Items where employee scanned (completed their work)
+      currentPageSessions: result.length,
+      dateRange: { startDate: startDate?.toISOString(), endDate: endDate?.toISOString() },
+      stationFilter: stationId || 'none'
+    });
+
     return {
       success: true,
       data: result,
       pagination: {
         page,
         limit,
-        totalCount,
+        totalCount, // Total processing sessions (can be multiple per item)
         totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1
       },
       summary: {
-        totalProcessingLogs: result.length,
+        totalProcessingLogs: result.length, // Processing sessions on this page
+        totalUniqueItemsProcessed: totalUniqueItemsCount.length, // Total unique items across all pages (matches main table)
         totalProcessingTime: result.reduce((sum, item) => sum + item.processingTime, 0),
         totalProcessingTimeFormatted: formatDuration(
           result.reduce((sum, item) => sum + item.processingTime, 0)

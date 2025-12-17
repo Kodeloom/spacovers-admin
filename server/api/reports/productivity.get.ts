@@ -170,6 +170,30 @@ export default defineEventHandler(async (event) => {
     const totalLogsCount = await prisma.itemProcessingLog.count();
     console.log(`🔍 Total ItemProcessingLog records in database: ${totalLogsCount}`);
     
+    // Debug: Check for manually attributed sewing logs specifically
+    const manualSewerLogsCount = await prisma.itemProcessingLog.count({
+      where: {
+        station: { name: 'Sewing' },
+        notes: { contains: 'Manually attributed' }
+      }
+    });
+    console.log(`🔍 Manual sewing attribution logs in database: ${manualSewerLogsCount}`);
+    
+    // Debug: Check if any sewing logs fall within the date range
+    if (startDate && endDate) {
+      const sewingLogsInRange = await prisma.itemProcessingLog.count({
+        where: {
+          station: { name: 'Sewing' },
+          startTime: { gte: startDate },
+          OR: [
+            { endTime: { lte: endDate } },
+            { endTime: null }
+          ]
+        }
+      });
+      console.log(`🔍 Sewing logs within date range (${startDate.toISOString()} to ${endDate.toISOString()}): ${sewingLogsInRange}`);
+    }
+    
     try {
       // Add timeout handling for large queries
       // NOTE: For optimal performance, ensure these database indexes exist:
@@ -217,6 +241,21 @@ export default defineEventHandler(async (event) => {
         hasEndTime: !!log.endTime,
         orderItemId: log.orderItemId
       })));
+      
+      // Debug: Check specifically for sewing logs
+      const sewingLogs = processingLogs.filter(log => log.station?.name === 'Sewing');
+      console.log(`🧵 Found ${sewingLogs.length} sewing station logs`);
+      if (sewingLogs.length > 0) {
+        console.log('🧵 Sewing logs details:', sewingLogs.map(log => ({
+          id: log.id,
+          user: log.user?.name,
+          startTime: log.startTime,
+          endTime: log.endTime,
+          duration: log.durationInSeconds,
+          notes: log.notes,
+          isManualAttribution: log.notes?.includes('Manually attributed')
+        })));
+      }
       
       // Log query performance for monitoring
       const queryDuration = Date.now() - queryStartTime;
@@ -348,8 +387,9 @@ export default defineEventHandler(async (event) => {
     console.log(`Processing ${itemLogsMap.size} items with processing logs`);
 
     // Process each item's complete processing history
-    // KEY INSIGHT: Each log represents work done. When a log is closed (gets endTime),
-    // the person who scanned NEXT gets credit for that work at THEIR station.
+    // CORRECTED LOGIC: When someone scans, they complete THEIR OWN work at their station
+    // Time attribution: The time between scans gets credited to the person who scanned next
+    // Item attribution: Each person gets credit for items they scanned (completed their work)
     for (const [itemId, logs] of itemLogsMap) {
       // Sort logs by startTime to get chronological order
       const sortedLogs = logs
@@ -361,82 +401,108 @@ export default defineEventHandler(async (event) => {
         console.log(`  Log ${idx}: user=${log.user?.name}, station=${log.station?.name}, startTime=${log.startTime}, endTime=${log.endTime}, duration=${log.durationInSeconds}s`);
       });
       
-      // Process each pair of consecutive logs
-      // The pattern is: when someone scans, they COMPLETE the previous work and START new work
+      // Process each log - each scan means the person completed work at their station
       for (let i = 0; i < sortedLogs.length; i++) {
         const currentLog = sortedLogs[i];
         const nextLog = sortedLogs[i + 1];
         
-        console.log(`  \n  Processing Log ${i}: user=${currentLog.user?.name}, station=${currentLog.station?.name}, hasEndTime=${!!currentLog.endTime}, duration=${currentLog.durationInSeconds}s`);
+        const currentUserId = currentLog.userId;
+        const currentUserName = currentLog.user?.name || 'Unknown User';
+        const currentStationId = currentLog.stationId;
+        const currentStationName = currentLog.station?.name || 'Unknown Station';
         
-        // If this log has an endTime, someone completed this work
-        // That someone is the person in the NEXT log (who scanned and closed this log)
-        if (currentLog.endTime && currentLog.durationInSeconds > 0 && nextLog) {
-          const completedByUserId = nextLog.userId;
-          const completedByUserName = nextLog.user?.name || 'Unknown User';
-          const completedAtStationId = nextLog.stationId;
-          const completedAtStationName = nextLog.station?.name || 'Unknown Station';
+        console.log(`  \n  Processing Log ${i}: user=${currentUserName}, station=${currentStationName}`);
+        
+        // Skip Office station for item counts (but still process for time attribution)
+        if (currentStationName === 'Office') {
+          console.log(`  ⏭️  Skipping item count - Office station`);
           
-          // Skip if completed at Office station
-          if (completedAtStationName === 'Office') {
-            console.log(`  ⏭️  Skipping - completed at Office station`);
-            continue;
+          // Handle time attribution for Office work
+          if (nextLog && currentLog.endTime && currentLog.durationInSeconds > 0) {
+            const nextUserId = nextLog.userId;
+            const nextUserName = nextLog.user?.name || 'Unknown User';
+            const nextStationId = nextLog.stationId;
+            const nextStationName = nextLog.station?.name || 'Unknown Station';
+            
+            // Skip if next station is also Office
+            if (nextStationName === 'Office') {
+              continue;
+            }
+            
+            const nextKey = `${nextUserId}-${nextStationId}`;
+            
+            if (!aggregatedData.has(nextKey)) {
+              aggregatedData.set(nextKey, {
+                userId: nextUserId,
+                userName: nextUserName,
+                stationId: nextStationId,
+                stationName: nextStationName,
+                uniqueItemIds: new Set<string>(),
+                totalDuration: 0,
+                completedSessions: 0
+              });
+            }
+            
+            const nextData = aggregatedData.get(nextKey)!;
+            nextData.totalDuration += currentLog.durationInSeconds;
+            
+            console.log(`  ⏰ Credited ${currentLog.durationInSeconds}s time to ${nextUserName} at ${nextStationName}`);
           }
-          
-          const key = `${completedByUserId}-${completedAtStationId}`;
-          
-          if (!aggregatedData.has(key)) {
-            aggregatedData.set(key, {
-              userId: completedByUserId,
-              userName: completedByUserName,
-              stationId: completedAtStationId,
-              stationName: completedAtStationName,
-              uniqueItemIds: new Set<string>(),
-              totalDuration: 0,
-              completedSessions: 0
-            });
-          }
-          
-          const data = aggregatedData.get(key)!;
-          data.uniqueItemIds.add(itemId);
-          data.totalDuration += currentLog.durationInSeconds;
-          data.completedSessions++;
-          
-          console.log(`  ✅ Credited ${currentLog.durationInSeconds}s to ${completedByUserName} at ${completedAtStationName}`);
+          continue;
         }
         
-        // If this is the last log and it doesn't have an endTime, it's in-progress
-        // Credit the item count (but no duration) to the person on this log
-        if (!currentLog.endTime && !nextLog) {
-          const inProgressUserId = currentLog.userId;
-          const inProgressUserName = currentLog.user?.name || 'Unknown User';
-          const inProgressStationId = currentLog.stationId;
-          const inProgressStationName = currentLog.station?.name || 'Unknown Station';
+        // This person completed work at their station by scanning
+        const key = `${currentUserId}-${currentStationId}`;
+        
+        if (!aggregatedData.has(key)) {
+          aggregatedData.set(key, {
+            userId: currentUserId,
+            userName: currentUserName,
+            stationId: currentStationId,
+            stationName: currentStationName,
+            uniqueItemIds: new Set<string>(),
+            totalDuration: 0,
+            completedSessions: 0
+          });
+        }
+        
+        const data = aggregatedData.get(key)!;
+        data.uniqueItemIds.add(itemId); // Credit item for scanning (completing their work)
+        data.completedSessions++;
+        
+        console.log(`  ✅ Credited item to ${currentUserName} at ${currentStationName} (completed their work by scanning)`);
+        
+        // Handle time attribution - time gets credited to the next person who scanned
+        if (nextLog && currentLog.endTime && currentLog.durationInSeconds > 0) {
+          const nextUserId = nextLog.userId;
+          const nextUserName = nextLog.user?.name || 'Unknown User';
+          const nextStationId = nextLog.stationId;
+          const nextStationName = nextLog.station?.name || 'Unknown Station';
           
-          // Skip if at Office station
-          if (inProgressStationName === 'Office') {
-            console.log(`  ⏭️  Skipping - in-progress at Office station`);
+          // Skip if next station is Office
+          if (nextStationName === 'Office') {
+            console.log(`  ⏰ Skipping time credit - next station is Office`);
             continue;
           }
           
-          const key = `${inProgressUserId}-${inProgressStationId}`;
+          const nextKey = `${nextUserId}-${nextStationId}`;
           
-          if (!aggregatedData.has(key)) {
-            aggregatedData.set(key, {
-              userId: inProgressUserId,
-              userName: inProgressUserName,
-              stationId: inProgressStationId,
-              stationName: inProgressStationName,
+          if (!aggregatedData.has(nextKey)) {
+            aggregatedData.set(nextKey, {
+              userId: nextUserId,
+              userName: nextUserName,
+              stationId: nextStationId,
+              stationName: nextStationName,
               uniqueItemIds: new Set<string>(),
               totalDuration: 0,
               completedSessions: 0
             });
           }
           
-          const data = aggregatedData.get(key)!;
-          data.uniqueItemIds.add(itemId);
+          const nextData = aggregatedData.get(nextKey)!;
+          nextData.totalDuration += currentLog.durationInSeconds;
           
-          console.log(`  🔄 In-progress: ${inProgressUserName} at ${inProgressStationName} (no duration yet)`);
+          console.log(`  ⏰ Credited ${currentLog.durationInSeconds}s time to ${nextUserName} at ${nextStationName}`);
         }
       }
     }
