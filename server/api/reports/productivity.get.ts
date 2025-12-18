@@ -1,6 +1,6 @@
 import { auth } from '~/server/lib/auth';
 import { unenhancedPrisma as prisma } from '~/server/lib/db';
-import { TimezoneService } from '~/utils/timezoneService';
+
 import { validateReportRequest, validateProcessingLogs, validateDataQuality, logPerformanceMetrics, validateQueryPerformance, safeDivide } from '~/utils/reportValidation';
 import { logError } from '~/utils/errorHandling';
 
@@ -363,162 +363,147 @@ export default defineEventHandler(async (event) => {
       ...dataQuality.warnings
     ];
 
+    // CORRECTED LOGIC: Count scans per user per station + proper time attribution
     // Group by user and station to calculate aggregated data
     const aggregatedData = new Map<string, {
       userId: string;
       userName: string;
       stationId: string;
       stationName: string;
-      uniqueItemIds: Set<string>;
+      scanCount: number;
       totalDuration: number;
-      completedSessions: number;
+      scans: any[]; // Store actual scans for the modal
     }>();
 
-    // Group processing logs by orderItemId to process each item's history
-    const itemLogsMap = new Map<string, any[]>();
-    
+    console.log(`Processing ${logValidation.validLogs.length} processing logs`);
+
+    // First pass: Count scans per user per station (simple counting)
     for (const log of logValidation.validLogs) {
-      if (!itemLogsMap.has(log.orderItemId)) {
-        itemLogsMap.set(log.orderItemId, []);
+      const userId = log.userId;
+      const userName = log.user?.name || 'Unknown User';
+      const stationId = log.stationId;
+      const stationName = log.station?.name || 'Unknown Station';
+      
+      // Skip Office station scans for counting
+      if (stationName === 'Office') {
+        console.log(`⏭️ Skipping Office scan for user ${userName}`);
+        continue;
       }
-      itemLogsMap.get(log.orderItemId)!.push(log);
+      
+      const key = `${userId}-${stationId}`;
+      
+      if (!aggregatedData.has(key)) {
+        aggregatedData.set(key, {
+          userId,
+          userName,
+          stationId,
+          stationName,
+          scanCount: 0,
+          totalDuration: 0,
+          scans: []
+        });
+      }
+      
+      const data = aggregatedData.get(key)!;
+      data.scanCount++; // Just count the scan
+      data.scans.push(log); // Store the scan for the modal
+      
+      console.log(`✅ Counted scan for ${userName} at ${stationName} (total: ${data.scanCount})`);
     }
 
-    console.log(`Processing ${itemLogsMap.size} items with processing logs`);
+    // Second pass: Calculate time attribution (time gets credited to the person who scanned NEXT)
+    // Group logs by order item to calculate time between scans
+    const logsByOrderItem = new Map<string, any[]>();
+    
+    for (const log of logValidation.validLogs) {
+      const orderItemId = log.orderItemId;
+      if (!logsByOrderItem.has(orderItemId)) {
+        logsByOrderItem.set(orderItemId, []);
+      }
+      logsByOrderItem.get(orderItemId)!.push(log);
+    }
 
-    // Process each item's complete processing history
-    // CORRECTED LOGIC: When someone scans, they complete THEIR OWN work at their station
-    // Time attribution: The time between scans gets credited to the person who scanned next
-    // Item attribution: Each person gets credit for items they scanned (completed their work)
-    for (const [itemId, logs] of itemLogsMap) {
-      // Sort logs by startTime to get chronological order
+    // Define the logical workflow sequence
+    const workflowSequence = [
+      'Cutting',
+      'Sewing', 
+      'Foam Cutting',
+      'Stuffing',
+      'Packaging'
+    ];
+
+    // Helper function to check if next station is logical in workflow
+    function isLogicalNextStation(currentStation: string, nextStation: string): boolean {
+      const currentIndex = workflowSequence.indexOf(currentStation);
+      const nextIndex = workflowSequence.indexOf(nextStation);
+      
+      // If either station is not in our workflow, don't attribute time
+      if (currentIndex === -1 || nextIndex === -1) {
+        return false;
+      }
+      
+      // Next station should be after current station in the workflow
+      return nextIndex > currentIndex;
+    }
+
+    // Process each order item's logs to calculate time attribution
+    for (const [orderItemId, logs] of logsByOrderItem) {
+      // Sort logs by start time (chronological order)
       const sortedLogs = logs
-        .filter(log => log.startTime)
+        .filter(log => log.startTime) // Only logs with valid start times
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-      
-      console.log(`\n📦 Processing item ${itemId} with ${sortedLogs.length} logs`);
-      sortedLogs.forEach((log, idx) => {
-        console.log(`  Log ${idx}: user=${log.user?.name}, station=${log.station?.name}, startTime=${log.startTime}, endTime=${log.endTime}, duration=${log.durationInSeconds}s`);
-      });
-      
-      // Process each log - each scan means the person completed work at their station
-      for (let i = 0; i < sortedLogs.length; i++) {
+
+      // Calculate time between consecutive scans
+      for (let i = 0; i < sortedLogs.length - 1; i++) {
         const currentLog = sortedLogs[i];
         const nextLog = sortedLogs[i + 1];
         
-        const currentUserId = currentLog.userId;
-        const currentUserName = currentLog.user?.name || 'Unknown User';
-        const currentStationId = currentLog.stationId;
-        const currentStationName = currentLog.station?.name || 'Unknown Station';
-        
-        console.log(`  \n  Processing Log ${i}: user=${currentUserName}, station=${currentStationName}`);
-        
-        // Skip Office station for item counts (but still process for time attribution)
-        if (currentStationName === 'Office') {
-          console.log(`  ⏭️  Skipping item count - Office station`);
-          
-          // Handle time attribution for Office work
-          if (nextLog && currentLog.endTime && currentLog.durationInSeconds > 0) {
-            const nextUserId = nextLog.userId;
-            const nextUserName = nextLog.user?.name || 'Unknown User';
-            const nextStationId = nextLog.stationId;
-            const nextStationName = nextLog.station?.name || 'Unknown Station';
-            
-            // Skip if next station is also Office
-            if (nextStationName === 'Office') {
-              continue;
-            }
-            
-            const nextKey = `${nextUserId}-${nextStationId}`;
-            
-            if (!aggregatedData.has(nextKey)) {
-              aggregatedData.set(nextKey, {
-                userId: nextUserId,
-                userName: nextUserName,
-                stationId: nextStationId,
-                stationName: nextStationName,
-                uniqueItemIds: new Set<string>(),
-                totalDuration: 0,
-                completedSessions: 0
-              });
-            }
-            
-            const nextData = aggregatedData.get(nextKey)!;
-            nextData.totalDuration += currentLog.durationInSeconds;
-            
-            console.log(`  ⏰ Credited ${currentLog.durationInSeconds}s time to ${nextUserName} at ${nextStationName}`);
-          }
+        // Skip Office station logs for time attribution
+        if (currentLog.station?.name === 'Office' || nextLog.station?.name === 'Office') {
           continue;
         }
-        
-        // This person completed work at their station by scanning
-        const key = `${currentUserId}-${currentStationId}`;
-        
-        if (!aggregatedData.has(key)) {
-          aggregatedData.set(key, {
-            userId: currentUserId,
-            userName: currentUserName,
-            stationId: currentStationId,
-            stationName: currentStationName,
-            uniqueItemIds: new Set<string>(),
-            totalDuration: 0,
-            completedSessions: 0
-          });
+
+        const currentStation = currentLog.station?.name || '';
+        const nextStation = nextLog.station?.name || '';
+
+        // Only attribute time if the next station is logical in the workflow
+        if (!isLogicalNextStation(currentStation, nextStation)) {
+          console.log(`⏭️ Skipping time attribution: ${currentStation} → ${nextStation} (not logical workflow sequence)`);
+          continue;
         }
-        
-        const data = aggregatedData.get(key)!;
-        data.uniqueItemIds.add(itemId); // Credit item for scanning (completing their work)
-        data.completedSessions++;
-        
-        console.log(`  ✅ Credited item to ${currentUserName} at ${currentStationName} (completed their work by scanning)`);
-        
-        // Handle time attribution - time gets credited to the next person who scanned
-        if (nextLog && currentLog.endTime && currentLog.durationInSeconds > 0) {
+
+        // Calculate time between current scan and next scan
+        const currentTime = new Date(currentLog.startTime).getTime();
+        const nextTime = new Date(nextLog.startTime).getTime();
+        const timeDiff = Math.floor((nextTime - currentTime) / 1000); // in seconds
+
+        // Only attribute positive time differences
+        if (timeDiff > 0) {
+          // Time gets credited to the person who scanned NEXT (completed their work)
           const nextUserId = nextLog.userId;
-          const nextUserName = nextLog.user?.name || 'Unknown User';
           const nextStationId = nextLog.stationId;
-          const nextStationName = nextLog.station?.name || 'Unknown Station';
-          
-          // Skip if next station is Office
-          if (nextStationName === 'Office') {
-            console.log(`  ⏰ Skipping time credit - next station is Office`);
-            continue;
-          }
-          
           const nextKey = `${nextUserId}-${nextStationId}`;
           
-          if (!aggregatedData.has(nextKey)) {
-            aggregatedData.set(nextKey, {
-              userId: nextUserId,
-              userName: nextUserName,
-              stationId: nextStationId,
-              stationName: nextStationName,
-              uniqueItemIds: new Set<string>(),
-              totalDuration: 0,
-              completedSessions: 0
-            });
+          if (aggregatedData.has(nextKey)) {
+            aggregatedData.get(nextKey)!.totalDuration += timeDiff;
+            console.log(`⏱️ Attributed ${timeDiff}s to ${nextLog.user?.name} at ${nextLog.station?.name} (completed work between ${currentStation} and ${nextStation})`);
           }
-          
-          const nextData = aggregatedData.get(nextKey)!;
-          nextData.totalDuration += currentLog.durationInSeconds;
-          
-          console.log(`  ⏰ Credited ${currentLog.durationInSeconds}s time to ${nextUserName} at ${nextStationName}`);
         }
       }
     }
 
     // Convert map to array and calculate metrics with safe division
     const result = Array.from(aggregatedData.values()).map(data => {
-      const itemsProcessed = data.uniqueItemIds.size;
+      const scansCount = data.scanCount;
       
-      // Calculate average time per item (total time / unique items processed)
-      const avgDuration = itemsProcessed > 0 
-        ? Math.round(safeDivide(data.totalDuration, itemsProcessed, 0))
+      // Calculate average time per scan (total time / scans)
+      const avgDuration = scansCount > 0 
+        ? Math.round(safeDivide(data.totalDuration, scansCount, 0))
         : 0;
       
-      // Calculate efficiency as items per hour with safe division
-      const efficiency = itemsProcessed > 0 && data.totalDuration > 0
-        ? Math.round(safeDivide(itemsProcessed * 3600, data.totalDuration, 0) * 100) / 100
+      // Calculate efficiency as scans per hour with safe division
+      const efficiency = scansCount > 0 && data.totalDuration > 0
+        ? Math.round(safeDivide(scansCount * 3600, data.totalDuration, 0) * 100) / 100
         : 0;
 
       return {
@@ -526,10 +511,11 @@ export default defineEventHandler(async (event) => {
         userName: data.userName,
         stationId: data.stationId,
         stationName: data.stationName,
-        itemsProcessed,
+        itemsProcessed: scansCount, // This is now just scan count
         totalDuration: data.totalDuration,
         avgDuration,
-        efficiency
+        efficiency,
+        scans: data.scans // Include scans for the modal
       };
     });
 
@@ -572,7 +558,7 @@ export default defineEventHandler(async (event) => {
       data: filteredResult,
       summary: {
         totalEmployees: new Set(filteredResult.map(r => r.userId)).size,
-        totalItemsProcessed: filteredResult.reduce((sum, r) => sum + r.itemsProcessed, 0),
+        totalItemsProcessed: filteredResult.reduce((sum, r) => sum + r.itemsProcessed, 0), // This is now total scans
         totalProductionTime: filteredResult.reduce((sum, r) => sum + r.totalDuration, 0)
       },
       warnings: allWarnings.length > 0 ? allWarnings : undefined,

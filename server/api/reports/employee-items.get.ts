@@ -235,32 +235,24 @@ export default defineEventHandler(async (event) => {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Calculate total unique items count across ALL pages (to match main table)
-    // CORRECTED LOGIC: An employee gets credit when THEY scan (completing their work)
-    // When someone scans, they are finishing their work at their station
-    
-    // Simply count unique items where this employee has processing logs
-    // This is the correct logic - each scan means they completed work at their station
-    const totalUniqueItemsCount = await prisma.itemProcessingLog.findMany({
+    // Calculate total scans count across ALL pages (to match main table)
+    // IMPORTANT: If stationId is provided, count only scans for that specific user-station combination
+    // If no stationId, count all scans by this employee across all stations (excluding Office)
+    const totalScansCount = await prisma.itemProcessingLog.count({
       where: {
         ...whereClause,
-        // Exclude Office station from item counts (same as main report)
+        // Exclude Office station from scan counts (same as main report)
         station: {
           NOT: {
             name: 'Office'
           }
         }
-      },
-      select: {
-        orderItemId: true
-      },
-      distinct: ['orderItemId']
+      }
     });
 
-    console.log(`🔍 Employee ${userId} items summary:`, {
-      totalProcessingSessions: totalCount,
-      totalUniqueItemsProcessed: totalUniqueItemsCount.length, // Items where employee scanned (completed their work)
-      currentPageSessions: result.length,
+    console.log(`🔍 Employee ${userId} scans summary:`, {
+      totalScansInDateRange: totalScansCount, // Total scans (matches main table)
+      currentPageScans: result.length,
       dateRange: { startDate: startDate?.toISOString(), endDate: endDate?.toISOString() },
       stationFilter: stationId || 'none'
     });
@@ -278,7 +270,7 @@ export default defineEventHandler(async (event) => {
       },
       summary: {
         totalProcessingLogs: result.length, // Processing sessions on this page
-        totalUniqueItemsProcessed: totalUniqueItemsCount.length, // Total unique items across all pages (matches main table)
+        totalScansProcessed: totalScansCount, // Total scans across all pages (matches main table)
         totalProcessingTime: result.reduce((sum, item) => sum + item.processingTime, 0),
         totalProcessingTimeFormatted: formatDuration(
           result.reduce((sum, item) => sum + item.processingTime, 0)

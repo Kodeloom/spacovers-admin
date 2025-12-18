@@ -35,26 +35,18 @@
         <div class="bg-gray-50 rounded-lg p-4 mb-6">
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span class="font-medium text-gray-700">Items Processed:</span>
-              <span class="ml-2 text-gray-900 font-semibold text-indigo-600">{{ summary.totalUniqueItemsProcessed }}</span>
+              <span class="font-medium text-gray-700">Total Scans:</span>
+              <span class="ml-2 text-gray-900 font-semibold text-indigo-600">{{ summary.totalScansProcessed }}</span>
             </div>
             <div>
-              <span class="font-medium text-gray-700">Processing Time (total):</span>
+              <span class="font-medium text-gray-700">Total Processing Time:</span>
               <span class="ml-2 text-gray-900">{{ summary.totalProcessingTimeFormatted }}</span>
-            </div>
-            <div>
-              <span class="font-medium text-gray-700">Sessions on this page:</span>
-              <span class="ml-2 text-gray-900">{{ summary.totalProcessingLogs }}</span>
-            </div>
-            <div v-if="pagination.totalPages > 1">
-              <span class="font-medium text-gray-700">Total sessions (all pages):</span>
-              <span class="ml-2 text-gray-900">{{ pagination.totalCount }}</span>
             </div>
           </div>
           <div class="mt-3 pt-3 border-t border-gray-200">
             <p class="text-xs text-gray-600">
-              <strong>Note:</strong> All data is filtered by your selected date range. 
-              Each row below shows a processing session (scan) by this employee.
+              <strong>Note:</strong> All data is filtered by your selected date range and station. 
+              Each row below shows an item scanned by this employee at this station.
             </p>
           </div>
         </div>
@@ -141,7 +133,7 @@
         <div v-if="pagination.totalPages > 1" class="mt-6 flex items-center justify-between">
           <div class="text-sm text-gray-700">
             Showing page {{ pagination.page }} of {{ pagination.totalPages }} 
-            ({{ pagination.totalCount }} total processing sessions)
+            ({{ pagination.totalCount }} total records)
           </div>
           <div class="flex space-x-2">
             <button
@@ -228,7 +220,7 @@ interface EmployeeItemDetail {
 
 interface EmployeeItemsSummary {
   totalProcessingLogs: number;
-  totalUniqueItemsProcessed: number;
+  totalScansProcessed: number; // Changed from totalUniqueItemsProcessed
   totalProcessingTime: number;
   totalProcessingTimeFormatted: string;
 }
@@ -257,7 +249,7 @@ const emit = defineEmits(['close']);
 const items = ref<EmployeeItemDetail[]>([]);
 const summary = ref<EmployeeItemsSummary>({
   totalProcessingLogs: 0,
-  totalUniqueItemsProcessed: 0,
+  totalScansProcessed: 0,
   totalProcessingTime: 0,
   totalProcessingTimeFormatted: '0s'
 });
@@ -273,9 +265,16 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 
 const modalTitle = computed(() => {
-  return props.employeeName 
-    ? `Items Processed by ${props.employeeName}`
-    : 'Employee Item Details';
+  if (props.employeeName) {
+    // If we have a station filter, show it in the title
+    if (props.stationId) {
+      // Get station name from the first item (they should all be from same station)
+      const stationName = items.value.length > 0 ? items.value[0].stationName : 'Station';
+      return `${props.employeeName} - ${stationName} Station`;
+    }
+    return `Items Processed by ${props.employeeName}`;
+  }
+  return 'Employee Item Details';
 });
 
 // Watch for modal opening and load data
@@ -317,11 +316,11 @@ async function loadEmployeeItems(page: number = 1) {
 
     if (response.success) {
       items.value = (response.data || []) as EmployeeItemDetail[];
-      summary.value = response.summary || {
-        totalProcessingLogs: 0,
-        totalUniqueItemsProcessed: 0,
-        totalProcessingTime: 0,
-        totalProcessingTimeFormatted: '0s'
+      summary.value = {
+        totalProcessingLogs: response.summary?.totalProcessingLogs || 0,
+        totalScansProcessed: (response.summary as any)?.totalScansProcessed || (response.summary as any)?.totalUniqueItemsProcessed || 0,
+        totalProcessingTime: response.summary?.totalProcessingTime || 0,
+        totalProcessingTimeFormatted: response.summary?.totalProcessingTimeFormatted || '0s'
       };
       pagination.value = response.pagination || {
         page: 1,
@@ -340,7 +339,7 @@ async function loadEmployeeItems(page: number = 1) {
     items.value = [];
     summary.value = {
       totalProcessingLogs: 0,
-      totalUniqueItemsProcessed: 0,
+      totalScansProcessed: 0,
       totalProcessingTime: 0,
       totalProcessingTimeFormatted: '0s'
     };

@@ -157,19 +157,13 @@ export default defineEventHandler(async (event) => {
       sewingEndTime = new Date(sewingStartTime.getTime() + 1000); // 1 second later
     }
 
-    // Calculate duration if we have both start and end times
-    let durationInSeconds: number | null = null;
+    // Calculate duration - use 1 second for manual sewing attribution
+    let durationInSeconds: number = 1; // 1 second for manual attribution
     if (sewingEndTime) {
       const calculatedDuration = Math.floor((sewingEndTime.getTime() - sewingStartTime.getTime()) / 1000);
-      
-      // Safety check: ensure duration is positive
+      // Use calculated duration if it's positive, otherwise default to 1 second
       if (calculatedDuration > 0) {
         durationInSeconds = calculatedDuration;
-      } else {
-        console.error(`❌ Calculated negative duration: ${calculatedDuration} seconds. StartTime: ${sewingStartTime.toISOString()}, EndTime: ${sewingEndTime.toISOString()}`);
-        // Force a 1-second duration if calculation results in negative or zero
-        durationInSeconds = 1; // 1 second
-        sewingEndTime = new Date(sewingStartTime.getTime() + 1000);
       }
     }
 
@@ -180,11 +174,7 @@ export default defineEventHandler(async (event) => {
       durationSeconds: durationInSeconds,
       itemUpdated: orderItem.updatedAt.toISOString(),
       cuttingEnd: cuttingLog?.endTime,
-      nextStationStart: nextStationLog?.startTime,
-      timeValidation: {
-        startBeforeEnd: sewingEndTime ? sewingStartTime.getTime() < sewingEndTime.getTime() : 'N/A',
-        durationPositive: durationInSeconds ? durationInSeconds > 0 : 'N/A'
-      }
+      nextStationStart: nextStationLog?.startTime
     });
 
     // Log what we're about to create

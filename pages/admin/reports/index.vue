@@ -299,7 +299,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.stationName || 'N/A' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <button
-                  @click="openEmployeeItemsModal(row.userId, row.userName, row.itemsProcessed)"
+                  @click="openEmployeeItemsModal(row.userId, row.userName, row.itemsProcessed, row.stationId)"
                   :disabled="!row.itemsProcessed || row.itemsProcessed === 0"
                   :class="[
                     'font-medium',
@@ -580,6 +580,7 @@ const employeeItemsModal = reactive({
   isOpen: false,
   employeeId: null as string | null,
   employeeName: null as string | null,
+  stationId: null as string | null, // Store the specific station for this row
 });
 
 // Sewer attribution modal state
@@ -1461,13 +1462,14 @@ function calculateRevenueFromPeriods(revenueByPeriod: any[]): number {
 /**
  * Open the employee items modal for drill-down details
  */
-function openEmployeeItemsModal(employeeId: string, employeeName: string, itemCount: number) {
+function openEmployeeItemsModal(employeeId: string, employeeName: string, itemCount: number, stationId?: string) {
   if (!itemCount || itemCount === 0) {
     return; // Don't open modal if no items
   }
 
   employeeItemsModal.employeeId = employeeId;
   employeeItemsModal.employeeName = employeeName;
+  employeeItemsModal.stationId = stationId || null; // Store the specific station for this row
   employeeItemsModal.isOpen = true;
 }
 
