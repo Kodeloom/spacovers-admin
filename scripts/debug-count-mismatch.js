@@ -2,7 +2,7 @@
  * Debug script to find why main table and modal counts are different
  */
 
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma-app/client';
 
 const prisma = new PrismaClient();
 
@@ -159,16 +159,14 @@ async function debugCountMismatch() {
 }
 
 // Run the script
-if (require.main === module) {
-  debugCountMismatch()
-    .then(() => {
-      console.log('Debug script completed successfully');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Debug script failed:', error);
-      process.exit(1);
-    });
-}
+debugCountMismatch()
+  .then(() => {
+    console.log('Debug script completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Debug script failed:', error);
+    process.exit(1);
+  });
 
-module.exports = { debugCountMismatch };
+export { debugCountMismatch };
