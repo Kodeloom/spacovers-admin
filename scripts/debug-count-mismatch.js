@@ -10,10 +10,15 @@ async function debugCountMismatch() {
   console.log('🔍 Debugging count mismatch between main table and modal...');
   
   try {
-    // Get date range (last 30 days)
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    // Get date range - YOU NEED TO SET THIS TO MATCH YOUR UI
+    // Check what date range you have selected in the productivity report UI
+    // and update these dates to match exactly
+    
+    console.log('⚠️  IMPORTANT: Make sure these dates match your UI date filter!');
+    
+    // CHANGE THESE DATES TO MATCH YOUR UI:
+    const startDate = new Date('2025-11-18T00:00:00.000Z'); // UPDATE THIS
+    const endDate = new Date('2025-12-18T23:59:59.999Z');   // UPDATE THIS
     
     console.log(`📅 Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
     
