@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
     const limit = Math.min(parseInt(query.limit as string) || 50, 100); // Max 100 items per page
     const offset = (page - 1) * limit;
 
-    // Build where clause for filtering - SIMPLE: just get all logs for this user at this station
+    // Build where clause - EXACT SAME as productivity report
     const whereClause: any = {
       userId: userId,
       startTime: { not: null },
@@ -73,10 +73,9 @@ export default defineEventHandler(async (event) => {
       }
     };
 
-    // Apply validated date filters
+    // Apply date filters - EXACT SAME as productivity report
     if (startDate && endDate) {
       whereClause.startTime = { gte: startDate };
-      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
       whereClause.OR = [
         { endTime: { lte: endDate } },
         { endTime: null }
@@ -84,7 +83,6 @@ export default defineEventHandler(async (event) => {
     } else if (startDate) {
       whereClause.startTime = { gte: startDate };
     } else if (endDate) {
-      // Use OR condition: either endTime is within range OR endTime is null (in-progress)
       whereClause.OR = [
         { endTime: { lte: endDate } },
         { endTime: null }
@@ -99,14 +97,26 @@ export default defineEventHandler(async (event) => {
     let processingLogs;
     let totalCount;
     try {
-      // Get total count for pagination
+      // Get total count for pagination - EXACT SAME as productivity report
       totalCount = await prisma.itemProcessingLog.count({
-        where: whereClause
+        where: {
+          ...whereClause,
+          // IMPORTANT: Only include production items (same as main table)
+          orderItem: {
+            isProduct: true
+          }
+        }
       });
 
-      // Fetch paginated processing logs
+      // Fetch paginated processing logs - EXACT SAME as productivity report
       processingLogs = await prisma.itemProcessingLog.findMany({
-        where: whereClause,
+        where: {
+          ...whereClause,
+          // IMPORTANT: Only include production items (same as main table)
+          orderItem: {
+            isProduct: true
+          }
+        },
         include: {
           user: true,
           station: true,
