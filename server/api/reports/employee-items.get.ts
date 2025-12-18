@@ -61,14 +61,16 @@ export default defineEventHandler(async (event) => {
     const limit = Math.min(parseInt(query.limit as string) || 50, 100); // Max 100 items per page
     const offset = (page - 1) * limit;
 
-    // Build where clause for filtering
-    // NOTE: We need to find items where this user COMPLETED work, not just where their userId appears
-    // This means finding logs where this user was the NEXT scanner (who closed the previous log)
-    // For now, we'll use a simpler approach: get all logs for items this user touched
+    // Build where clause for filtering - SIMPLE: just get all logs for this user at this station
     const whereClause: any = {
       userId: userId,
-      // Include both completed and in-progress items
-      startTime: { not: null }
+      startTime: { not: null },
+      // Exclude Office station (same as main table)
+      station: {
+        NOT: {
+          name: 'Office'
+        }
+      }
     };
 
     // Apply validated date filters
@@ -235,27 +237,8 @@ export default defineEventHandler(async (event) => {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Calculate total scans count across ALL pages (to match main table)
-    // IMPORTANT: If stationId is provided, count only scans for that specific user-station combination
-    // If no stationId, count all scans by this employee across all stations (excluding Office)
-    const totalScansCount = await prisma.itemProcessingLog.count({
-      where: {
-        ...whereClause,
-        // Exclude Office station from scan counts (same as main report)
-        station: {
-          NOT: {
-            name: 'Office'
-          }
-        }
-      }
-    });
-
-    console.log(`🔍 Employee ${userId} scans summary:`, {
-      totalScansInDateRange: totalScansCount, // Total scans (matches main table)
-      currentPageScans: result.length,
-      dateRange: { startDate: startDate?.toISOString(), endDate: endDate?.toISOString() },
-      stationFilter: stationId || 'none'
-    });
+    // SIMPLE: Total scans = total count (they should be the same)
+    const totalScansCount = totalCount;
 
     return {
       success: true,
