@@ -4,40 +4,8 @@ import { unenhancedPrisma as prisma } from '~/server/lib/db';
 import { validateReportRequest, validateProcessingLogs, validateDataQuality, logPerformanceMetrics, validateQueryPerformance, safeDivide } from '~/utils/reportValidation';
 import { logError } from '~/utils/errorHandling';
 
-// Simple in-memory cache for productivity data (5 minute TTL)
-const productivityCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-function getCacheKey(params: any): string {
-  return JSON.stringify({
-    startDate: params.startDate?.toISOString(),
-    endDate: params.endDate?.toISOString(),
-    stationId: params.stationId,
-    userId: params.userId
-  });
-}
-
-function getCachedData(cacheKey: string): any | null {
-  const cached = productivityCache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    return cached.data;
-  }
-  if (cached) {
-    productivityCache.delete(cacheKey); // Remove expired cache
-  }
-  return null;
-}
-
-function setCachedData(cacheKey: string, data: any): void {
-  // Limit cache size to prevent memory issues
-  if (productivityCache.size > 100) {
-    const oldestKey = productivityCache.keys().next().value;
-    if (oldestKey) {
-      productivityCache.delete(oldestKey);
-    }
-  }
-  productivityCache.set(cacheKey, { data, timestamp: Date.now() });
-}
+// Cache removed to prevent stale data issues
+// If performance becomes an issue, consider implementing proper cache invalidation
 
 export default defineEventHandler(async (event) => {
   let sessionData: any = null;
@@ -91,17 +59,7 @@ export default defineEventHandler(async (event) => {
       console.warn('Performance warnings for productivity query:', performanceValidation.warnings);
     }
 
-    // Check cache first for performance
-    const cacheKey = getCacheKey(validation.validatedParams);
-    const cachedResult = getCachedData(cacheKey);
-    if (cachedResult) {
-      console.log('Returning cached productivity data');
-      return {
-        ...cachedResult,
-        cached: true,
-        cacheTimestamp: new Date().toISOString()
-      };
-    }
+    // Cache removed - always fetch fresh data to prevent stale data issues
 
     // Build where clause for filtering with enhanced logic
     const whereClause: any = {
@@ -587,8 +545,7 @@ export default defineEventHandler(async (event) => {
       }
     };
 
-    // Cache the result for future requests
-    setCachedData(cacheKey, responseData);
+    // Cache removed - no caching to prevent stale data issues
 
     return responseData;
 
