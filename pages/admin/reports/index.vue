@@ -185,7 +185,7 @@
           'grid gap-6 mb-8',
           'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
         ]">
-      <div class="bg-white shadow rounded-lg p-6">
+      <div v-if="activeTab !== 'missing-sewer'" class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:users" class="h-8 w-8 text-blue-600" />
@@ -201,7 +201,7 @@
         </div>
       </div>
       
-      <div class="bg-white shadow rounded-lg p-6">
+      <div v-if="activeTab !== 'missing-sewer'" class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:cube" class="h-8 w-8 text-green-600" />
@@ -217,7 +217,7 @@
         </div>
       </div>
       
-      <div class="bg-white shadow rounded-lg p-6">
+      <div v-if="activeTab !== 'missing-sewer'" class="bg-white shadow rounded-lg p-6">
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <Icon name="heroicons:clock" class="h-8 w-8 text-purple-600" />

@@ -168,9 +168,8 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Validate and clean processing logs data
-    const logValidation = validateProcessingLogs(processingLogs);
-    if (!logValidation.isValid && logValidation.validLogs.length === 0) {
+    // Skip validation - use ALL records regardless of duration or other issues
+    if (!processingLogs || processingLogs.length === 0) {
       return {
         success: true,
         data: [],
@@ -184,7 +183,7 @@ export default defineEventHandler(async (event) => {
         },
         summary: {
           totalProcessingLogs: 0,
-          totalUniqueItemsProcessed: 0,
+          totalScansProcessed: 0,
           totalProcessingTime: 0,
           totalProcessingTimeFormatted: '0s'
         },
@@ -196,13 +195,8 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Log warnings if any data issues were found
-    if (logValidation.warnings.length > 0) {
-      console.warn('Employee items report data warnings:', logValidation.warnings);
-    }
-
     // Convert processing logs to detailed entries with start/end times for each station
-    const result = logValidation.validLogs.map(log => {
+    const result = processingLogs.map(log => {
       // Safely access nested properties with fallbacks
       const orderItem = log.orderItem;
       const order = orderItem?.order;
@@ -245,10 +239,9 @@ export default defineEventHandler(async (event) => {
       };
     }).filter(item => item !== null); // Remove null entries
 
-    const totalPages = Math.ceil(totalCount / limit);
-
-    // SIMPLE: Total scans = total count (they should be the same)
+    // Use ALL records - no validation filtering (same as productivity API)
     const totalScansCount = totalCount;
+    const totalPages = Math.ceil(totalScansCount / limit);
 
     return {
       success: true,
@@ -256,7 +249,7 @@ export default defineEventHandler(async (event) => {
       pagination: {
         page,
         limit,
-        totalCount, // Total processing sessions (can be multiple per item)
+        totalCount: totalScansCount, // Total processing sessions (all records)
         totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1

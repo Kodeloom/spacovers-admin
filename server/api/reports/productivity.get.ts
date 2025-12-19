@@ -283,9 +283,8 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Validate and clean processing logs data
-    const logValidation = validateProcessingLogs(processingLogs);
-    if (!logValidation.isValid && logValidation.validLogs.length === 0) {
+    // Skip validation - count ALL records regardless of duration or other issues
+    if (!processingLogs || processingLogs.length === 0) {
       return {
         success: true,
         data: [],
@@ -294,32 +293,14 @@ export default defineEventHandler(async (event) => {
           totalItemsProcessed: 0,
           totalProductionTime: 0
         },
-        warnings: ['No valid processing logs found for the specified criteria'],
         message: 'No productivity data available for the selected date range and filters'
       };
     }
 
-    // Log warnings if any data issues were found
-    if (logValidation.warnings.length > 0) {
-      console.warn('Productivity report data warnings:', logValidation.warnings);
-    }
+    console.log(`Processing ${processingLogs.length} processing logs (no validation filtering)`);
 
-    // Log invalid logs count for monitoring
-    if (logValidation.invalidLogs.length > 0) {
-      console.warn(`Excluded ${logValidation.invalidLogs.length} invalid processing logs from productivity calculation`);
-    }
-
-    // Validate data quality and add recommendations
-    const dataQuality = validateDataQuality(logValidation.validLogs);
-    if (dataQuality.warnings.length > 0) {
-      console.warn('Data quality warnings:', dataQuality.warnings);
-    }
-
-    // Combine validation warnings with data quality warnings
-    const allWarnings = [
-      ...logValidation.warnings,
-      ...dataQuality.warnings
-    ];
+    // No validation warnings - use all data
+    const allWarnings: string[] = [];
 
     // CORRECTED LOGIC: Count scans per user per station + proper time attribution
     // Group by user and station to calculate aggregated data
@@ -333,10 +314,10 @@ export default defineEventHandler(async (event) => {
       scans: any[]; // Store actual scans for the modal
     }>();
 
-    console.log(`Processing ${logValidation.validLogs.length} processing logs`);
+    console.log(`Processing ${processingLogs.length} processing logs (all records)`);
 
     // First pass: Count scans per user per station (simple counting)
-    for (const log of logValidation.validLogs) {
+    for (const log of processingLogs) {
       const userId = log.userId;
       const userName = log.user?.name || 'Unknown User';
       const stationId = log.stationId;
@@ -373,7 +354,7 @@ export default defineEventHandler(async (event) => {
     // Group logs by order item to calculate time between scans
     const logsByOrderItem = new Map<string, any[]>();
     
-    for (const log of logValidation.validLogs) {
+    for (const log of processingLogs) {
       const orderItemId = log.orderItemId;
       if (!logsByOrderItem.has(orderItemId)) {
         logsByOrderItem.set(orderItemId, []);
@@ -520,14 +501,11 @@ export default defineEventHandler(async (event) => {
         totalProductionTime: filteredResult.reduce((sum, r) => sum + r.totalDuration, 0)
       },
       warnings: allWarnings.length > 0 ? allWarnings : undefined,
-      dataQuality: {
-        score: dataQuality.qualityScore,
-        recommendations: dataQuality.recommendations.length > 0 ? dataQuality.recommendations : undefined
-      },
+      // No data quality validation - using all records
       performance: {
         queryDuration: Date.now() - queryStartTime,
         recordsProcessed: processingLogs.length,
-        validRecords: logValidation.validLogs.length,
+        validRecords: processingLogs.length, // All records are considered valid
         suggestions: performanceValidation.suggestions.length > 0 ? performanceValidation.suggestions : undefined
       },
       filters: {
