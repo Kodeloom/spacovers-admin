@@ -208,7 +208,7 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-500">
-              {{ activeTab === 'productivity' ? 'Items Processed' : 'Items Produced' }}
+              {{ activeTab === 'productivity' ? 'Items Finished' : 'Items Produced' }}
             </p>
             <p class="text-2xl font-semibold text-gray-900">
               {{ activeTab === 'productivity' ? (summaryStats.totalItemsProcessed || 0) : (summaryStats.totalItemsProduced || 0) }}

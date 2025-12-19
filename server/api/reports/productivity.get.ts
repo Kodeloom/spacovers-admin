@@ -290,7 +290,7 @@ export default defineEventHandler(async (event) => {
         data: [],
         summary: {
           totalEmployees: 0,
-          totalItemsProcessed: 0,
+          totalItemsProcessed: 0, // Finished order items count
           totalProductionTime: 0
         },
         message: 'No productivity data available for the selected date range and filters'
@@ -314,7 +314,24 @@ export default defineEventHandler(async (event) => {
       scans: any[]; // Store actual scans for the modal
     }>();
 
-    console.log(`Processing ${processingLogs.length} processing logs (all records)`);
+    // Calculate finished order items count (PRODUCT_FINISHED or READY status)
+    // This replaces the "Items Processed" KPI with actual finished products
+    const finishedOrderItemsCount = await prisma.orderItem.count({
+      where: {
+        itemStatus: {
+          in: ['PRODUCT_FINISHED', 'READY']
+        },
+        // Apply same date filtering based on when items were last updated (finished)
+        updatedAt: startDate && endDate ? {
+          gte: startDate,
+          lte: endDate
+        } : undefined,
+        // Only count production items
+        isProduct: true
+      }
+    });
+
+    console.log(`📦 Found ${finishedOrderItemsCount} finished order items in date range`);
 
     // First pass: Count scans per user per station (simple counting)
     for (const log of processingLogs) {
@@ -497,7 +514,7 @@ export default defineEventHandler(async (event) => {
       data: filteredResult,
       summary: {
         totalEmployees: new Set(filteredResult.map(r => r.userId)).size,
-        totalItemsProcessed: filteredResult.reduce((sum, r) => sum + r.itemsProcessed, 0), // This is now total scans
+        totalItemsProcessed: finishedOrderItemsCount, // Count of finished order items (PRODUCT_FINISHED or READY)
         totalProductionTime: filteredResult.reduce((sum, r) => sum + r.totalDuration, 0)
       },
       warnings: allWarnings.length > 0 ? allWarnings : undefined,
@@ -578,7 +595,7 @@ export default defineEventHandler(async (event) => {
           data: [],
           summary: {
             totalEmployees: 0,
-            totalItemsProcessed: 0,
+            totalItemsProcessed: 0, // Finished order items count
             totalProductionTime: 0
           },
           error: 'Report generation failed'

@@ -102,7 +102,7 @@ const props = withDefaults(defineProps<Props>(), {
   tips: () => [
     'You can export reports to CSV for further analysis in Excel or other tools.',
     'Use date filters to focus on specific time periods for more accurate insights.',
-    'The productivity report shows unique items processed, not total scans.',
+    'The productivity report shows finished order items (PRODUCT_FINISHED/READY status).',
     'Lead times are calculated in business days (8-hour workdays).',
     'Click on employee item counts to see detailed processing information.',
     'Smaller date ranges will load faster and provide more focused insights.',
