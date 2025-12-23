@@ -94,6 +94,14 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Prevent scanning items that are already READY (final status)
+    if (orderItem.itemStatus === 'READY') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `This item is already READY and cannot be scanned again. Item ${orderItem.productNumber || orderItem.id.slice(-8)} has completed all processing steps.`
+      });
+    }
+
     // Find the station by ID or name
     let station;
     if (stationId.length > 10) {
@@ -385,7 +393,7 @@ export default defineEventHandler(async (event) => {
       const allReady = allItems.every(item => item.itemStatus === 'READY');
       
       if (allReady) {
-        await prisma.order.update({
+        await logPrisma.order.update({
           where: { id: orderItem.orderId },
           data: {
             orderStatus: 'READY_TO_SHIP',
